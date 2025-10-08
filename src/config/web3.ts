@@ -1,4 +1,11 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import {
+  coinbaseWallet,
+  metaMaskWallet,
+  okxWallet,
+  rainbowWallet,
+  walletConnectWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 
 const FALLBACK_PROJECT_ID = "00000000000000000000000000000000";
@@ -13,6 +20,18 @@ export const wagmiConfig = getDefaultConfig({
   projectId,
   chains: supportedChains,
   ssr: true,
+  wallets: [
+    {
+      groupName: "Popular",
+      wallets: [
+        metaMaskWallet,
+        rainbowWallet,
+        walletConnectWallet,
+        coinbaseWallet,
+        okxWallet,
+      ],
+    },
+  ],
 });
 
 export type SupportedChainId = (typeof supportedChains)[number]["id"];
