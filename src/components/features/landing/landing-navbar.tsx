@@ -23,7 +23,10 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/50 bg-[rgba(255,247,247,0.85)] backdrop-blur">
+    <header
+      className="sticky top-0 z-40 border-b border-rose-200/70 backdrop-blur"
+      style={{ backgroundColor: `${brandPalette.cream}CC` }}
+    >
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <BeeLogo size={30} />
@@ -46,7 +49,7 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Badge className="rounded-full border border-rose-200 bg-white/70 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
+          <Badge className="rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
             Role · {roleLabel}
           </Badge>
           <Link
@@ -59,7 +62,7 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
         </div>
 
         <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 text-sm font-medium text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white/80 text-sm font-medium text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 md:hidden"
           type="button"
           onClick={() => setMobileOpen((previous) => !previous)}
           aria-expanded={mobileOpen}
@@ -70,12 +73,13 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
 
       <div
         className={cn(
-          "border-t border-white/50 bg-[rgba(255,247,247,0.95)] transition-all duration-200 md:hidden",
+          "border-t border-rose-200/70 transition-all duration-200 md:hidden",
           mobileOpen ? "max-h-64 opacity-100" : "max-h-0 overflow-hidden opacity-0",
         )}
+        style={{ backgroundColor: `${brandPalette.cream}F2` }}
       >
         <div className="flex flex-col gap-4 px-6 py-4 text-sm text-slate-700">
-          <Badge className="w-max rounded-full border border-rose-200 bg-white/70 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
+          <Badge className="w-max rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
             Role · {roleLabel}
           </Badge>
           {navLinks.map((link) => (

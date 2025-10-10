@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  STREAMER
+  SUPERADMIN
+}
+
+enum DonationStatus {
+  PENDING
+  CONFIRMED
+  ORPHANED
+}
+
+model User {
+  id            String                   @id @default(cuid())
+  wallet        String                   @unique
+  email         String?                  @unique
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  role          Role                     @default(USER)
+  streamer      Streamer?
+  auditLogs     AuditLog[]
+  sessions      Session[]
+  globalWhitelistUpdates GlobalTokenWhitelist[] @relation("GlobalWhitelistUpdatedBy")
+  platformFeeChanges      PlatformFeeHistory[]   @relation("PlatformFeeChangedBy")
+  streamerWhitelistUpdates StreamerTokenWhitelist[] @relation("StreamerWhitelistUpdatedBy")
+}
+
+model Streamer {
+  id              String                    @id @default(cuid())
+  userId          String                    @unique
+  user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username        String                    @unique
+  displayName     String?
+  avatarUrl       String?
+  bio             String?
+  primaryTokenId  String?
+  primaryToken    Token?                    @relation("StreamerPrimaryToken", fields: [primaryTokenId], references: [id], onDelete: SetNull)
+  autoswapEnabled Boolean                   @default(true)
+  slippageBps     Int                       @default(50)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  overlaySettings OverlaySettings?
+  donationLinks   DonationLink[]
+  donations       Donation[]
+  whitelists      StreamerTokenWhitelist[]
+  overlayTokens   OverlayToken[]
+  webhooks        Webhook[]
+}
+
+model DonationLink {
+  id           String       @id @default(cuid())
+  streamerId   String
+  streamer     Streamer     @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  slug         String       @unique
+  title        String?
+  welcomeMsg   String?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  donations    Donation[]
+}
+
+model Donation {
+  id            String        @id @default(cuid())
+  linkId        String?
+  link          DonationLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  streamerId    String
+  streamer      Streamer      @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  donorWallet   String?
+  tokenInId     String
+  tokenIn       Token         @relation("DonationTokenIn", fields: [tokenInId], references: [id])
+  tokenOutId    String
+  tokenOut      Token         @relation("DonationTokenOut", fields: [tokenOutId], references: [id])
+  amountInRaw   String
+  amountOutRaw  String
+  feeRaw        String
+  txHash        String
+  logIndex      Int
+  blockNumber   Int
+  chainId       Int
+  timestamp     DateTime
+  message       String?       @db.Text
+  status        DonationStatus @default(CONFIRMED)
+  createdAt     DateTime       @default(now())
+
+  @@unique([txHash, logIndex])
+  @@index([streamerId])
+  @@index([txHash])
+}
+
+model Token {
+  id                String                   @id @default(cuid())
+  chainId           Int
+  address           String
+  symbol            String
+  name              String?
+  decimals          Int
+  isNative          Boolean                  @default(false)
+  createdAt         DateTime                 @default(now())
+  donationsIn       Donation[]               @relation("DonationTokenIn")
+  donationsOut      Donation[]               @relation("DonationTokenOut")
+  streamersPrimary  Streamer[]               @relation("StreamerPrimaryToken")
+  streamerWhitelist StreamerTokenWhitelist[]
+  globalWhitelist   GlobalTokenWhitelist?
+
+  @@unique([chainId, address])
+}
+
+model GlobalTokenWhitelist {
+  id        String   @id @default(cuid())
+  tokenId   String   @unique
+  token     Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  allowed   Boolean
+  updatedBy String
+  updatedByUser User @relation("GlobalWhitelistUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt DateTime @updatedAt
+}
+
+model StreamerTokenWhitelist {
+  id         String   @id @default(cuid())
+  streamerId String
+  tokenId    String
+  allowed    Boolean
+  updatedBy  String?
+  updatedByUser User? @relation("StreamerWhitelistUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  updatedAt  DateTime @updatedAt
+  streamer   Streamer @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  token      Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([streamerId, tokenId])
+  @@index([tokenId])
+}
+
+model OverlaySettings {
+  id                String   @id @default(cuid())
+  streamerId        String   @unique
+  theme             String?
+  soundUrl          String?
+  animationPreset   String?
+  showLeaderboard   Boolean  @default(true)
+  minAmountUsd      Float    @default(0)
+  authSecret        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  streamer          Streamer @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+}
+
+model OverlayToken {
+  id          String   @id @default(cuid())
+  streamerId  String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  streamer    Streamer @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+
+  @@index([streamerId])
+  @@index([expiresAt])
+}
+
+model PlatformFeeHistory {
+  id           String   @id @default(cuid())
+  feeBps       Int
+  feeRecipient String
+  txHash       String?
+  changedBy    String
+  changedByUser User @relation("PlatformFeeChangedBy", fields: [changedBy], references: [id], onDelete: Restrict)
+  changedAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action    String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+}
+
+model Webhook {
+  id         String    @id @default(cuid())
+  streamerId String?
+  streamer   Streamer? @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  url        String
+  secret     String?
+  eventTypes String[]
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([streamerId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String   @unique
+  expiresAt    DateTime
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  siweNonces   SiweNonce[]
+
+  @@index([userId])
+  @@index([sessionToken])
+}
+
+model SiweNonce {
+  id         String   @id @default(cuid())
+  nonce      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  consumedAt DateTime?
+  sessionId  String?
+  session    Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([expiresAt])
+}
+

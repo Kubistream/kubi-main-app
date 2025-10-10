@@ -4,6 +4,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 import { Web3Provider } from "@/providers/web3-provider";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AuthProvider } from "@/providers/auth-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-slate-950 text-slate-100 antialiased`}
       >
         <Web3Provider>
-          <AppLayout>{children}</AppLayout>
+          <AuthProvider>
+            <AppLayout>{children}</AppLayout>
+          </AuthProvider>
         </Web3Provider>
       </body>
     </html>

@@ -13,7 +13,13 @@ const FALLBACK_PROJECT_ID = "00000000000000000000000000000000";
 const projectId =
   process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ?? FALLBACK_PROJECT_ID;
 
-export const supportedChains = [mainnet, polygon, optimism, arbitrum, base];
+export const supportedChains = [
+  mainnet,
+  polygon,
+  optimism,
+  arbitrum,
+  base,
+] as const;
 
 export const wagmiConfig = getDefaultConfig({
   appName: "Kubi Stream Alerts",
