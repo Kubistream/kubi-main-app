@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { Prisma, Role } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { ZodError, z } from "zod";
+// Zod removed per request; using manual checks
 
 import { SiweError, verifySiweMessage } from "@/lib/auth/siwe";
 import {
@@ -14,11 +14,11 @@ import {
 } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
-const verifyPayloadSchema = z.object({
-  message: z.string(),
-  signature: z.string(),
-  createStreamerProfile: z.boolean().optional(),
-});
+interface VerifyPayload {
+  message: string;
+  signature: string;
+  createStreamerProfile?: boolean;
+}
 
 async function ensureStreamerProfile(userId: string, wallet: string) {
   const existing = await prisma.streamer.findUnique({ where: { userId } });
@@ -66,20 +66,33 @@ async function ensureStreamerProfile(userId: string, wallet: string) {
 
 export async function POST(request: NextRequest) {
   const { session, sessionResponse } = await getAuthSession(request);
-  let payload: z.infer<typeof verifyPayloadSchema>;
-
+  let payload: VerifyPayload;
   try {
-    payload = verifyPayloadSchema.parse(await request.json());
-  } catch (error) {
-    if (error instanceof ZodError) {
+    const body = (await request.json()) as Partial<VerifyPayload>;
+    if (
+      !body ||
+      typeof body.message !== "string" ||
+      typeof body.signature !== "string"
+    ) {
       const response = NextResponse.json(
-        { error: "Invalid request payload", details: error.flatten() },
+        { error: "Invalid request payload" },
         { status: 422 },
       );
       return applySessionCookies(sessionResponse, response);
     }
-
-    const response = NextResponse.json({ error: "Unable to parse request" }, { status: 400 });
+    payload = {
+      message: body.message,
+      signature: body.signature,
+      createStreamerProfile:
+        typeof body.createStreamerProfile === "boolean"
+          ? body.createStreamerProfile
+          : undefined,
+    };
+  } catch {
+    const response = NextResponse.json(
+      { error: "Unable to parse request" },
+      { status: 400 },
+    );
     return applySessionCookies(sessionResponse, response);
   }
 
