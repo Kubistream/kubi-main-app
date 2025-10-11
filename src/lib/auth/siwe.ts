@@ -6,8 +6,15 @@ import { prisma } from "@/lib/prisma";
 const NONCE_TTL_SECONDS = 60 * 10; // 10 minutes
 const NONCE_CLEANUP_THRESHOLD_HOURS = 24;
 
-const appHost = new URL(env.APP_URL).host;
-const appOrigin = new URL(env.NEXT_PUBLIC_APP_URL).origin;
+function getEnvUrl(name: string, value?: string) {
+  if (!value) {
+    throw new Error(`${name} is not set`);
+  }
+  return new URL(value);
+}
+
+const appHost = getEnvUrl("APP_URL", env.APP_URL).host;
+const appOrigin = getEnvUrl("NEXT_PUBLIC_APP_URL", env.NEXT_PUBLIC_APP_URL).origin;
 
 export class SiweError extends Error {
   constructor(message: string, public readonly status = 400) {
