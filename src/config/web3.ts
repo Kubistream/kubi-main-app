@@ -1,7 +1,7 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import {
   coinbaseWallet,
-  metaMaskWallet,
+  injectedWallet,
   okxWallet,
   rainbowWallet,
   walletConnectWallet,
@@ -24,7 +24,8 @@ export const wagmiConfig = getDefaultConfig({
     {
       groupName: "Popular",
       wallets: [
-        metaMaskWallet,
+        // Use injected wallet to avoid bringing in MetaMask SDK (and RN deps)
+        injectedWallet,
         rainbowWallet,
         walletConnectWallet,
         coinbaseWallet,

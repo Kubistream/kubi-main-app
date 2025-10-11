@@ -41,7 +41,14 @@ const nextConfig: NextConfig = {
   webpack: (config) => {
     config.resolve ??= {};
     config.resolve.alias ??= {};
-    Object.assign(config.resolve.alias, alias);
+    Object.assign(config.resolve.alias, alias, {
+      // Silence optional RN + logger deps pulled by connectors in the browser
+      "@react-native-async-storage/async-storage": path.join(
+        __dirname,
+        "src/shims/empty"
+      ),
+      "pino-pretty": path.join(__dirname, "src/shims/empty"),
+    });
     return config;
   },
 };
