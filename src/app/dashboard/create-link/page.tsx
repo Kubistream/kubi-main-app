@@ -64,9 +64,8 @@ export default function CreateLinkPage() {
             {!isConnected && (
               <div className="flex flex-col items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center">
                 <p className="text-sm text-slate-600">
-                  Connect your wallet to manage creator links.
+                  Connect your wallet from the header to manage creator links.
                 </p>
-                <ConnectWalletButton label="Connect wallet" />
               </div>
             )}
 

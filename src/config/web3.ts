@@ -1,25 +1,19 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import {
   coinbaseWallet,
-  metaMaskWallet,
+  injectedWallet,
   okxWallet,
   rainbowWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
-import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 
 const FALLBACK_PROJECT_ID = "00000000000000000000000000000000";
 
 const projectId =
   process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ?? FALLBACK_PROJECT_ID;
 
-export const supportedChains = [
-  mainnet,
-  polygon,
-  optimism,
-  arbitrum,
-  base,
-] as const;
+export const supportedChains = [baseSepolia] as const;
 
 export const wagmiConfig = getDefaultConfig({
   appName: "Kubi Stream Alerts",
@@ -30,7 +24,8 @@ export const wagmiConfig = getDefaultConfig({
     {
       groupName: "Popular",
       wallets: [
-        metaMaskWallet,
+        // Use injected wallet to avoid bringing in MetaMask SDK (and RN deps)
+        injectedWallet,
         rainbowWallet,
         walletConnectWallet,
         coinbaseWallet,
