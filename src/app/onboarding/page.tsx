@@ -64,9 +64,8 @@ export default function OnboardingPage() {
           {!isConnected && (
             <div className="flex flex-col items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center">
               <p className="text-sm text-slate-600">
-                Connect your wallet to continue. We support popular providers through RainbowKit.
+                Connect your wallet from the header to continue. We support popular providers through RainbowKit.
               </p>
-              <ConnectWalletButton label="Connect wallet" />
             </div>
           )}
 

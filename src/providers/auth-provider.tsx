@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { SiweMessage } from "siwe";
 
@@ -49,6 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const [isSigning, setIsSigning] = useState(false);
+  const isSigningRef = useRef(false);
+  useEffect(() => {
+    isSigningRef.current = isSigning;
+  }, [isSigning]);
 
   const fetchSession = useCallback(async () => {
     try {
@@ -105,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setIsSigning(true);
+      isSigningRef.current = true;
 
       try {
         const nonceResponse = await fetch("/api/auth/nonce", {
@@ -155,10 +160,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       } finally {
         setIsSigning(false);
+        isSigningRef.current = false;
       }
     },
     [address, chainId, signMessageAsync],
   );
+
+  // Centralized auto sign-in with strong de-duplication guards.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!address) {
+      // Allow auto sign-in again if user disconnects.
+      return;
+    }
+    if (status !== "unauthenticated") return;
+    if (isSigningRef.current) return;
+
+    const AUTO_KEY = "kubi:siwe:auto";
+    if (sessionStorage.getItem(AUTO_KEY) === "1") return;
+
+    sessionStorage.setItem(AUTO_KEY, "1");
+
+    // Fire and forget; provider-level lock prevents parallel prompts.
+    signIn().catch((error) => {
+      console.error("Automatic SIWE sign-in failed", error);
+      // allow retry if it failed
+      sessionStorage.removeItem(AUTO_KEY);
+    });
+  }, [address, status, signIn]);
 
   const signOut = useCallback(async () => {
     try {
