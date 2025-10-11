@@ -6,7 +6,7 @@ import {
   rainbowWallet,
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
-import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains"; // Only import baseSepolia
 
 const FALLBACK_PROJECT_ID = "00000000000000000000000000000000";
 
@@ -14,11 +14,7 @@ const projectId =
   process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ?? FALLBACK_PROJECT_ID;
 
 export const supportedChains = [
-  mainnet,
-  polygon,
-  optimism,
-  arbitrum,
-  base,
+  baseSepolia,
 ] as const;
 
 export const wagmiConfig = getDefaultConfig({
