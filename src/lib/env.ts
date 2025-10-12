@@ -26,10 +26,8 @@ function isNonEmpty(str: unknown): str is string {
 function safeUrl(value: unknown): string | undefined {
   if (!isNonEmpty(value)) return undefined;
   try {
-    // Ensure protocol exists and URL is well-formed
-    // eslint-disable-next-line no-new
-    new URL(value);
-    return value;
+    const parsed = new URL(value);
+    return parsed.toString();
   } catch {
     return undefined;
   }
@@ -67,7 +65,6 @@ if (!env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID)
 
 if (warnings.length > 0) {
   // Keep non-fatal: only warn to console
-  // eslint-disable-next-line no-console
   console.warn(
     [
       "Environment warnings (non-fatal):",

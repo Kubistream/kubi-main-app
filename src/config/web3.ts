@@ -20,6 +20,7 @@ export const wagmiConfig = getDefaultConfig({
   projectId,
   chains: supportedChains,
   ssr: true,
+  // Wallet auto-connect should be configured with wagmi's createConfig instead of rainbowkit's getDefaultConfig.
   wallets: [
     {
       groupName: "Popular",

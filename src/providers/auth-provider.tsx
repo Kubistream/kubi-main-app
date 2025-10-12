@@ -1,29 +1,71 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { SiweMessage } from "siwe";
 
 type UserRole = "USER" | "STREAMER" | "SUPERADMIN";
 
 type StreamerProfile = {
-  id: string;
-  username: string;
+  username: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  bio: string | null;
+  isComplete: boolean;
+  completedAt: string | null;
 };
 
 type AuthUser = {
   id: string;
   wallet: string;
   role: UserRole;
-  chainId: number;
-  streamerProfile: StreamerProfile | null;
+  chainId?: number;
+  streamerId: string | null;
+  profile: StreamerProfile;
   session?: {
     id: string;
     expiresAt: string;
   };
 };
+
+type AuthUserApiResponse = Omit<AuthUser, "profile" | "session"> & {
+  profile?: Partial<StreamerProfile> | null;
+  session?: {
+    id: string;
+    expiresAt: string | Date;
+  } | null;
+};
+
+const normalizeProfile = (profile: Partial<StreamerProfile> | null | undefined): StreamerProfile => ({
+  username: profile?.username ?? null,
+  displayName: profile?.displayName ?? null,
+  avatarUrl: profile?.avatarUrl ?? null,
+  bio: profile?.bio ?? null,
+  isComplete: Boolean(profile?.isComplete),
+  completedAt: profile?.completedAt ?? null,
+});
+
+const normalizeSession = (session: AuthUserApiResponse["session"]) => {
+  if (!session) return undefined;
+  return {
+    id: session.id,
+    expiresAt:
+      typeof session.expiresAt === "string"
+        ? session.expiresAt
+        : new Date(session.expiresAt).toISOString(),
+  };
+};
+
+const normalizeAuthUser = (apiUser: AuthUserApiResponse): AuthUser => ({
+  id: apiUser.id,
+  wallet: apiUser.wallet,
+  role: apiUser.role,
+  chainId: apiUser.chainId,
+  streamerId: apiUser.streamerId ?? null,
+  profile: normalizeProfile(apiUser.profile),
+  session: normalizeSession(apiUser.session),
+});
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -45,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { address, chainId } = useAccount();
   const { disconnectAsync } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
+  const pathname = usePathname();
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
@@ -63,16 +106,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const data = (await response.json()) as { user: AuthUser };
-      setUser({
-        ...data.user,
-        session: data.user.session
-          ? {
-              id: data.user.session.id,
-              expiresAt: data.user.session.expiresAt,
-            }
-          : undefined,
-      });
+      const data = (await response.json()) as { user: AuthUserApiResponse | null };
+      if (!data.user) {
+        setUser(null);
+        setStatus("unauthenticated");
+        return;
+      }
+
+      setUser(normalizeAuthUser(data.user));
       setStatus("authenticated");
     } catch (error) {
       console.error("Failed to load authenticated user", error);
@@ -152,8 +193,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw new Error(errorPayload.error || "Failed to verify SIWE signature");
         }
 
-        const data = (await verifyResponse.json()) as { user: AuthUser };
-        setUser(data.user);
+        // Validate that Set-Cookie from verify actually established a session.
+        // We read back /api/auth/me and synchronise client auth explicitly.
+        const meResponse = await fetch("/api/auth/me", { credentials: "include" });
+        if (!meResponse.ok) {
+          throw new Error("Session not established after signature. Please try again.");
+        }
+        const meData = (await meResponse.json()) as { user: AuthUserApiResponse | null };
+        if (!meData.user) {
+          throw new Error("Signed but no session was found. Please retry.");
+        }
+        setUser(normalizeAuthUser(meData.user));
         setStatus("authenticated");
       } catch (error) {
         console.error("SIWE sign-in failed", error);
@@ -176,7 +226,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (status !== "unauthenticated") return;
     if (isSigningRef.current) return;
 
-    const AUTO_KEY = "kubi:siwe:auto";
+    // Skip auto sign-in on landing/marketing, but allow it on onboarding
+    // so auto-connect pairs with automatic SIWE.
+    if (pathname === "/" || pathname?.startsWith("/landing")) return;
+
+    // Deduplicate by address to avoid blocking sign-in after address switch.
+    const AUTO_KEY = address ? `kubi:siwe:auto:${address.toLowerCase()}` : "kubi:siwe:auto";
     if (sessionStorage.getItem(AUTO_KEY) === "1") return;
 
     sessionStorage.setItem(AUTO_KEY, "1");
@@ -187,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // allow retry if it failed
       sessionStorage.removeItem(AUTO_KEY);
     });
-  }, [address, status, signIn]);
+  }, [address, status, signIn, pathname]);
 
   const signOut = useCallback(async () => {
     try {

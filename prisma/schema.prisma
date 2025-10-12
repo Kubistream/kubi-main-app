@@ -20,20 +20,21 @@ enum DonationStatus {
 }
 
 model User {
-  id            String                   @id @default(cuid())
-  wallet        String                   @unique
-  email         String?                  @unique
-  displayName     String?
-  avatarUrl       String?
-  bio             String?
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-  role          Role                     @default(USER)
-  streamer      Streamer?
-  auditLogs     AuditLog[]
-  sessions      Session[]
-  globalWhitelistUpdates GlobalTokenWhitelist[] @relation("GlobalWhitelistUpdatedBy")
-  platformFeeChanges      PlatformFeeHistory[]   @relation("PlatformFeeChangedBy")
+  id                   String                    @id @default(cuid())
+  wallet               String                    @unique
+  email                String?                   @unique
+  username             String?                   @unique
+  displayName          String?
+  avatarUrl            String?
+  bio                  String?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  role                 Role                      @default(USER)
+  streamer             Streamer?
+  auditLogs            AuditLog[]
+  sessions             Session[]
+  globalWhitelistUpdates GlobalTokenWhitelist[]  @relation("GlobalWhitelistUpdatedBy")
+  platformFeeChanges     PlatformFeeHistory[]    @relation("PlatformFeeChangedBy")
   streamerWhitelistUpdates StreamerTokenWhitelist[] @relation("StreamerWhitelistUpdatedBy")
 }
 
@@ -41,6 +42,8 @@ model Streamer {
   id              String                    @id @default(cuid())
   userId          String                    @unique
   user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileCompleted   Boolean                @default(false)
+  profileCompletedAt DateTime?
   primaryTokenId  String?
   primaryToken    Token?                    @relation("StreamerPrimaryToken", fields: [primaryTokenId], references: [id], onDelete: SetNull)
   autoswapEnabled Boolean                   @default(true)
@@ -227,4 +230,3 @@ model SiweNonce {
 
   @@index([expiresAt])
 }
-

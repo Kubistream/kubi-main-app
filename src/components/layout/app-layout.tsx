@@ -24,6 +24,15 @@ export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
 
   const isMarketingRoute = pathname === "/" || pathname?.startsWith("/landing");
+  const isDashboardExperience =
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/onboarding") ||
+    // Overlays are rendered standalone (for OBS), no app chrome
+    pathname?.startsWith("/overlays");
+
+  if (isDashboardExperience) {
+    return <>{children}</>;
+  }
 
   return (
     <div

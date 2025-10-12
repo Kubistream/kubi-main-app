@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Modak } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 import { Web3Provider } from "@/providers/web3-provider";
@@ -16,9 +16,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const modak = Modak({
+  variable: "--font-modak",
+  weight: "400",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "Kubi Stream Alerts",
+  title: "Kubi Stream",
   description: "Build your Web3-powered donation overlay and manage supporters in one place.",
+  icons: {
+    icon: [{ url: "/assets/brand/logo.ico" }],
+    shortcut: [{ url: "/assets/brand/logo.ico" }],
+  },
 };
 
 export default function RootLayout({
@@ -29,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-slate-950 text-slate-100 antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${modak.variable} bg-slate-950 text-slate-100 antialiased`}
       >
         <Web3Provider>
           <AuthProvider>
