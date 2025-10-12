@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 import { Web3Provider } from "@/providers/web3-provider";
-import { AppLayout } from "@/components/layout/app-layout";
 import { AuthProvider } from "@/providers/auth-provider";
+import RouteLayout from "@/components/layout/route-layout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,12 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-slate-950 text-slate-100 antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Web3Provider>
           <AuthProvider>
-            <AppLayout>{children}</AppLayout>
+            <RouteLayout>{children}</RouteLayout>
           </AuthProvider>
         </Web3Provider>
       </body>

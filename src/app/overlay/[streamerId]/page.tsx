@@ -59,16 +59,15 @@ export default function OverlayPage() {
     }
   }, [queue, current]);
 
-  if (!visible || !current) return (
-    <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
-    </div>
-  );
+  // if (!visible || !current) return (
+  //   <div className="fixed inset-0 z-50 flex items-center justify-center">
+  //   </div>
+  // );
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
-      <img src={current.gif} alt="Overlay Animation" className="w-80 h-80" />
-      <div className="absolute mt-4 text-black text-2xl drop-shadow-lg animate-pulse">
-        {current.message}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute mt-4 text-white text-2xl drop-shadow-lg animate-pulse">
+        asdasdsada
       </div>
     </div>
   );
