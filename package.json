@@ -14,8 +14,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.90.2",
+    "@uniswap/widgets": "^2.59.0",
+    "ethers": "^6.15.0",
     "iron-session": "^8.0.4",
     "next": "15.5.4",
     "qrcode.react": "^4.2.0",
@@ -37,5 +40,4 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   }
-  
 }
