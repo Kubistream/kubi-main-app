@@ -1,10 +1,9 @@
 import { LandingHero } from "@/components/features/landing/landing-hero";
 import { LandingBenefits } from "@/components/features/landing/landing-benefits";
 import { LandingHowItWorks } from "@/components/features/landing/landing-how-it-works";
-import { LandingSecurityAndCommunity } from "@/components/features/landing/landing-security";
-import { LandingPricing } from "@/components/features/landing/landing-pricing";
 import { LandingFaq } from "@/components/features/landing/landing-faq";
 import { LandingFooter } from "@/components/features/landing/landing-footer";
+import { LandingCallout } from "@/components/features/landing/landing-callout";
 
 export default function LandingPage() {
   return (
@@ -12,9 +11,9 @@ export default function LandingPage() {
       <LandingHero />
       <LandingBenefits />
       <LandingHowItWorks />
-      <LandingSecurityAndCommunity />
-      <LandingPricing />
+      {/* <LandingSecurityAndCommunity /> */}
       <LandingFaq />
+      <LandingCallout />
       <LandingFooter />
     </main>
   );

@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
-import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
-import { AccentPill, BeeLogo, BrandButton, brandPalette } from "./brand";
+import { AccentPill, BrandButton, brandPalette } from "./brand";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useLaunchApp } from "@/hooks/use-launch-app";
 
 interface LandingNavbarProps {
   roleLabel: string;
@@ -15,12 +16,12 @@ interface LandingNavbarProps {
 const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#how", label: "How it works" },
-  { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
 
 export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { onLaunch, label: ctaLabel, disabled } = useLaunchApp();
 
   return (
     <header
@@ -29,10 +30,9 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
     >
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          <BeeLogo size={30} />
-          <span className="text-xl font-black tracking-tight" style={{ color: brandPalette.ink }}>
-            Kubi
-          </span>
+          <Link href="/" className="inline-flex items-center gap-2" aria-label="Kubi Home">
+            <Image src="/assets/brand/logo2.png" alt="Kubi" width={100} height={100} />
+          </Link>
           <AccentPill className="hidden sm:inline-flex">
             <span className="flex items-center gap-1 text-rose-500">
               Beta
@@ -52,13 +52,14 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
           <Badge className="rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
             Role · {roleLabel}
           </Badge>
-          <Link
-            href="/dashboard"
-            className="inline-flex h-11 items-center rounded-full border border-rose-200 px-5 text-sm font-medium text-rose-500 transition hover:bg-rose-100 hover:text-rose-600"
+          <button
+            type="button"
+            onClick={onLaunch}
+            disabled={disabled}
+            className="inline-flex h-11 items-center rounded-full border border-rose-200 px-5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Dashboard
-          </Link>
-          <ConnectWalletButton label="Connect" />
+            {ctaLabel}
+          </button>
         </div>
 
         <button
@@ -87,10 +88,17 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
               {link.label}
             </Link>
           ))}
-          <BrandButton className="h-11 justify-center" asChild>
-            <Link href="/dashboard">Dashboard</Link>
+          <BrandButton
+            className="h-11 justify-center"
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              onLaunch();
+              setMobileOpen(false);
+            }}
+          >
+            {ctaLabel}
           </BrandButton>
-          <ConnectWalletButton label="Connect" />
         </div>
       </div>
     </header>

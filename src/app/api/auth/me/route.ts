@@ -20,14 +20,15 @@ export async function GET(request: NextRequest) {
       id: sessionRecord.user.id,
       wallet: sessionRecord.user.wallet,
       role: sessionRecord.user.role,
-      streamerProfile: sessionRecord.user.streamer
-        ? {
-            id: sessionRecord.user.streamer.id,
-            username: sessionRecord.user.streamer.username,
-            displayName: sessionRecord.user.streamer.displayName,
-            avatarUrl: sessionRecord.user.streamer.avatarUrl,
-          }
-        : null,
+      streamerId: sessionRecord.user.streamer?.id ?? null,
+      profile: {
+        username: sessionRecord.user.username,
+        displayName: sessionRecord.user.displayName,
+        avatarUrl: sessionRecord.user.avatarUrl,
+        bio: sessionRecord.user.bio,
+        isComplete: sessionRecord.user.streamer?.profileCompleted ?? false,
+        completedAt: sessionRecord.user.streamer?.profileCompletedAt?.toISOString() ?? null,
+      },
       session: {
         id: sessionRecord.id,
         expiresAt: sessionRecord.expiresAt,

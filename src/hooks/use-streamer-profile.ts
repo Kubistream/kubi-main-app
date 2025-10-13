@@ -1,24 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import { useAuth } from "@/providers/auth-provider";
 import { useWallet } from "@/hooks/use-wallet";
 import {
-  getProfile,
+  fetchStreamerProfile,
   type StreamerProfile,
 } from "@/services/streamers/profile-service";
 
-export function useStreamerProfile() {
-  const { address, isConnected } = useWallet();
-  const [profile, setProfile] = useState<StreamerProfile | null>(null);
+interface UseStreamerProfileResult {
+  profile: StreamerProfile | null;
+  isConnected: boolean;
+  isLoading: boolean;
+  error: Error | null;
+  refresh: () => Promise<void>;
+}
 
-  useEffect(() => {
-    if (!address || !isConnected) {
+export function useStreamerProfile(): UseStreamerProfileResult {
+  const { status } = useAuth();
+  const { isConnected } = useWallet();
+
+  const [profile, setProfile] = useState<StreamerProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected || status !== "authenticated") {
       setProfile(null);
+      setError(null);
+      setIsLoading(false);
       return;
     }
 
-    setProfile(getProfile(address));
-  }, [address, isConnected]);
+    setIsLoading(true);
+    try {
+      const nextProfile = await fetchStreamerProfile();
+      setProfile(nextProfile);
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isConnected, status]);
 
-  return { profile, address, isConnected };
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return {
+    profile,
+    isConnected: isConnected && status === "authenticated",
+    isLoading,
+    error,
+    refresh,
+  };
 }

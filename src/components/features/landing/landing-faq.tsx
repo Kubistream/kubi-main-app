@@ -1,11 +1,10 @@
 import { faqItems } from "./data";
-import { brandPalette } from "./brand";
 
 export function LandingFaq() {
   return (
     <section id="faq" className="mx-auto w-full max-w-4xl px-6 pb-24 pt-16">
-      <h2 className="mb-8 text-center text-3xl font-semibold" style={{ color: brandPalette.ink }}>
-        FAQ
+      <h2 className="font-modak modak-readable modak-stroke-warm mb-8 text-center text-3xl font-extrabold sm:text-4xl md:text-5xl">
+        <span className="bg-gradient-to-b from-[#FF3D86] to-[#FFA24C] bg-clip-text text-transparent">FAQ</span>
       </h2>
       <div className="space-y-4">
         {faqItems.map((item) => (

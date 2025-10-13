@@ -13,16 +13,25 @@ type SessionData = {
 };
 
 declare module "iron-session" {
-  // Augment iron-session's data type with our fields
-  interface IronSessionData extends SessionData {}
+  // Augment iron-session's data type with our session fields
+  interface IronSessionData {
+    sessionToken?: string;
+    userId?: string;
+    walletAddress?: string;
+  }
 }
 
 const SESSION_COOKIE_NAME = "kubi.session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-const sessionOptions: SessionOptions = {
+if (!env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET must be set in the environment");
+}
+const SESSION_PASSWORD = env.SESSION_SECRET;
+
+export const sessionOptions: SessionOptions = {
   cookieName: SESSION_COOKIE_NAME,
-  password: env.SESSION_SECRET,
+  password: SESSION_PASSWORD,
   ttl: SESSION_TTL_SECONDS,
   cookieOptions: {
     secure: isProduction,
@@ -45,6 +54,20 @@ export async function getAuthSession(request: NextRequest) {
   );
 
   return { session, sessionResponse };
+}
+
+// Helper for routes that need to mutate cookies on the exact response
+// that will be returned (ensures Set-Cookie is attached correctly).
+export async function getAuthSessionForResponse(
+  request: NextRequest,
+  response: NextResponse,
+) {
+  const session = await getIronSession<SessionData>(
+    request,
+    response,
+    sessionOptions,
+  );
+  return session;
 }
 
 export function applySessionCookies(

@@ -1,124 +1,134 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { useWallet } from "@/hooks/use-wallet";
-import { getProfile, saveProfile, type StreamerProfile } from "@/services/streamers/profile-service";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { address, isConnected } = useWallet();
-  const [username, setUsername] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  // On onboarding we intentionally do not auto-trigger SIWE sign-in.
+  // Do not destructure `signIn` here to avoid accidental use.
+  const { status: authStatus, user, isSigning, signIn, refresh: refreshAuth } = useAuth();
 
-  const existingProfile = useMemo(() => {
-    if (!address) return null;
-    return getProfile(address);
-  }, [address]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
-    if (!existingProfile) return;
-    setUsername(existingProfile.username);
-    setAvatarUrl(existingProfile.avatarUrl ?? "");
-  }, [existingProfile]);
+    setErrorMessage(null);
+  }, [address]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!address) return;
+  const handleGoToDashboard = async () => {
+    if (!isConnected || isSigning || isNavigating) return;
+    setIsNavigating(true);
+    setErrorMessage(null);
 
-    setStatus("saving");
-    const profile: StreamerProfile = {
-      address,
-      username,
-      avatarUrl: avatarUrl || undefined,
-      updatedAt: Date.now(),
-    };
+    try {
+      if (authStatus !== "authenticated" || !user) {
+        // Promote to streamer on first-time sign-in from onboarding
+        await signIn({ createStreamerProfile: true });
+        await refreshAuth();
+      }
 
-    saveProfile(profile);
-    setStatus("saved");
+      // Decide destination based on latest server-backed profile.
+      // Only navigate when the profile endpoint confirms an authorised session.
+      const response = await fetch("/api/streamers/me", { credentials: "include" });
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("You need to sign the message to continue.");
+        }
+        throw new Error("Unable to verify your session. Please try again.");
+      }
 
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 800);
+      const data = (await response.json()) as {
+        profile: { isComplete: boolean } | null;
+      };
+
+      const destination = data.profile?.isComplete ? "/dashboard" : "/dashboard/profile?onboarding=1";
+      router.push(destination);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Unable to proceed. Please try again.");
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
+  const statusMessage = useMemo(() => {
+    if (!isConnected) {
+      return "Connect a wallet to begin your streamer onboarding.";
+    }
+    if (isSigning) {
+      return "Check your wallet to sign the message.";
+    }
+    if (authStatus === "loading") {
+      return "Verifying your session...";
+    }
+    if (authStatus === "authenticated") {
+      if (!user) return "You’re signed in. Continue below.";
+      return user.profile.isComplete
+        ? "You’re signed in. Open your dashboard."
+        : "You’re signed in. Finish your profile setup.";
+    }
+    if (errorMessage) {
+      return errorMessage;
+    }
+    return "Getting ready to launch your creator dashboard.";
+  }, [authStatus, errorMessage, isConnected, isSigning, user]);
+
+  const showConnectButton = !isConnected || authStatus !== "authenticated";
+  const canProceed = isConnected && !isSigning && authStatus !== "loading" && !isNavigating;
+
   return (
-    <main className="flex min-h-screen flex-col items-center bg-gradient-to-br from-rose-100 via-white to-rose-50 px-6 py-20 text-slate-900">
-      <Card className="w-full max-w-2xl border-white/70 bg-white/90 shadow-lg shadow-rose-200/40">
+    <section className="space-y-10 text-slate-900">
+      <div className="rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-[0_20px_40px_-30px_rgba(47,42,44,0.35)] sm:px-10">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Onboarding</p>
+        <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Bring your creator brand on-chain</h2>
+        <p className="mt-4 max-w-2xl text-sm text-slate-600 sm:text-base">
+          Connect your wallet to personalise Kubi with your creator identity. Once verified, we’ll take you straight to your
+          dashboard or profile setup so you can start receiving on-chain support.
+        </p>
+      </div>
+
+      <Card className="border-white/70 bg-white/95 shadow-xl shadow-rose-200/40">
         <CardHeader>
-          <CardTitle className="text-3xl font-semibold text-slate-900">
-            Set up your streamer profile
+          <CardTitle className="text-2xl font-semibold text-slate-900">
+            Launch your streamer experience
           </CardTitle>
           <CardDescription className="text-sm text-slate-600">
-            We&apos;ll use your connected wallet to create a profile page and donation link. You can tweak these settings later in the dashboard.
+            A quick wallet signature lets us securely recognise you as a creator. New streamers jump into profile setup; returning ones land in the dashboard.
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-6">
-          {!isConnected && (
-            <div className="flex flex-col items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center">
-              <p className="text-sm text-slate-600">
-                Connect your wallet from the header to continue. We support popular providers through RainbowKit.
-              </p>
-            </div>
-          )}
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-rose-100 p-8 text-center">
+            <p className="max-w-sm text-sm text-slate-600">{statusMessage}</p>
 
-          {isConnected && (
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <Label>Streamer username</Label>
-                <Input
-                  required
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="e.g. kubi_sensei"
-                />
-                <p className="text-xs text-slate-500">
-                  This handle appears on your donation page and leaderboard.
-                </p>
-              </div>
+            {showConnectButton && (
+              <ConnectWalletButton label="Connect wallet" />
+            )}
 
-              <div className="space-y-2">
-                <Label>Profile image URL</Label>
-                <Input
-                  value={avatarUrl}
-                  onChange={(event) => setAvatarUrl(event.target.value)}
-                  placeholder="https://..."
-                />
-                <p className="text-xs text-slate-500">
-                  Paste an image link for now. We&apos;ll support uploading soon.
-                </p>
-              </div>
+            <Button
+              type="button"
+              className="mt-2"
+              disabled={!canProceed}
+              onClick={handleGoToDashboard}
+            >
+              Go to dashboard
+            </Button>
+          </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!username || status === "saving"}
-              >
-                {status === "saving"
-                  ? "Saving profile..."
-                  : status === "saved"
-                    ? "Profile saved!"
-                    : existingProfile
-                      ? "Update profile"
-                      : "Save and continue"}
-              </Button>
-
-              {existingProfile && (
-                <p className="text-xs text-slate-500">
-                  Last updated: {new Date(existingProfile.updatedAt).toLocaleString()}
-                </p>
-              )}
-            </form>
+          {errorMessage && (
+            <p className="text-center text-xs font-medium text-rose-500">
+              {errorMessage}
+            </p>
           )}
         </CardContent>
       </Card>
-    </main>
+    </section>
   );
 }

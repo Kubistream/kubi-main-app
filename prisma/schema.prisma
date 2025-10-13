@@ -19,21 +19,28 @@ enum DonationStatus {
   ORPHANED
 }
 
+enum OverlayStatus {
+  PENDING
+  ON_PROCESS
+  DISPLAYED
+}
+
 model User {
-  id            String                   @id @default(cuid())
-  wallet        String                   @unique
-  email         String?                  @unique
-  displayName     String?
-  avatarUrl       String?
-  bio             String?
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-  role          Role                     @default(USER)
-  streamer      Streamer?
-  auditLogs     AuditLog[]
-  sessions      Session[]
-  globalWhitelistUpdates GlobalTokenWhitelist[] @relation("GlobalWhitelistUpdatedBy")
-  platformFeeChanges      PlatformFeeHistory[]   @relation("PlatformFeeChangedBy")
+  id                   String                    @id @default(cuid())
+  wallet               String                    @unique
+  email                String?                   @unique
+  username             String?                   @unique
+  displayName          String?
+  avatarUrl            String?
+  bio                  String?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  role                 Role                      @default(USER)
+  streamer             Streamer?
+  auditLogs            AuditLog[]
+  sessions             Session[]
+  globalWhitelistUpdates GlobalTokenWhitelist[]  @relation("GlobalWhitelistUpdatedBy")
+  platformFeeChanges     PlatformFeeHistory[]    @relation("PlatformFeeChangedBy")
   streamerWhitelistUpdates StreamerTokenWhitelist[] @relation("StreamerWhitelistUpdatedBy")
 }
 
@@ -41,6 +48,8 @@ model Streamer {
   id              String                    @id @default(cuid())
   userId          String                    @unique
   user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileCompleted   Boolean                @default(false)
+  profileCompletedAt DateTime?
   primaryTokenId  String?
   primaryToken    Token?                    @relation("StreamerPrimaryToken", fields: [primaryTokenId], references: [id], onDelete: SetNull)
   autoswapEnabled Boolean                   @default(true)
@@ -53,6 +62,7 @@ model Streamer {
   whitelists      StreamerTokenWhitelist[]
   overlayTokens   OverlayToken[]
   webhooks        Webhook[]
+  queueOverlays   QueueOverlay[]
 }
 
 model DonationLink {
@@ -65,7 +75,8 @@ model DonationLink {
   isActive     Boolean      @default(true)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-  donations    Donation[]
+  donations    Donation[]  
+  queueOverlays QueueOverlay[]
 }
 
 model Donation {
@@ -109,6 +120,7 @@ model Token {
   donationsIn       Donation[]               @relation("DonationTokenIn")
   donationsOut      Donation[]               @relation("DonationTokenOut")
   streamersPrimary  Streamer[]               @relation("StreamerPrimaryToken")
+  queueOverlaysIn   QueueOverlay[]           @relation("QueueOverlayTokenIn")
   streamerWhitelist StreamerTokenWhitelist[]
   globalWhitelist   GlobalTokenWhitelist?
 
@@ -229,3 +241,20 @@ model SiweNonce {
   @@index([expiresAt])
 }
 
+model QueueOverlay {
+  id            String        @id @default(cuid())
+  linkId        String?
+  link          DonationLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  tokenInId     String
+  tokenIn       Token         @relation("QueueOverlayTokenIn", fields: [tokenInId], references: [id])
+  streamerId    String?
+  streamer      Streamer? @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  amountInRaw   String
+  txHash        String
+  timestamp     DateTime
+  message       String?       @db.Text
+  status        OverlayStatus @default(PENDING)
+
+  @@index([linkId])
+  @@index([txHash])
+}

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { useStreamerProfile } from "@/hooks/use-streamer-profile";
 import { brandPalette } from "@/constants/theme";
 
@@ -19,7 +18,7 @@ interface FormState {
 }
 
 export default function CreateLinkPage() {
-  const { profile, isConnected } = useStreamerProfile();
+  const { profile, isConnected, isLoading } = useStreamerProfile();
   const [form, setForm] = useState<FormState>({ slug: "", message: "" });
   const [origin, setOrigin] = useState<string>("");
   const [submitted, setSubmitted] = useState(false);
@@ -29,10 +28,10 @@ export default function CreateLinkPage() {
   }, []);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.username) return;
     setForm((prev) => ({
       ...prev,
-      slug: prev.slug || profile.username,
+      slug: prev.slug || profile.username || "",
     }));
   }, [profile]);
 
@@ -64,7 +63,9 @@ export default function CreateLinkPage() {
             {!isConnected && (
               <div className="flex flex-col items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center">
                 <p className="text-sm text-slate-600">
-                  Connect your wallet from the header to manage creator links.
+                  {isLoading
+                    ? "Checking your creator profile..."
+                    : "Connect your wallet from the header to manage creator links."}
                 </p>
               </div>
             )}
