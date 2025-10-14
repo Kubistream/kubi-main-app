@@ -90,8 +90,12 @@ model Donation {
   tokenIn       Token         @relation("DonationTokenIn", fields: [tokenInId], references: [id])
   tokenOutId    String
   tokenOut      Token         @relation("DonationTokenOut", fields: [tokenOutId], references: [id])
-  amountInRaw   String
-  amountOutRaw  String
+  amountInRaw    String
+  amountOutRaw   String
+  amountOutUsd   BigInt?
+  amountOutIdr   BigInt?
+  amountInUsd    BigInt?
+  amountInIdr    BigInt?
   feeRaw        String
   txHash        String
   logIndex      Int
@@ -105,6 +109,9 @@ model Donation {
   @@unique([txHash, logIndex])
   @@index([streamerId])
   @@index([txHash])
+  @@index([tokenInId])
+  @@index([tokenOutId])
+  @@index([streamerId, timestamp])
 }
 
 model Token {
