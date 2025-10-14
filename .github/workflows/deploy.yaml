@@ -1,0 +1,26 @@
+name: Auto Deploy Kubi Web Apps
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Build Next.js
+        run: |
+          npm run build
+
+      - name: Restart Next.js app
+        run: |
+          pm2 reload nextjs-app || pm2 start npm --name "nextjs-app" -- start
