@@ -90,13 +90,13 @@ model Donation {
   tokenIn       Token         @relation("DonationTokenIn", fields: [tokenInId], references: [id])
   tokenOutId    String
   tokenOut      Token         @relation("DonationTokenOut", fields: [tokenOutId], references: [id])
-  amountInRaw    String
-  amountOutRaw   String
-  amountOutUsd   BigInt?
-  amountOutIdr   BigInt?
-  amountInUsd    BigInt?
-  amountInIdr    BigInt?
-  feeRaw        String
+  amountInRaw    Decimal? @db.Decimal(30, 8)
+  amountOutRaw   Decimal? @db.Decimal(30, 8)
+  amountOutUsd   Decimal? @db.Decimal(30, 8)
+  amountOutIdr   Decimal? @db.Decimal(30, 8)
+  amountInUsd    Decimal? @db.Decimal(30, 8)
+  amountInIdr    Decimal? @db.Decimal(30, 8)
+  feeRaw        Decimal? @db.Decimal(30, 8)
   txHash        String
   logIndex      Int
   blockNumber   Int
