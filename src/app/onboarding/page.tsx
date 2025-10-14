@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { useWallet } from "@/hooks/use-wallet";
@@ -29,7 +30,10 @@ export default function OnboardingPage() {
     setErrorMessage(null);
 
     try {
-      if (authStatus !== "authenticated" || !user) {
+      const needsRoleUpgrade =
+        authStatus === "authenticated" && user?.role === "USER";
+
+      if (authStatus !== "authenticated" || !user || needsRoleUpgrade) {
         // Promote to streamer on first-time sign-in from onboarding
         await signIn({ createStreamerProfile: true });
         await refreshAuth();
@@ -70,6 +74,9 @@ export default function OnboardingPage() {
     }
     if (authStatus === "authenticated") {
       if (!user) return "You’re signed in. Continue below.";
+      if (user.role === "USER") {
+        return "Ready to upgrade your account. Continue to become a streamer.";
+      }
       return user.profile.isComplete
         ? "You’re signed in. Open your dashboard."
         : "You’re signed in. Finish your profile setup.";
@@ -84,48 +91,48 @@ export default function OnboardingPage() {
   const canProceed = isConnected && !isSigning && authStatus !== "loading" && !isNavigating;
 
   return (
-    <section className="space-y-10 text-slate-900">
-      <div className="rounded-3xl border border-white/60 bg-white/80 px-6 py-8 shadow-[0_20px_40px_-30px_rgba(47,42,44,0.35)] sm:px-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Onboarding</p>
-        <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Bring your creator brand on-chain</h2>
-        <p className="mt-4 max-w-2xl text-sm text-slate-600 sm:text-base">
-          Connect your wallet to personalise Kubi with your creator identity. Once verified, we’ll take you straight to your
-          dashboard or profile setup so you can start receiving on-chain support.
-        </p>
-      </div>
+    <section className="flex items-center justify-center text-slate-900">
+      <Card className="mx-auto w-full max-w-2xl border-white/70 bg-white/95 p-0 shadow-xl shadow-rose-200/40">
+        <CardContent className="space-y-6 p-8 sm:p-10">
+          <div className="flex flex-col items-center text-center">
+            <Image
+              src="/assets/illustrations/mascot2.png"
+              alt="Kubi mascot"
+              width={320}
+              height={240}
+              priority
+              className="h-auto w-52 sm:w-64"
+            />
 
-      <Card className="border-white/70 bg-white/95 shadow-xl shadow-rose-200/40">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-slate-900">
-            Launch your streamer experience
-          </CardTitle>
-          <CardDescription className="text-sm text-slate-600">
-            A quick wallet signature lets us securely recognise you as a creator. New streamers jump into profile setup; returning ones land in the dashboard.
-          </CardDescription>
-        </CardHeader>
+            <h1
+              className="font-modak modak-readable modak-stroke-warm modak-stroke-strong mt-4 bg-gradient-to-r from-[#FFA24C] via-[#FF5F74] to-[#FF3D86] bg-clip-text text-4xl tracking-wider text-transparent drop-shadow-[0_2px_1px_rgba(255,61,134,0.25)] sm:text-5xl"
+            >
+              Welcome to Kubi!
+            </h1>
 
-        <CardContent className="space-y-6">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-rose-100 p-8 text-center">
-            <p className="max-w-sm text-sm text-slate-600">{statusMessage}</p>
+            <p className="mt-4 max-w-md text-balance text-base text-slate-600 sm:text-lg">
+              {statusMessage}
+            </p>
+          </div>
 
+          <div className="mt-2 flex flex-col items-center justify-center gap-3 sm:flex-row">
             {showConnectButton && (
-              <ConnectWalletButton label="Connect wallet" />
+              <ConnectWalletButton label="Connect Wallet" />
             )}
 
             <Button
               type="button"
-              className="mt-2"
+              variant="secondary"
               disabled={!canProceed}
               onClick={handleGoToDashboard}
+              className="rounded-full border border-rose-200/70 bg-white/90 px-6 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50"
             >
-              Go to dashboard
+              Go to Dashboard
             </Button>
           </div>
 
           {errorMessage && (
-            <p className="text-center text-xs font-medium text-rose-500">
-              {errorMessage}
-            </p>
+            <p className="text-center text-xs font-medium text-rose-500">{errorMessage}</p>
           )}
         </CardContent>
       </Card>
