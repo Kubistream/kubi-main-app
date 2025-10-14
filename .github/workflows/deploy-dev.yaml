@@ -1,0 +1,64 @@
+name: Auto Deploy Next.js (Dev)
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Build Next.js
+        run: |
+          npm run build
+
+      - name: Restart Next.js app
+        run: |
+          pm2 reload nextjs-app || pm2 start npm --name "nextjs-app" -- start
+
+      - name: Generate commit messages list
+        id: commits
+        run: |
+          echo "COMMITS<<EOF" >> $GITHUB_ENV
+          git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:"• %s (%an)" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Notify Telegram (Success)
+        if: success()
+        run: |
+          TEXT="✅ *Deploy Success!*%0A\
+Repository: ${{ github.repository }}%0A\
+Branch: ${{ github.ref_name }}%0A\
+By: ${{ github.actor }}%0A%0A\
+*Commits:*%0A${{ env.COMMITS }}%0A%0A\
+🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d message_thread_id="${{ secrets.TELEGRAM_TOPIC_ID }}" \
+            -d text="$TEXT" \
+            -d parse_mode="Markdown"
+
+      - name: Notify Telegram (Failed)
+        if: failure()
+        run: |
+          TEXT="❌ *Deploy Failed!*%0A\
+Repository: ${{ github.repository }}%0A\
+Branch: ${{ github.ref_name }}%0A\
+By: ${{ github.actor }}%0A%0A\
+🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d message_thread_id="${{ secrets.TELEGRAM_TOPIC_ID }}" \
+            -d text="$TEXT" \
+            -d parse_mode="Markdown"
