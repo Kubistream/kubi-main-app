@@ -51,9 +51,16 @@ export default function OnboardingPage() {
 
       const data = (await response.json()) as {
         profile: { isComplete: boolean } | null;
+        onboardingComplete?: boolean;
+        hasPrimaryToken?: boolean;
       };
 
-      const destination = data.profile?.isComplete ? "/dashboard" : "/dashboard/profile?onboarding=1";
+      const isReady =
+        typeof data.onboardingComplete === "boolean"
+          ? data.onboardingComplete
+          : Boolean(data.profile?.isComplete) && Boolean(data.hasPrimaryToken);
+
+      const destination = isReady ? "/dashboard" : "/dashboard/profile?onboarding=1";
       router.push(destination);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Unable to proceed. Please try again.");

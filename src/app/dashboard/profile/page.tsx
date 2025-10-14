@@ -10,11 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Toggle } from "@/components/ui/toggle";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStreamerProfile } from "@/hooks/use-streamer-profile";
 import { updateStreamerProfile } from "@/services/streamers/profile-service";
 import { uploadAvatar } from "@/services/uploads/avatar-service";
 import { useAuth } from "@/providers/auth-provider";
 import { useTokenSettings } from "@/hooks/use-token-settings";
+import { fetchTokenSettings } from "@/services/streamers/token-settings-service";
+import type { TokenDto } from "@/services/tokens/token-service";
 
 type FormState = {
   username: string;
@@ -134,12 +138,17 @@ export default function ProfilePage() {
 
       setStatus("saved");
 
-      await Promise.all([refresh(), refreshAuth()]);
+      await Promise.all([refresh(), refreshAuth(), refreshTokenSettings()]);
 
       if (onboarding) {
-        setTimeout(() => {
-          router.replace("/dashboard");
-        }, 800);
+        const latest = await fetchTokenSettings();
+        const hasPrimaryToken = Boolean(latest?.primaryTokenId);
+        if (hasPrimaryToken) {
+          setTimeout(() => {
+            router.replace("/dashboard");
+          }, 800);
+        }
+        // If primary token is not set, remain on the page to finish setup
       }
     } catch (error) {
       setStatus("error");
@@ -357,7 +366,7 @@ export default function ProfilePage() {
 type PaymentSettingsFormProps = {
   disabled: boolean;
   loading: boolean;
-  tokens: { id: string; symbol: string; name: string | null; isNative: boolean }[];
+  tokens: (TokenDto & { logoURI?: string })[];
   settings: { primaryTokenId: string | null; autoswapEnabled: boolean; whitelistTokenIds: string[] } | null;
   onSave: (next: { primaryTokenId: string | null; autoswapEnabled: boolean; whitelistTokenIds: string[] }) => Promise<void>;
 };
@@ -404,24 +413,86 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
   const isDisabled = disabled || loading || saving;
 
+  const selectedPrimary = tokens.find((t) => String(t.id) === String(primaryTokenId ?? ""));
+
+  const [primaryDialogOpen, setPrimaryDialogOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="primaryToken">Primary token (auto-swap)</Label>
-        <select
+        <button
           id="primaryToken"
-          className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          type="button"
           disabled={isDisabled}
-          value={primaryTokenId ?? ""}
-          onChange={(e) => setPrimaryTokenId(e.target.value || null)}
+          onClick={() => setPrimaryDialogOpen(true)}
+          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 text-left text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <option value="">Select a token…</option>
-          {tokens.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.symbol}{t.isNative ? " (native)" : ""}
-            </option>
-          ))}
-        </select>
+          <span className="flex items-center gap-2 text-slate-800">
+            {selectedPrimary?.logoURI && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={selectedPrimary.logoURI!} alt={selectedPrimary.symbol} className="h-5 w-5 rounded-full" />
+            )}
+            {selectedPrimary ? (
+              <>
+                <span>{selectedPrimary.symbol}</span>
+                {selectedPrimary.isNative ? <span className="text-xs text-slate-500">(native)</span> : null}
+              </>
+            ) : (
+              <span className="text-slate-500">Select a token…</span>
+            )}
+          </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 text-slate-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <Dialog open={primaryDialogOpen} onOpenChange={setPrimaryDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Select primary token</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[320px] space-y-2 overflow-y-auto">
+              {tokens.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setPrimaryTokenId(t.id);
+                    setPrimaryDialogOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-md border border-slate-200 p-2 text-left hover:bg-rose-50"
+                >
+                  {t.logoURI && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.logoURI} alt={t.symbol} className="h-6 w-6 rounded-full" />
+                  )}
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="font-semibold text-slate-900">{t.symbol}</span>
+                    {t.isNative ? (
+                      <span className="text-xs text-slate-500">(native)</span>
+                    ) : null}
+                    {t.name ? (
+                      <span className="truncate text-xs text-slate-500">{t.name}</span>
+                    ) : null}
+                  </div>
+                  {String(t.id) === String(primaryTokenId ?? "") && (
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500">Selected</span>
+                  )}
+                </button>
+              ))}
+              {tokens.length === 0 && (
+                <p className="py-4 text-center text-sm text-slate-500">No tokens available.</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
         <p className="text-xs text-slate-500">Donations are auto-swapped to this token unless the incoming token is whitelisted.</p>
       </div>
 
@@ -448,19 +519,20 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           {tokens.map((t) => {
             const selected = whitelist.has(t.id);
             return (
-              <Button
+              <Toggle
                 key={t.id}
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-pressed={selected}
-                onClick={() => handleToggleWhitelist(t.id)}
+                pressed={selected}
+                onPressedChange={() => handleToggleWhitelist(t.id)}
                 disabled={isDisabled}
-                className={selected ? "border-rose-500 bg-rose-500 text-white hover:bg-rose-500" : ""}
+                size="sm"
                 title={t.name ?? t.symbol}
               >
+                {t.logoURI && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={t.logoURI} alt={t.symbol} className="mr-2 h-4 w-4 rounded-full" />
+                )}
                 {t.symbol}{t.isNative ? " (native)" : ""}
-              </Button>
+              </Toggle>
             );
           })}
         </div>

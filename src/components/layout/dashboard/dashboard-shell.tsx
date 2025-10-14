@@ -20,6 +20,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const { isConnected } = useAccount();
   const [guardMessage, setGuardMessage] = useState<string | null>("Loading session...");
   const [deferRedirect, setDeferRedirect] = useState(false);
+  const [hasPrimaryToken, setHasPrimaryToken] = useState<boolean | null>(null);
 
   const isDashboardRoute = useMemo(
     () => pathname?.startsWith("/dashboard") ?? false,
@@ -33,6 +34,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   useEffect(() => {
     if (!isDashboardRoute) {
       setGuardMessage(null);
+      setHasPrimaryToken(null);
       return;
     }
 
@@ -64,14 +66,35 @@ export function DashboardShell({ children }: DashboardShellProps) {
       return;
     }
 
-    if (isStreamer && !user.profile.isComplete && !isProfileRoute) {
-      setGuardMessage("Redirecting to profile setup...");
-      router.replace("/dashboard/profile?onboarding=1");
-      return;
+    // For streamers, ensure both profile and primary token are set
+    if (isStreamer) {
+      // If we haven't checked token readiness yet, fetch it
+      if (hasPrimaryToken === null) {
+        setGuardMessage("Checking your setup...");
+        void (async () => {
+          try {
+            const res = await fetch("/api/streamers/me", { credentials: "include" });
+            if (!res.ok) throw new Error("Failed to verify streamer setup");
+            const data = (await res.json()) as { hasPrimaryToken?: boolean };
+            setHasPrimaryToken(Boolean(data.hasPrimaryToken));
+          } catch {
+            setHasPrimaryToken(false);
+          }
+        })();
+        return;
+      }
+
+      const needsProfile = !user.profile.isComplete;
+      const needsToken = !hasPrimaryToken;
+      if ((needsProfile || needsToken) && !isProfileRoute) {
+        setGuardMessage("Redirecting to profile setup...");
+        router.replace("/dashboard/profile?onboarding=1");
+        return;
+      }
     }
 
     setGuardMessage(null);
-  }, [isDashboardRoute, isProfileRoute, pathname, router, status, user, isSigning, isConnected]);
+  }, [isDashboardRoute, isProfileRoute, pathname, router, status, user, isSigning, isConnected, hasPrimaryToken]);
 
   if (guardMessage) {
     return (

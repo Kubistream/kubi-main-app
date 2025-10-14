@@ -15,6 +15,10 @@ export async function GET(request: NextRequest) {
     return applySessionCookies(sessionResponse, response);
   }
 
+  const hasPrimaryToken = Boolean(
+    sessionRecord.user.streamer?.primaryTokenId ?? null,
+  );
+  const profileCompleted = sessionRecord.user.streamer?.profileCompleted ?? false;
   const response = NextResponse.json({
     role: sessionRecord.user.role,
     streamer: sessionRecord.user.streamer
@@ -27,11 +31,13 @@ export async function GET(request: NextRequest) {
       displayName: sessionRecord.user.displayName,
       avatarUrl: sessionRecord.user.avatarUrl,
       bio: sessionRecord.user.bio,
-      isComplete: sessionRecord.user.streamer?.profileCompleted ?? false,
+      isComplete: profileCompleted,
       completedAt:
         sessionRecord.user.streamer?.profileCompletedAt?.toISOString() ??
         null,
     },
+    hasPrimaryToken,
+    onboardingComplete: profileCompleted && hasPrimaryToken,
   });
 
   return applySessionCookies(sessionResponse, response);
