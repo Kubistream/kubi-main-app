@@ -12,17 +12,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
       - name: Install dependencies
-        run: |
-          npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build Next.js
-        run: |
-          npm run build
+        run: pnpm run build
 
       - name: Restart Next.js app
         run: |
-          pm2 reload nextjs-app || pm2 start npm --name "nextjs-app" -- start
+          pm2 reload nextjs-app || pm2 start pnpm --name "nextjs-app" -- start
 
       - name: Generate commit messages list
         id: commits
