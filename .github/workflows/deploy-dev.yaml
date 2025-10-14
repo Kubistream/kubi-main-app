@@ -8,57 +8,75 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
       - name: Install dependencies
-        run: |
-          npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build Next.js
-        run: |
-          npm run build
+        run: pnpm run build
 
       - name: Restart Next.js app
         run: |
-          pm2 reload nextjs-app || pm2 start npm --name "nextjs-app" -- start
+          pm2 reload nextjs-app || pm2 start pnpm --name "nextjs-app" -- start
 
       - name: Generate commit messages list
         id: commits
         run: |
-          echo "COMMITS<<EOF" >> $GITHUB_ENV
-          git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:"• %s (%an)" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "COMMITS=$(git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:'• %s (%an)' | tr '\n' '\r')" >> $GITHUB_ENV
 
       - name: Notify Telegram (Success)
         if: success()
         run: |
-          TEXT="✅ *Deploy Success!*%0A\
-Repository: ${{ github.repository }}%0A\
-Branch: ${{ github.ref_name }}%0A\
-By: ${{ github.actor }}%0A%0A\
-*Commits:*%0A${{ env.COMMITS }}%0A%0A\
-🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
-
+          TEXT=$(cat <<'EOF'
+          ✅ *Deploy Success!*
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          By: ${{ github.actor }}
+          
+          *Commits:*
+          ${{ env.COMMITS }}
+          
+          🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+          )
+          TEXT_URLENCODED=$(echo "$TEXT" | jq -s -R -r @uri)
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d message_thread_id="${{ secrets.TELEGRAM_TOPIC_ID }}" \
-            -d text="$TEXT" \
+            -d text="$TEXT_URLENCODED" \
             -d parse_mode="Markdown"
 
       - name: Notify Telegram (Failed)
         if: failure()
         run: |
-          TEXT="❌ *Deploy Failed!*%0A\
-Repository: ${{ github.repository }}%0A\
-Branch: ${{ github.ref_name }}%0A\
-By: ${{ github.actor }}%0A%0A\
-🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
-
+          TEXT=$(cat <<'EOF'
+          ❌ *Deploy Failed!*
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          By: ${{ github.actor }}
+          
+          🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+          )
+          TEXT_URLENCODED=$(echo "$TEXT" | jq -s -R -r @uri)
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d message_thread_id="${{ secrets.TELEGRAM_TOPIC_ID }}" \
-            -d text="$TEXT" \
+            -d text="$TEXT_URLENCODED" \
             -d parse_mode="Markdown"
