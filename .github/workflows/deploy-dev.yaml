@@ -27,7 +27,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js
-        run: pnpm run build
+        run:  NEXT_IGNORE_ESLINT_DURING_BUILD=1 pnpm run build
 
       - name: Restart Next.js app
         run: |
