@@ -13,6 +13,7 @@ export async function GET(_request: NextRequest) {
         name: true,
         decimals: true,
         isNative: true,
+        logoURI: true,
       },
       orderBy: [{ isNative: "desc" }, { symbol: "asc" }],
     });

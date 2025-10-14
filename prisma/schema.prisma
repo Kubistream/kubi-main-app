@@ -113,6 +113,7 @@ model Token {
   address           String
   symbol            String
   name              String?
+  logoURI           String?
   decimals          Int
   isNative          Boolean                  @default(false)
   createdAt         DateTime                 @default(now())
