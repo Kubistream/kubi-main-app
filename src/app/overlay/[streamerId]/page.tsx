@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 type OverlayMsg = {
   type: string;
@@ -86,9 +87,12 @@ export default function OverlayPage() {
 
             {/* Mascot image */}
             <div className="shrink-0 -mb-2 sm:-mb-3 md:-mb-4">
-              <img
+              <Image
                 src="/overlay/mascot_overlay.png"
                 alt="Mascot"
+                width={256}
+                height={256}
+                priority
                 className="h-24 w-auto sm:h-28 md:h-36 lg:h-40 drop-shadow-md"
               />
             </div>
