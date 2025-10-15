@@ -21,17 +21,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Create .env.development.local
-        run: |
-          cat > .env.development.local << EOF
-          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          APP_URL=${{ secrets.APP_URL }}
-          NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
-          NODE_ENV=development
-          EOF
-
       - name: Migrate Prisma
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -48,12 +37,7 @@ jobs:
 
       - name: Restart Next.js app
         run: |
-          if npx pm2 describe nextjs-app > /dev/null 2>&1; then
-            npx pm2 reload nextjs-app
-          else
-            npx pm2 start node_modules/.bin/next --name "nextjs-app" --interpreter node -- start
-          fi
-          npx pm2 save
+          npx pm2 reload nextjs-app || npx pm2 start npm --name "nextjs-app" -- start
 
       - name: Generate commit messages list
         id: commits
@@ -86,23 +70,19 @@ jobs:
       - name: Notify Telegram (Failed)
         if: failure()
         run: |
-          PM2_LOGS=$(npx pm2 logs nextjs-app --lines 15 --nostream 2>&1 | head -c 600 || echo "No logs")
-          TEXT="❌ *Deploy Failed!*
-
+          TEXT=$(cat <<'EOF'
+          ❌ *Deploy Failed!*
+          
           Repository: ${{ github.repository }}
           Branch: ${{ github.ref_name }}
           By: ${{ github.actor }}
-
-          *Last Logs:*
-          \`\`\`
-          ${PM2_LOGS}
-          \`\`\`
-
-          🧩 [View Full Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           
+          🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+          )
           TEXT_URLENCODED=$(echo "$TEXT" | jq -s -R -r @uri)
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
             -d message_thread_id="${{ secrets.TELEGRAM_TOPIC_ID }}" \
             -d text="$TEXT_URLENCODED" \
-            -d parse_mode="Markdown" || true
+            -d parse_mode="Markdown"
