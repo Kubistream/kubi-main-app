@@ -65,6 +65,12 @@ export async function verifySiweMessage({ message, signature }: VerifySiweParams
     throw new SiweError("Invalid SIWE message payload");
   }
 
+  console.log("=== SIWE DEBUG INFO ===");
+  console.log("siweMessage.domain:", siweMessage.domain);
+  console.log("appHost:", appHost);
+  console.log("siweMessage.uri:", siweMessage.uri);
+  console.log("appOrigin:", appOrigin);
+  console.log("========================");
   if (siweMessage.domain !== appHost) {
     throw new SiweError("SIWE domain mismatch");
   }
