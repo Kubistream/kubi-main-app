@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 
-import { Prisma, Role, type Streamer, type User } from "@prisma/client";
+import { Role, type Streamer, type User } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 // Zod removed per request; using manual checks
 
