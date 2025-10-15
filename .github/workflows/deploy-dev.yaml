@@ -33,6 +33,12 @@ jobs:
 
 
       - name: Build Next.js
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
         run:  NEXT_IGNORE_ESLINT_DURING_BUILD=1 pnpm run build
 
       - name: Restart Next.js app
