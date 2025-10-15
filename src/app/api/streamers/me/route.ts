@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     streamer: sessionRecord.user.streamer
       ? {
           id: sessionRecord.user.streamer.id,
+          primaryTokenId: sessionRecord.user.streamer.primaryTokenId ?? null,
         }
       : null,
     profile: {
@@ -37,6 +38,8 @@ export async function GET(request: NextRequest) {
         null,
     },
     hasPrimaryToken,
+    // Backward-compatible alias if any client expects this name
+    hasPrimaryTokenId: hasPrimaryToken,
     onboardingComplete: profileCompleted && hasPrimaryToken,
   });
 

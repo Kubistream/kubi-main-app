@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import { Download, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { brandPalette } from "@/constants/theme";
 
 interface DonationLinkCardProps {
   link: string;
@@ -11,6 +15,8 @@ interface DonationLinkCardProps {
 
 export function DonationLinkCard({ link }: DonationLinkCardProps) {
   const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   const handleCopy = async () => {
     try {
@@ -19,6 +25,48 @@ export function DonationLinkCard({ link }: DonationLinkCardProps) {
       setTimeout(() => setCopied(false), 1200);
     } catch (error) {
       console.error("Failed to copy donation link", error);
+    }
+  };
+
+  const handleShowQr = () => {
+    if (!link) return;
+    setQrOpen(true);
+  };
+
+  const handleDownloadSvg = () => {
+    try {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(svg);
+      if (!source.match(/^<svg[^>]+xmlns=/)) {
+        source = source.replace(
+          /^<svg/,
+          '<svg xmlns="http://www.w3.org/2000/svg"',
+        );
+      }
+
+      const blob = new Blob([source], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      let idPart = "qr";
+      try {
+        const u = new URL(link);
+        const parts = u.pathname.split("/").filter(Boolean);
+        idPart = parts[parts.length - 1] || idPart;
+      } catch {
+        // ignore
+      }
+      a.download = `donation-qr-${idPart}.svg`;
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error("Failed to download QR SVG", error);
     }
   };
 
@@ -51,18 +99,61 @@ export function DonationLinkCard({ link }: DonationLinkCardProps) {
             </Button>
             <Button
               type="button"
+              onClick={handleShowQr}
               variant="outline"
               className="border-rose-200 bg-white px-4 text-sm font-semibold text-rose-500 transition hover:bg-rose-50"
+              aria-label="Show QR code"
+              disabled={!link}
             >
               Show QR
             </Button>
           </div>
         </div>
 
-        <p className="text-xs text-slate-500">
+        {/* <p className="text-xs text-slate-500">
           Tip: customise the slug from <span className="font-medium text-rose-500">Dashboard → Create link &amp; QR</span> for better recall.
-        </p>
+        </p> */}
       </div>
+
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="rounded-2xl">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setQrOpen(false)}
+            className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-slate-900">Donation QR</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-5 pt-2">
+            <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-5">
+              <QRCodeSVG
+                ref={svgRef}
+                value={link}
+                size={220}
+                bgColor="transparent"
+                fgColor={brandPalette.pink}
+                title="Donation link QR"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadSvg}
+                aria-label="Download QR as SVG"
+                className="border-rose-200 text-rose-600 hover:bg-rose-50"
+              >
+                <Download className="mr-2 h-4 w-4" /> Download
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

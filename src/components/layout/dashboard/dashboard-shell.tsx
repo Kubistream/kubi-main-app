@@ -32,6 +32,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
   );
 
   useEffect(() => {
+    // When navigating within the dashboard, re-verify token readiness on non-profile routes
+    // to avoid stale hasPrimaryToken state after saving settings.
+    if (isDashboardRoute && !isProfileRoute) {
+      setHasPrimaryToken(null);
+    }
+  }, [isDashboardRoute, isProfileRoute, pathname]);
+
+  useEffect(() => {
     if (!isDashboardRoute) {
       setGuardMessage(null);
       setHasPrimaryToken(null);
@@ -75,8 +83,20 @@ export function DashboardShell({ children }: DashboardShellProps) {
           try {
             const res = await fetch("/api/streamers/me", { credentials: "include" });
             if (!res.ok) throw new Error("Failed to verify streamer setup");
-            const data = (await res.json()) as { hasPrimaryToken?: boolean };
-            setHasPrimaryToken(Boolean(data.hasPrimaryToken));
+            type MePayload = {
+              hasPrimaryToken?: boolean;
+              hasPrimaryTokenId?: boolean;
+              onboardingComplete?: boolean;
+              streamer?: { primaryTokenId?: string | null } | null;
+            };
+            const data = (await res.json()) as MePayload;
+            const computedHasToken =
+              typeof data.hasPrimaryToken === "boolean"
+                ? data.hasPrimaryToken
+                : typeof data.hasPrimaryTokenId === "boolean"
+                  ? data.hasPrimaryTokenId
+                  : Boolean(data.streamer?.primaryTokenId);
+            setHasPrimaryToken(computedHasToken);
           } catch {
             setHasPrimaryToken(false);
           }
