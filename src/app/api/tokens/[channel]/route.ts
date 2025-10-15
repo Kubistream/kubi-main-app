@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { NextRequest } from "next/server";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { channel: string } }
+  req: NextRequest,
+  context: { params: Promise<{ channel: string }> }
 ) {
+  const { channel } = await context.params;
   try {
-    const { channel } = params;
-
     // cari streamer berdasarkan slug channel
     const streamer = await prisma.streamer.findUnique({
       where: { userId: channel },

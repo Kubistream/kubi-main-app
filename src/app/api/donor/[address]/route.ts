@@ -1,13 +1,16 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { address: string } }
+  request: NextRequest,
+  context: { params: Promise<{ address: string }> }
 ) {
+  const { address } = await context.params;
+
   try {
     const donor = await prisma.user.findUnique({
-      where: { wallet: params.address.toLowerCase() },
+      where: { wallet: address.toLowerCase() },
       select: {
         id: true,
         wallet: true,

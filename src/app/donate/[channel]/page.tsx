@@ -106,7 +106,7 @@ export default function DonatePage() {
         if (!res.ok) throw new Error("Failed to fetch tokens");
         const data = await res.json();
 
-        let list: Token[] = [];
+        let list = [] as any[];
         if (Array.isArray(data)) list = data;
         else if (data && Array.isArray(data.tokens)) list = data.tokens;
 
@@ -497,9 +497,9 @@ export default function DonatePage() {
                 {/* Saldo token terpilih */}
                 <p className="text-xs text-slate-600">
                   Balance:{" "}
-                  {balances[selectedToken.isNative ? "native" : selectedToken.address?.toLowerCase()] === undefined
+                  {balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] === undefined
                     ? "–"
-                    : Number(balances[selectedToken.isNative ? "native" : selectedToken.address?.toLowerCase()] || 0).toLocaleString(undefined, {
+                    : Number(balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] || 0).toLocaleString(undefined, {
                         maximumFractionDigits: 4,
                       })}
                 </p>
@@ -512,7 +512,7 @@ export default function DonatePage() {
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const bal = parseFloat(balances[selectedToken.isNative ? "native" : selectedToken.address?.toLowerCase()] || "0");
+                        const bal = parseFloat(balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] || "0");
                         if (!isNaN(bal)) {
                           const formatted = formatAmount(((bal * pct) / 100).toFixed(6));
                           setAmount(formatted);
@@ -547,7 +547,7 @@ export default function DonatePage() {
                   !amount ||
                   parseFloat(amount) <= 0 ||
                   parseFloat(amount) >
-                    parseFloat(balances[selectedToken.isNative ? "native" : selectedToken.address?.toLowerCase()] || "0")
+                    parseFloat(balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] || "0")
                 }
               >
                 {submitted ? "Donation queued" : "Send donation"}
@@ -567,11 +567,16 @@ export default function DonatePage() {
         isOpen={isTokenModalOpen}
         onClose={() => setIsTokenModalOpen(false)}
         onSelectToken={(token) => {
-          setSelectedToken(token);
+          setSelectedToken({
+              symbol: (token as any).symbol,
+              logoURI: (token as any).logoURI ?? "",
+              address: (token as any).address,
+              isNative: (token as any).isNative ?? false,
+          });
           setIsTokenModalOpen(false);
         }}
-        tokens={tokens}
-        balances={balances}
+        tokens={tokens.map(t => ({ ...t, name: t.symbol, address: t.address ?? "" }))}
+        balances={Object.fromEntries(Object.entries(balances).map(([k, v]) => [k, parseFloat(v)]))}
       />
     </main>
   );

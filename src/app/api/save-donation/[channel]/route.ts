@@ -8,7 +8,14 @@ import {
   resolveAuthenticatedUser,
 } from "@/lib/auth/session";
 
-export async function POST(req: NextRequest, { params }: { params: { channel: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ channel: string }> }
+) {
+  const { channel } = await context.params;
+  if (!channel) {
+    return NextResponse.json({ error: "Missing channel parameter" }, { status: 400 });
+  }
   try {
     const body = await req.json();
     const {
@@ -71,6 +78,11 @@ export async function POST(req: NextRequest, { params }: { params: { channel: st
       return NextResponse.json({ error: "Donation log not found" }, { status: 400 });
     }
     const parsed = iface.parseLog(donationLog);
+
+    if (!parsed) {
+      return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
+    }
+
     const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
 
     if (donor.toLowerCase() !== donorWallet.toLowerCase()) {
@@ -164,4 +176,4 @@ export async function POST(req: NextRequest, { params }: { params: { channel: st
     console.error("❌ Error saving donation:", err);
     return NextResponse.json({ error: err.message || "Internal Server Error" }, { status: 500 });
   }
-} 
+}

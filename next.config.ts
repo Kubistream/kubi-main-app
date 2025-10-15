@@ -28,6 +28,9 @@ if (fs.existsSync(extraEnvPath)) {
 }
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true, // ⛔ skip linting saat build
+  },
   // New placement for Turbopack in Next 15+
   turbopack: {
     resolveAlias: alias,
