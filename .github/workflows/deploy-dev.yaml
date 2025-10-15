@@ -49,11 +49,18 @@ jobs:
         working-directory: /home/zee/project/kubi/kubi-main-app
         run: npm install --production
 
-      - name: Restart Next.js app
-        working-directory: /home/zee/project/kubi/kubi-main-app
-        run: |
-          npx pm2 delete nextjs-app || true
-          npx pm2 start npm --name "nextjs-app" -- start
+      - name: Restart Next.js app 
+        working-directory: /home/zee/project/kubi/kubi-main-app 
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
+          NEXTAUTH_URL: ${{ secrets.APP_URL }}
+        run: | 
+          npx pm2 delete nextjs-app || true 
+          npx pm2 start npm --name "nextjs-app" -- start 
           npx pm2 save
 
       - name: Generate commit messages list
