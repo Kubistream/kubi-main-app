@@ -17,12 +17,6 @@ export function DashboardNavbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Link
-          href="/donate/demo"
-          className="hidden rounded-full border border-rose-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-500 transition hover:bg-rose-100 md:inline-flex"
-        >
-          Preview donation page
-        </Link>
         <ConnectWalletButton label="Connect wallet" />
       </div>
     </header>
