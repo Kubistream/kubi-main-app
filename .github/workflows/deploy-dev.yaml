@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Migrate Prisma
+        run: npx prisma migrate dev && npx prisma generate
+
       - name: Build Next.js
         run:  NEXT_IGNORE_ESLINT_DURING_BUILD=1 pnpm run build
 
