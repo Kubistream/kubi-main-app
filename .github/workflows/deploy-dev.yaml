@@ -12,19 +12,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.2
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Create .env.development.local
         run: |
@@ -49,7 +44,7 @@ jobs:
           APP_URL: ${{ secrets.APP_URL }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
           NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
-        run: NEXT_IGNORE_ESLINT_DURING_BUILD=1 pnpm run build
+        run: NEXT_IGNORE_ESLINT_DURING_BUILD=1 npm run build
 
       - name: Restart Next.js app
         run: |
