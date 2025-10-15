@@ -16,36 +16,40 @@ interface SelectTokenModalProps {
   onClose: () => void;
   onSelectToken: (token: Token) => void;
   balances?: { [address: string]: number };
+  tokens?: Token[];
 }
 
-export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances = {} }: SelectTokenModalProps) {
+export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances = {}, tokens: propTokens = [] }: SelectTokenModalProps) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [search, setSearch] = useState("");
   const [localBalances, setLocalBalances] = useState<{ [address: string]: number }>({});
 
   useEffect(() => {
     if (!isOpen) return;
+
+    if (propTokens && propTokens.length > 0) {
+      const normalized = propTokens.map((t) => ({
+        ...t,
+        address: t.address.toLowerCase(),
+      }));
+      setTokens(normalized);
+      return;
+    }
+
     fetch("/api/tokens")
-        .then((res) => res.json())
-        .then((data) => {
+      .then((res) => res.json())
+      .then((data) => {
         let list: Token[] = [];
-
-        if (Array.isArray(data)) {
-            list = data;
-        } else if (data && Array.isArray(data.tokens)) {
-            list = data.tokens;
-        }
-
-        // normalize address ke lowercase supaya cocok sama balances
+        if (Array.isArray(data)) list = data;
+        else if (data && Array.isArray(data.tokens)) list = data.tokens;
         const normalized = list.map((t) => ({
-            ...t,
-            address: t.address.toLowerCase(),
+          ...t,
+          address: t.address.toLowerCase(),
         }));
-
         setTokens(normalized);
-        })
-        .catch(() => setTokens([]));
-    }, [isOpen]);
+      })
+      .catch(() => setTokens([]));
+  }, [isOpen, propTokens]);
 
   useEffect(() => {
     // Normalize all keys in balances to lowercase for consistent access

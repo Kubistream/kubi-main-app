@@ -31,8 +31,8 @@ export default function DonatePage() {
   const params = useParams<{ channel: string }>();
   const channel = params?.channel ?? "";
   const [displayName, setDisplayName] = useState<string>("");
-
   const [streamerAddress, setStreamerAddress] = useState<string>("");
+  const [streamerId, setStreamerId] = useState<string>("");
   useEffect(() => {
     if (!channel) return;
     const fetchStreamer = async () => {
@@ -42,9 +42,11 @@ export default function DonatePage() {
         const data = await res.json();
         setDisplayName(data.user.displayName || channel);
         setStreamerAddress(data.user.wallet || "");
+        setStreamerId(data.id || "");
       } catch {
         setDisplayName(channel);
         setStreamerAddress("");
+        setStreamerId("");
       }
     };
     fetchStreamer();
@@ -56,6 +58,7 @@ export default function DonatePage() {
     if (!address) return;
     const fetchDonor = async () => {
       try {
+        console.log("Fetching donor info for address:", address);
         const res = await fetch(`/api/donor/${address}`);
         if (!res.ok) throw new Error("Failed to fetch donor");
         const data = await res.json();
@@ -96,6 +99,33 @@ export default function DonatePage() {
     return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
   };
 
+  useEffect(() => {
+    const fetchAllTokens = async () => {
+      try {
+        const res = await fetch("/api/tokens");
+        if (!res.ok) throw new Error("Failed to fetch tokens");
+        const data = await res.json();
+
+        let list: Token[] = [];
+        if (Array.isArray(data)) list = data;
+        else if (data && Array.isArray(data.tokens)) list = data.tokens;
+
+        const normalized = list.map((t) => ({
+          ...t,
+          address: t.address.toLowerCase(),
+        }));
+
+        setTokens(normalized);
+        console.log("✅ Tokens loaded:", normalized.length);
+      } catch (err) {
+        console.error("❌ Error fetching tokens:", err);
+        setTokens([]);
+      }
+    };
+
+    fetchAllTokens();
+  }, []);
+
   // Fetch tokens for the channel when channel is available
   useEffect(() => {
     if (!channel) return;
@@ -106,7 +136,7 @@ export default function DonatePage() {
         const data = await res.json();
 
         // simpan semua tokens
-        setTokens(data.tokens || []);
+        // setTokens(data.tokens || []);
 
         // cari token yang isTokenPrimary === true
         const primary = data.tokens?.find((t: any) => t.isTokenPrimary);
@@ -135,25 +165,57 @@ export default function DonatePage() {
 
   // Fetch balances for tokens when tokens or address change
   useEffect(() => {
-    if (tokens.length === 0) return;
+    if (tokens.length === 0) {
+      console.log("🚫 fetchBalances skipped: tokens empty");
+      return;
+    }
 
     const fetchBalances = async () => {
       try {
+        console.log(
+          "🔥 useEffect triggered, tokens:",
+          tokens.length,
+          "address:",
+          address,
+          "isConnected:",
+          isConnected
+        );
+
         let provider;
         let chainId;
-
-        if (typeof window !== "undefined" && (window as any).ethereum) {
-          provider = new BrowserProvider((window as any).ethereum, "any");
-          chainId = await provider.send("eth_chainId", []);
-          if (parseInt(chainId, 16) !== 84532) {
-            console.warn(`⚠️ Connected chainId ${parseInt(chainId, 16)} is not Base Sepolia (84532). Using fallback provider.`);
-            provider = new JsonRpcProvider("https://base-sepolia.drpc.org");
+        try {
+          if (typeof window !== "undefined" && (window as any).ethereum) {
+            console.log("🦊 Using BrowserProvider");
+            provider = new BrowserProvider((window as any).ethereum, "any");
+            chainId = await provider.send("eth_chainId", []);
+            if (parseInt(chainId, 16) !== 84532) {
+              console.warn(
+                `⚠️ Connected chainId ${parseInt(chainId, 16)} is not Base Sepolia (84532). Using fallback provider.`
+              );
+              provider = new JsonRpcProvider(
+                "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa"
+              );
+              chainId = "0x14798"; // 84532 in hex
+            }
+          } else {
+            console.log("🌐 Using fallback JsonRpcProvider");
+            provider = new JsonRpcProvider(
+              "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa"
+            );
             chainId = "0x14798"; // 84532 in hex
           }
-        } else {
-          provider = new JsonRpcProvider("https://base-sepolia.drpc.org");
-          chainId = "0x14798"; // 84532 in hex
+        } catch (provErr) {
+          console.error("💥 Error initializing provider:", provErr);
+          setBalances({});
+          return;
         }
+
+        if (!provider) {
+          console.error("❌ Provider not initialized");
+          setBalances({});
+          return;
+        }
+        console.log("✅ Provider initialized:", provider);
 
         const network = await provider.getNetwork();
         console.log("🧠 Connected network:", network, "chainId:", chainId);
@@ -164,37 +226,47 @@ export default function DonatePage() {
           });
         }
 
-        const newBalances: { [address: string]: string } = {};
-
         if (!isConnected || !address) {
+          console.warn("⚠️ Wallet not connected, skipping balance fetch");
           setBalances({});
           return;
         }
 
+        console.log("⏳ Fetching balances for address:", address);
+        const newBalances: { [address: string]: string } = {};
+
+        console.log("🔁 Starting token balance loop for", tokens.length, "tokens");
         for (const token of tokens) {
-          console.log("Fetching balance for token:", token);
-          if (token.isNative) {
-            const balance = await provider.getBalance(address);
-            // Use "native" as the key for native token balance
-            newBalances["native"] = formatEther(balance);
-            console.log(`Balance of ${token.symbol} (native):`, formatEther(balance));
-          } else if (token.address) {
-            const contract = new Contract(token.address, ERC20_ABI, provider);
-            const [balanceRaw, decimals] = await Promise.all([
-              contract.balanceOf(address),
-              contract.decimals()
-            ]);
-            const balance = formatUnits(balanceRaw, decimals);
-            // use token.address.toLowerCase() as key
-            newBalances[token.address.toLowerCase()] = balance;
-            console.log(
-              `Balance of ${token.symbol} (${token.address?.toLowerCase()}):`, 
-              balance
-            );
+          console.log("🔍 Checking token:", token);
+          try {
+            if (token.isNative) {
+              const balance = await provider.getBalance(address);
+              newBalances["native"] = formatEther(balance);
+              console.log(`✅ Native balance: ${newBalances["native"]}`);
+            } else if (token.address) {
+              const code = await provider.getCode(token.address);
+              console.log("📦 Code length:", code.length);
+              if (code === "0x") {
+                console.warn(`⚠️ ${token.address} is not a contract`);
+                continue;
+              }
+
+              const contract = new Contract(token.address, ERC20_ABI, provider);
+              const decimals = await withTimeout(contract.decimals(), 8000).catch(() => 18);
+              const balanceRaw = await withTimeout(contract.balanceOf(address), 8000).catch(() => 0n);
+              const balance = formatUnits(balanceRaw, decimals);
+              newBalances[token.address.toLowerCase()] = balance;
+              console.log(`✅ ${token.symbol} balance:`, balance);
+            }
+            await new Promise((r) => setTimeout(r, 200));
+          } catch (err) {
+            console.error(`❌ Error fetching ${token.symbol}:`, err);
           }
         }
+        console.log("🏁 Finished fetching all balances:", newBalances);
         setBalances(newBalances);
       } catch (error) {
+        console.error("💥 fetchBalances failed:", error);
         setBalances({});
       }
     };
@@ -296,8 +368,38 @@ export default function DonatePage() {
         selectedToken.isNative ? { value: amountIn } : {}
       );
       console.log("🚀 Donate tx sent:", tx.hash);
+
       await tx.wait();
       console.log("🎉 Donation confirmed!");
+
+      try {
+        // 🧠 SIWE session already active via AuthProvider, no need to sign message again
+        await fetch(`/api/save-donation/${channel}`, {
+          method: "POST",
+          credentials: "include", // ensure SIWE session cookie is sent
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            txHash: tx.hash,
+            message,
+            donorWallet: getAddress(address!),
+            streamerId: streamerId,
+            tokenInId: selectedToken.isNative
+              ? "0x0000000000000000000000000000000000000000"
+              : getAddress(selectedToken.address!),
+            tokenOutId: selectedToken.isNative
+              ? "0x0000000000000000000000000000000000000000"
+              : getAddress(selectedToken.address!),
+            amountInUsd: 0,
+            amountOutUsd: 0,
+            amountInIdr: 0,
+            amountOutIdr: 0,
+          }),
+        });
+        console.log("✅ Donation data sent to API");
+      } catch (apiErr) {
+        console.error("❌ Failed to send donation data:", apiErr);
+      }
+
       alert("Donation sent successfully!");
       setSubmitted(false);
     } catch (err: any) {
@@ -474,3 +576,23 @@ export default function DonatePage() {
     </main>
   );
 }
+
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Operation timed out"));
+    }, ms);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+

@@ -13,7 +13,15 @@ const FALLBACK_PROJECT_ID = "00000000000000000000000000000000";
 const projectId =
   process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ?? FALLBACK_PROJECT_ID;
 
-export const supportedChains = [baseSepolia] as const;
+const customBaseSepolia = {
+  ...baseSepolia,
+  rpcUrls: {
+    default: { http: ["https://sepolia.base.org"] }, // default official RPC
+    public: { http: ["https://sepolia.base.org"] },
+  },
+};
+
+export const supportedChains = [customBaseSepolia] as const;
 
 export const wagmiConfig = getDefaultConfig({
   appName: "Kubi Stream Alerts",
