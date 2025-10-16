@@ -281,7 +281,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         <div className="flex flex-col gap-3">
           <p className="text-xs text-slate-500">
             {hasDonations
-              ? `Showing ${firstRow}–${lastRow} of ${totalCount} donations • Page ${page} of ${totalPages}`
+            ? `Showing ${firstRow}-${lastRow} of ${totalCount} donations | Page ${page} of ${totalPages}`
               : "No donations to display"}
           </p>
           <HistoryPagination
@@ -357,11 +357,11 @@ function getStatusMeta(status: DonationStatus) {
 
 function shortenHash(value: string, lead = 6, tail = 4) {
   if (value.length <= lead + tail + 3) return value;
-  return `${value.slice(0, lead)}â€¦${value.slice(-tail)}`;
+  return `${value.slice(0, lead)}...${value.slice(-tail)}`;
 }
 
 function formatTokenAmount(value: string | null, decimals: number) {
-  if (!value) return "â€”";
+  if (!value) return "--";
   try {
     const formatted = formatUnits(value, decimals);
     const [whole, fraction = ""] = formatted.split(".");
@@ -374,7 +374,7 @@ function formatTokenAmount(value: string | null, decimals: number) {
 }
 
 function formatDecimal(value: string | null) {
-  if (!value) return "â€”";
+  if (!value) return "--";
   const [whole, fraction] = value.split(".");
   const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   if (!fraction) return groupedWhole;
@@ -460,4 +460,10 @@ function pickFirst(value?: string | string[]) {
   if (Array.isArray(value)) return value[0];
   return value ?? undefined;
 }
+
+
+
+
+
+
 
