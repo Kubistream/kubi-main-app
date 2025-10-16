@@ -1,21 +1,28 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { cookies } from "next/headers";
-import { DonationStatus } from "@prisma/client";
+import { DonationStatus, type Prisma } from "@prisma/client";
+import { formatUnits } from "ethers";
 
-import { findSessionByToken } from "@/lib/auth/session";
+import { HistoryFilters } from "@/components/features/dashboard/history-filters";
+import { HistoryPagination } from "@/components/features/dashboard/history-pagination";
 import { prisma } from "@/lib/prisma";
+import { env } from "@/lib/env";
 
 const BASESCAN_TX_URL = "https://sepolia.basescan.org/tx/";
 const BASESCAN_BLOCK_URL = "https://sepolia.basescan.org/block/";
-const SESSION_COOKIE_NAME = "kubi.session";
-const MAX_ROWS = 200;
+const BASESCAN_ADDRESS_URL = "https://sepolia.basescan.org/address/";
 const RESET_PATH = "/dashboard/history";
+const API_TIMEOUT_MS = 4000;
+const LOCAL_FALLBACK_URL = "http://localhost:3000";
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 10;
 
 type HistoryPageProps = {
-  searchParams?: {
-    status?: string;
-    token?: string;
-  };
+  searchParams?: Promise<{
+    status?: string | string[];
+    token?: string | string[];
+    page?: string | string[];
+  }>;
 };
 
 type HistoryRow = {
@@ -30,6 +37,7 @@ type HistoryRow = {
     symbol: string;
     name: string | null;
     logoURI: string | null;
+    decimals: number;
   };
   feeRaw: string | null;
   createdAt: string;
@@ -43,11 +51,13 @@ const STATUS_OPTIONS = [{ value: "all", label: "All statuses" }].concat(
 );
 
 export default async function HistoryPage({ searchParams }: HistoryPageProps) {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  const sessionRecord = await findSessionByToken(sessionToken);
+  const cookieStore = cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
 
-  const streamerId = sessionRecord?.user.streamer?.id ?? null;
+  const streamerId = cookieHeader ? await resolveStreamerId(cookieHeader) : null;
 
   if (!streamerId) {
     return (
@@ -70,33 +80,30 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     );
   }
 
-  const rawStatus = searchParams?.status?.toUpperCase();
-  const statusFilter = rawStatus && rawStatus !== "ALL" && Object.values(DonationStatus).includes(rawStatus as DonationStatus)
-    ? (rawStatus as DonationStatus)
-    : undefined;
+  const params = searchParams ? await searchParams : undefined;
+  const statusParam = pickFirst(params?.status)?.toUpperCase();
+  const statusFilter =
+    statusParam && statusParam !== "ALL" && Object.values(DonationStatus).includes(statusParam as DonationStatus)
+      ? (statusParam as DonationStatus)
+      : undefined;
 
-  const tokenFilter = searchParams?.token && searchParams.token !== "all" ? searchParams.token : undefined;
+  const tokenParam = pickFirst(params?.token);
+  const tokenFilter = tokenParam && tokenParam !== "all" ? tokenParam : undefined;
 
-  const [donations, tokenOptions] = await Promise.all([
-    prisma.donation.findMany({
-      where: {
-        streamerId,
-        ...(statusFilter ? { status: statusFilter } : {}),
-        ...(tokenFilter ? { tokenInId: tokenFilter } : {}),
-      },
-      include: {
-        tokenIn: {
-          select: {
-            id: true,
-            symbol: true,
-            name: true,
-            logoURI: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: MAX_ROWS,
-    }),
+  const rawPage = Number.parseInt(pickFirst(params?.page) ?? "1", 10);
+  const parsedPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+
+  const rawPageSize = Number.parseInt(pickFirst(params?.pageSize) ?? String(DEFAULT_PAGE_SIZE), 10);
+  const pageSize = PAGE_SIZE_OPTIONS.find((option) => option === rawPageSize) ?? DEFAULT_PAGE_SIZE;
+
+  const where: Prisma.DonationWhereInput = {
+    streamerId,
+    ...(statusFilter ? { status: statusFilter } : {}),
+    ...(tokenFilter ? { tokenInId: tokenFilter } : {}),
+  };
+
+  const [totalCount, tokenOptions] = await Promise.all([
+    prisma.donation.count({ where }),
     prisma.token.findMany({
       where: {
         donationsIn: {
@@ -114,6 +121,28 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     }),
   ]);
 
+  const totalPages = totalCount === 0 ? 1 : Math.max(1, Math.ceil(totalCount / pageSize));
+  const page = Math.min(parsedPage, totalPages);
+  const skip = (page - 1) * pageSize;
+
+  const donations = await prisma.donation.findMany({
+    where,
+    include: {
+      tokenIn: {
+        select: {
+          id: true,
+          symbol: true,
+          name: true,
+          logoURI: true,
+          decimals: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    skip,
+    take: pageSize,
+  });
+
   const rows: HistoryRow[] = donations.map((donation) => ({
     id: donation.id,
     txHash: donation.txHash,
@@ -126,6 +155,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       symbol: donation.tokenIn.symbol,
       name: donation.tokenIn.name ?? null,
       logoURI: donation.tokenIn.logoURI ?? null,
+      decimals: donation.tokenIn.decimals,
     },
     feeRaw: donation.feeRaw?.toString() ?? null,
     createdAt: donation.createdAt.toISOString(),
@@ -139,6 +169,10 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     })),
   ];
 
+  const hasDonations = totalCount > 0;
+  const firstRow = hasDonations ? skip + 1 : 0;
+  const lastRow = hasDonations ? skip + rows.length : 0;
+
   return (
     <div className="space-y-6">
       <header>
@@ -151,11 +185,10 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       </header>
 
       <section className="space-y-4 rounded-3xl border border-white/60 bg-white/95 px-6 py-6 shadow-[0_18px_32px_-26px_rgba(2,6,23,0.35)] sm:px-8">
-        <Filters
+        <HistoryFilters
           statusOptions={STATUS_OPTIONS}
           tokenOptions={tokenFilterOptions}
-          activeStatus={statusFilter ?? "all"}
-          activeToken={tokenFilter ?? "all"}
+          resetPath={RESET_PATH}
         />
 
         <div className="overflow-x-auto">
@@ -203,19 +236,30 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                       </Link>
                     </td>
                     <td className="py-4 pr-3 font-mono text-slate-700">
-                      {row.donorWallet ? shortenHash(row.donorWallet) : "—"}
+                      {row.donorWallet ? (
+                        <Link
+                          href={`${BASESCAN_ADDRESS_URL}${row.donorWallet}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sky-600 transition hover:text-sky-700"
+                        >
+                          {shortenHash(row.donorWallet)}
+                        </Link>
+                      ) : (
+                        "â€”"
+                      )}
                     </td>
                     <td className="py-4 pr-3">
                       <StatusBadge status={row.status} />
                     </td>
                     <td className="py-4 pr-3 font-mono text-slate-900">
-                      {formatDecimal(row.amountInRaw)}
+                      {formatTokenAmount(row.amountInRaw, row.token.decimals)}
                     </td>
                     <td className="py-4 pr-3">
                       <TokenCell token={row.token} />
                     </td>
                     <td className="py-4 pr-3 font-mono text-slate-700">
-                      {formatDecimal(row.feeRaw)}
+                      {formatTokenAmount(row.feeRaw, row.token.decimals)}
                     </td>
                     <td className="py-4 pr-3">
                       <time
@@ -233,76 +277,23 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           </table>
         </div>
 
-        <p className="text-xs text-slate-500">
-          Showing up to {MAX_ROWS} most recent donations. Need more history? Export endpoints are coming soon.
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-slate-500">
+            {hasDonations
+              ? `Showing ${firstRow}–${lastRow} of ${totalCount} donations • Page ${page} of ${totalPages}`
+              : "No donations to display"}
+          </p>
+          <HistoryPagination
+            currentPage={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            defaultPageSize={DEFAULT_PAGE_SIZE}
+            resetPath={RESET_PATH}
+          />
+        </div>
       </section>
     </div>
-  );
-}
-
-type FiltersProps = {
-  statusOptions: Array<{ value: string; label: string }>;
-  tokenOptions: Array<{ value: string; label: string }>;
-  activeStatus: string;
-  activeToken: string;
-};
-
-function Filters({ statusOptions, tokenOptions, activeStatus, activeToken }: FiltersProps) {
-  return (
-    <form
-      method="get"
-      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-    >
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500" htmlFor="status">
-          Status
-        </label>
-        <select
-          id="status"
-          name="status"
-          defaultValue={activeStatus}
-          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
-        >
-          {statusOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500" htmlFor="token">
-          Token
-        </label>
-        <select
-          id="token"
-          name="token"
-          defaultValue={activeToken}
-          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
-        >
-          {tokenOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-100"
-        >
-          Apply filters
-        </button>
-        <Link
-          href={RESET_PATH}
-          className="text-sm font-medium text-sky-600 transition hover:text-sky-700"
-        >
-          Reset
-        </Link>
-      </div>
-    </form>
   );
 }
 
@@ -365,11 +356,24 @@ function getStatusMeta(status: DonationStatus) {
 
 function shortenHash(value: string, lead = 6, tail = 4) {
   if (value.length <= lead + tail + 3) return value;
-  return `${value.slice(0, lead)}…${value.slice(-tail)}`;
+  return `${value.slice(0, lead)}â€¦${value.slice(-tail)}`;
+}
+
+function formatTokenAmount(value: string | null, decimals: number) {
+  if (!value) return "â€”";
+  try {
+    const formatted = formatUnits(value, decimals);
+    const [whole, fraction = ""] = formatted.split(".");
+    const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    const trimmedFraction = fraction.slice(0, Math.min(decimals, 16)).replace(/0+$/, "");
+    return trimmedFraction ? `${groupedWhole}.${trimmedFraction}` : groupedWhole;
+  } catch {
+    return formatDecimal(value);
+  }
 }
 
 function formatDecimal(value: string | null) {
-  if (!value) return "—";
+  if (!value) return "â€”";
   const [whole, fraction] = value.split(".");
   const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   if (!fraction) return groupedWhole;
@@ -416,3 +420,43 @@ function formatAbsolute(iso: string) {
   const minutes = String(date.getMinutes()).padStart(2, "0");
   return `${day}-${month}-${year} ${hours}:${minutes}`;
 }
+
+async function resolveStreamerId(cookieHeader: string): Promise<string | null> {
+  const baseUrl = env.NEXT_PUBLIC_APP_URL ?? env.APP_URL ?? LOCAL_FALLBACK_URL;
+  if (!baseUrl) return null;
+
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    const response = await fetch(`${normalizedBase}/api/streamers/me`, {
+      headers: { Cookie: cookieHeader },
+      cache: "no-store",
+      credentials: "include",
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      streamer?: { id?: string | null } | null;
+    };
+
+    return data.streamer?.id ?? null;
+  } catch (error) {
+    console.error("Failed to resolve streamer context for history page", error);
+    return null;
+  }
+}
+
+function pickFirst(value?: string | string[]) {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
+
