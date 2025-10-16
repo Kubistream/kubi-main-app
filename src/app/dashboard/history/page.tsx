@@ -366,7 +366,7 @@ function formatTokenAmount(value: string | null, decimals: number) {
     const formatted = formatUnits(value, decimals);
     const [whole, fraction = ""] = formatted.split(".");
     const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    const trimmedFraction = fraction.slice(0, Math.min(decimals, 16)).replace(/0+$/, "");
+    const trimmedFraction = fraction.slice(0, Math.min(decimals, 18)).replace(/0+$/, "");
     return trimmedFraction ? `${groupedWhole}.${trimmedFraction}` : groupedWhole;
   } catch {
     return formatDecimal(value);
