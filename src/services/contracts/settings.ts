@@ -1,7 +1,7 @@
 "use client";
 
 import { getAddress } from "ethers";
-import { getDonationContractWithSigner } from "./factory";
+import { getDonationContractWithSigner, getDonationContractReadOnly } from "./factory";
 
 export async function setPrimaryToken(streamer: string, token: string) {
   const contract = await getDonationContractWithSigner();

@@ -22,6 +22,8 @@ export async function POST(
       txHash,
       message,
       streamerId,
+      name,
+      avatarUrl,
     } = body;
 
     const { session, sessionResponse } = await getAuthSession(req);
@@ -130,7 +132,7 @@ export async function POST(
       where: {
         address: {
           equals: tokenOutAddress,
-          mode: "insensitive", // ⬅️ ini juga
+          mode: "insensitive"
         },
       },
     });
@@ -165,6 +167,37 @@ export async function POST(
     const amountInIdr = amountInUsd * usdToIdr;
     const amountOutIdr = amountOutUsd * usdToIdr;
 
+    const userDonor = await prisma.user.findFirst({
+      where: { wallet: { equals: donorAddress, mode: "insensitive" } },
+    });
+
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+    if (userDonor) {
+      const updates: Prisma.UserUpdateInput = {};
+      if (trimmedName && trimmedName !== (userDonor.displayName ?? "")) {
+        updates.displayName = trimmedName;
+      }
+      if (avatarUrl && avatarUrl !== userDonor.avatarUrl) {
+        updates.avatarUrl = avatarUrl;
+      }
+      if (Object.keys(updates).length > 0) {
+        await prisma.user.update({
+          where: { id: userDonor.id },
+          data: updates,
+        });
+      }
+    } else {
+      console.log("ℹ️ Donor wallet not found in users, creating new user:", donorAddress);
+      await prisma.user.create({
+        data: {
+          wallet: donorAddress,
+          displayName: trimmedName || undefined,
+          avatarUrl: avatarUrl || undefined,
+        },
+      });
+    }
+
+
     // 🧾 Simpan ke database Donation
     const donation = await prisma.donation.create({
       data: {
@@ -185,7 +218,7 @@ export async function POST(
         blockNumber,
         chainId,
         timestamp,
-        status: "CONFIRMED",
+        status: "PENDING",
       },
     });
 

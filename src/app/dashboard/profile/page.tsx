@@ -386,52 +386,46 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     setWhitelist(new Set(settings?.whitelistTokenIds ?? []));
   }, [settings]);
 
-  const handleToggleWhitelist = (tokenId: string) => {
-    setWhitelist((prev) => {
-      const next = new Set(prev);
-      if (next.has(tokenId)) next.delete(tokenId);
-      else next.add(tokenId);
-      return next;
-    });
-  };
-
   const { user } = useAuth();
+
+  const handleToggleWhitelist = async (tokenId: string, nextPressed: boolean) => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const streamerAddress = user?.wallet;
+      if (!streamerAddress) throw new Error("Streamer wallet not found");
+
+      const token = tokens.find((t) => String(t.id) === String(tokenId));
+      if (!token) throw new Error("Token not found");
+      if (token.isNative) throw new Error("Cannot whitelist native token");
+
+      await setStreamerWhitelist(streamerAddress, token.address, nextPressed);
+
+      // Update local state and mirror to DB
+      const nextSet = new Set(whitelist);
+      if (nextPressed) nextSet.add(tokenId);
+      else nextSet.delete(tokenId);
+      setWhitelist(nextSet);
+
+      await onSave({
+        primaryTokenId: primaryTokenId ? String(primaryTokenId) : null,
+        autoswapEnabled,
+        whitelistTokenIds: Array.from(nextSet),
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update whitelist");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
     setError(null);
     try {
-      // On-chain updates
-      const streamerAddress = user?.wallet;
-      if (!streamerAddress) throw new Error("Streamer wallet not found");
-
-      const prevPrimaryId = settings?.primaryTokenId ?? null;
-      const nextPrimaryId = primaryTokenId ? String(primaryTokenId) : null;
-      if (nextPrimaryId && nextPrimaryId !== prevPrimaryId) {
-        const token = tokens.find((t) => String(t.id) === nextPrimaryId);
-        if (!token) throw new Error("Primary token not found");
-        if (token.isNative) throw new Error("Primary token cannot be native");
-        await setPrimaryToken(streamerAddress, token.address);
-      }
-
-      const prevWhitelist = new Set(settings?.whitelistTokenIds ?? []);
-      const nextWhitelist = new Set(Array.from(whitelist));
-      const toAdd = Array.from(nextWhitelist).filter((id) => !prevWhitelist.has(id));
-      const toRemove = Array.from(prevWhitelist).filter((id) => !nextWhitelist.has(id));
-
-      for (const id of toAdd) {
-        const token = tokens.find((t) => String(t.id) === String(id));
-        if (!token || token.isNative) continue;
-        await setStreamerWhitelist(streamerAddress, token.address, true);
-      }
-      for (const id of toRemove) {
-        const token = tokens.find((t) => String(t.id) === String(id));
-        if (!token || token.isNative) continue;
-        await setStreamerWhitelist(streamerAddress, token.address, false);
-      }
-
-      // Off-chain mirror
+      // Off-chain mirror only (on-chain handled per action)
       await onSave({
         primaryTokenId: primaryTokenId ? String(primaryTokenId) : null,
         autoswapEnabled,
@@ -496,9 +490,47 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => {
-                    setPrimaryTokenId(t.id);
-                    setPrimaryDialogOpen(false);
+                  onClick={async () => {
+                    if (saving) return;
+                    setSaving(true);
+                    setError(null);
+                    try {
+                      const streamerAddress = user?.wallet;
+                      if (!streamerAddress) throw new Error("Streamer wallet not found");
+                      const token = tokens.find((x) => String(x.id) === String(t.id));
+                      if (!token) throw new Error("Primary token not found");
+                      if (token.isNative) throw new Error("Primary token cannot be native");
+
+                      // Ensure whitelisted first if not already
+                      if (!whitelist.has(t.id)) {
+                        await setStreamerWhitelist(streamerAddress, token.address, true);
+                        const nextSet = new Set(whitelist);
+                        nextSet.add(t.id);
+                        setWhitelist(nextSet);
+                        await onSave({
+                          primaryTokenId: primaryTokenId ? String(primaryTokenId) : null,
+                          autoswapEnabled,
+                          whitelistTokenIds: Array.from(nextSet),
+                        });
+                      }
+
+                      // Now set primary on-chain
+                      await setPrimaryToken(streamerAddress, token.address);
+                      setPrimaryTokenId(t.id);
+
+                      // Mirror to DB
+                      await onSave({
+                        primaryTokenId: String(t.id),
+                        autoswapEnabled,
+                        whitelistTokenIds: Array.from(whitelist.has(t.id) ? whitelist : new Set([...whitelist, t.id])),
+                      });
+
+                      setPrimaryDialogOpen(false);
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "Failed to set primary token");
+                    } finally {
+                      setSaving(false);
+                    }
                   }}
                   className="flex w-full items-center gap-3 rounded-md border border-slate-200 p-2 text-left hover:bg-rose-50"
                 >
@@ -543,7 +575,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
               <Toggle
                 key={t.id}
                 pressed={selected}
-                onPressedChange={() => handleToggleWhitelist(t.id)}
+                onPressedChange={(pressed) => handleToggleWhitelist(t.id, pressed)}
                 disabled={isDisabled}
                 size="sm"
                 title={t.name ?? t.symbol}
@@ -560,9 +592,9 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         <p className="text-xs text-slate-500">Tokens in this list are accepted without auto-swap.</p>
       </div>
 
-      <Button onClick={handleSave} disabled={isDisabled} className="w-full">
+      {/* <Button onClick={handleSave} disabled={isDisabled} className="w-full">
         {saving ? "Saving..." : "Save payment settings"}
-      </Button>
+      </Button> */}
 
       {error && <p className="text-center text-xs font-medium text-rose-500">{error}</p>}
     </div>

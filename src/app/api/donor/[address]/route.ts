@@ -29,6 +29,7 @@ export async function GET(
         id: true,
         wallet: true,
         displayName: true,
+        avatarUrl: true,
       },
     });
 

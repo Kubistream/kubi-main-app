@@ -1,21 +1,23 @@
 "use client";
 
-import { FormEvent, useState, useEffect } from "react";
+import { ChangeEventHandler, FormEvent, useEffect, useRef, useState } from "react";
+import { UserRound } from "lucide-react";
 import { useParams } from "next/navigation";
 import { BrowserProvider, Contract, formatEther, formatUnits, JsonRpcProvider } from "ethers";
 import { parseUnits, parseEther, getAddress } from "ethers";
 // Kontrak & helper modular
 import { getDonationContractAddress } from "@/services/contracts/donation";
 import { getErc20Contract } from "@/services/contracts/erc20";
+import { getDonationContractReadOnly } from "@/services/contracts/factory";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { useWallet } from "@/hooks/use-wallet";
 import { SelectTokenModal } from "@/components/ui/select-token-modal";
+import { uploadAvatar } from "@/services/uploads/avatar-service";
 
 // ERC20 ABI disediakan via helper getErc20Contract
 
@@ -25,6 +27,7 @@ export default function DonatePage() {
   const [displayName, setDisplayName] = useState<string>("");
   const [streamerAddress, setStreamerAddress] = useState<string>("");
   const [streamerId, setStreamerId] = useState<string>("");
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
   useEffect(() => {
     if (!channel) return;
     const fetchStreamer = async () => {
@@ -35,16 +38,21 @@ export default function DonatePage() {
         setDisplayName(data.user.displayName || channel);
         setStreamerAddress(data.user.wallet || "");
         setStreamerId(data.id || "");
+        setAvatarUrl(data.user.avatarUrl || "");
       } catch {
         setDisplayName(channel);
         setStreamerAddress("");
         setStreamerId("");
+        setAvatarUrl("");
       }
     };
     fetchStreamer();
   }, [channel]);
   const { isConnected, address } = useWallet();
-  const [donorDisplayName, setDonorDisplayName] = useState<string>("");
+  const [donorAvatarUrl, setDonorAvatarUrl] = useState<string>("");
+  const [donorAvatarPreview, setDonorAvatarPreview] = useState<string>("");
+  const [selectedDonorFile, setSelectedDonorFile] = useState<File | null>(null);
+  const donorFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!address) return;
@@ -55,15 +63,25 @@ export default function DonatePage() {
         if (!res.ok) throw new Error("Failed to fetch donor");
         const data = await res.json();
         if (data.displayName) {
-          setDonorDisplayName(data.displayName);
           setName(data.displayName); // isi otomatis field nama
         }
+        setDonorAvatarUrl(data.avatarUrl || "");
+        setDonorAvatarPreview("");
+        setSelectedDonorFile(null);
       } catch {
-        setDonorDisplayName("");
+        setDonorAvatarUrl("");
+        setDonorAvatarPreview("");
+        setSelectedDonorFile(null);
       }
     };
     fetchDonor();
   }, [address]);
+
+  useEffect(() => {
+    return () => {
+      if (donorAvatarPreview) URL.revokeObjectURL(donorAvatarPreview);
+    };
+  }, [donorAvatarPreview]);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [rawAmount, setRawAmount] = useState("");
@@ -85,10 +103,43 @@ export default function DonatePage() {
   // helper function to format amount input
   const formatAmount = (value: string) => {
     if (!value) return "";
-    const numeric = value.replace(/,/g, ".");
+    const numeric = value.replace(/,/g, "");
     const num = parseFloat(numeric);
-    if (isNaN(num)) return "";
+    if (Number.isNaN(num)) return "";
     return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  };
+
+  const clampDecimals = (value: string, maxDecimals = 4) => {
+    const dotIndex = value.indexOf(".");
+    if (dotIndex === -1) return value;
+    if (dotIndex === value.length - 1) return value;
+    const whole = value.slice(0, dotIndex);
+    const fraction = value.slice(dotIndex + 1, dotIndex + 1 + maxDecimals);
+    return fraction.length > 0 ? `${whole}.${fraction}` : whole;
+  };
+
+  const handleDonorAvatarClick = () => {
+    donorFileInputRef.current?.click();
+  };
+
+  const onDonorAvatarSelected: ChangeEventHandler<HTMLInputElement> = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+    const allowed = new Set(["image/png", "image/jpeg"]);
+    if (!allowed.has(file.type)) {
+      alert("Only PNG and JPEG images are allowed");
+      return;
+    }
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert("File too large (max 5MB)");
+      return;
+    }
+    setSelectedDonorFile(file);
+    if (donorAvatarPreview) URL.revokeObjectURL(donorAvatarPreview);
+    const objectUrl = URL.createObjectURL(file);
+    setDonorAvatarPreview(objectUrl);
+    event.target.value = "";
   };
 
   useEffect(() => {
@@ -208,6 +259,13 @@ export default function DonatePage() {
           return;
         }
         console.log("✅ Provider initialized:", provider);
+        // --- Inisialisasi kontrak donasi untuk cek koneksi RPC
+        try {
+          const donationContract = getDonationContractReadOnly();
+          console.log("🎯 Donation contract connected:", donationContract.target);
+        } catch (contractErr) {
+          console.error("💥 Error initializing donation contract:", contractErr);
+        }
 
         const network = await provider.getNetwork();
         console.log("🧠 Connected network:", network, "chainId:", chainId);
@@ -278,6 +336,10 @@ export default function DonatePage() {
       alert("Streamer address not found.");
       return;
     }
+    if (!streamerId) {
+      alert("Streamer profile not loaded. Please refresh and try again.");
+      return;
+    }
     try {
       setSubmitted(true);
       // 1. Init provider & signer
@@ -290,8 +352,11 @@ export default function DonatePage() {
       // 3. Ambil amountIn
       let amountIn;
       let decimals = 18;
-      const cleanAmount = amount.replace(/,/g, ".").trim();
-      if (!cleanAmount || isNaN(Number(cleanAmount))) {
+      let cleanAmount = rawAmount.trim();
+      if (cleanAmount.endsWith(".")) {
+        cleanAmount = cleanAmount.slice(0, -1);
+      }
+      if (!cleanAmount || Number.isNaN(Number(cleanAmount))) {
         throw new Error("Invalid amount");
       }
 
@@ -367,6 +432,16 @@ export default function DonatePage() {
       console.log("🎉 Donation confirmed!");
 
       try {
+        let avatarUrlToSave = donorAvatarUrl;
+        if (selectedDonorFile) {
+          try {
+            avatarUrlToSave = await uploadAvatar(selectedDonorFile);
+          } catch (uploadErr) {
+            console.error("❌ Failed to upload donor avatar:", uploadErr);
+            alert("Donation succeeded but failed to upload your avatar. Please try again.");
+          }
+        }
+
         // 🧠 SIWE session already active via AuthProvider, no need to sign message again
         await fetch(`/api/save-donation/${channel}`, {
           method: "POST",
@@ -375,21 +450,18 @@ export default function DonatePage() {
           body: JSON.stringify({
             txHash: tx.hash,
             message,
-            donorWallet: getAddress(address!),
-            streamerId: streamerId,
-            tokenInId: selectedToken.isNative
-              ? "0x0000000000000000000000000000000000000000"
-              : getAddress(selectedToken.address!),
-            tokenOutId: selectedToken.isNative
-              ? "0x0000000000000000000000000000000000000000"
-              : getAddress(selectedToken.address!),
-            amountInUsd: 0,
-            amountOutUsd: 0,
-            amountInIdr: 0,
-            amountOutIdr: 0,
+            name,
+            streamerId,
+            avatarUrl: avatarUrlToSave,
           }),
         });
         console.log("✅ Donation data sent to API");
+        if (selectedDonorFile && avatarUrlToSave) {
+          setDonorAvatarUrl(avatarUrlToSave);
+          setSelectedDonorFile(null);
+          if (donorAvatarPreview) URL.revokeObjectURL(donorAvatarPreview);
+          setDonorAvatarPreview("");
+        }
       } catch (apiErr) {
         console.error("❌ Failed to send donation data:", apiErr);
       }
@@ -403,6 +475,10 @@ export default function DonatePage() {
     }
   };
 
+  const hasAvatar = Boolean(avatarUrl);
+  const donorAvatarDisplay = donorAvatarPreview || donorAvatarUrl;
+  const hasDonorAvatar = Boolean(donorAvatarDisplay);
+
   return (
     <main className="flex min-h-screen flex-col items-center bg-gradient-to-br from-rose-100 via-white to-rose-50 px-6 py-20 text-slate-900">
       <div className="w-full max-w-xl space-y-6">
@@ -412,9 +488,31 @@ export default function DonatePage() {
               Support {displayName || "Your Favourite Streamer"}
             </CardTitle>
             <CardDescription className="text-sm text-slate-600">
-              Connect your wallet to tip and share a message that will appear live on stream.
             </CardDescription>
           </CardHeader>
+          <CardContent className="flex flex-col items-center gap-3">
+            <div
+              className={`grid h-24 w-24 place-items-center overflow-hidden rounded-full ring-2 ${
+                hasAvatar ? "ring-emerald-200" : "ring-slate-200"
+              }`}
+            >
+              {hasAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt={`${displayName || channel} avatar`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="grid h-full w-full place-items-center bg-emerald-100 text-emerald-700">
+                  <UserRound className="h-12 w-12" />
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">
+              {hasAvatar ? "Profile photo set by the creator." : "This creator has not set a profile photo yet."}
+            </p>
+          </CardContent>
         </Card>
 
         <Card className="border-white/70 bg-white/95 shadow-lg shadow-rose-200/30">
@@ -435,6 +533,44 @@ export default function DonatePage() {
 
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-4">
+                {isConnected && (
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDonorAvatarClick}
+                      className="grid h-16 w-16 place-items-center rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    >
+                      <div
+                        className={`grid h-full w-full place-items-center overflow-hidden rounded-full ring-2 ${
+                          hasDonorAvatar ? "ring-emerald-200" : "ring-slate-200"
+                        }`}
+                      >
+                        {hasDonorAvatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={donorAvatarDisplay}
+                            alt="Your supporter profile avatar"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="grid h-full w-full place-items-center bg-emerald-100 text-emerald-700">
+                            <UserRound className="h-8 w-8" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      ref={donorFileInputRef}
+                      onChange={onDonorAvatarSelected}
+                      className="hidden"
+                    />
+                    <p className="text-xs text-slate-500">
+                      {hasDonorAvatar ? "Tap to change your supporter photo." : "Tap to add a supporter profile photo."}
+                    </p>
+                  </div>
+                )}
                 <Label>Your Name</Label>
                 <Input
                   required
@@ -451,17 +587,21 @@ export default function DonatePage() {
                     required
                     value={amount}
                     onChange={(e) => {
-                      // ambil hanya angka dan titik
-                      const raw = e.target.value.replace(/[^\d.]/g, "");
-                      setRawAmount(raw);
-                      if (raw === "") {
+                      const withoutSeparators = e.target.value.replace(/,/g, "");
+                      let normalized = withoutSeparators.replace(/[^0-9.]/g, "");
+                      normalized = normalized.replace(/\.(?=.*\.)/g, "");
+                      normalized = clampDecimals(normalized);
+                      if (normalized === "" || normalized === ".") {
+                        setRawAmount("");
                         setAmount("");
                         return;
                       }
-                      const num = parseFloat(raw);
-                      if (!isNaN(num)) {
-                        // tampilkan diformat agar mudah dibaca
+                      setRawAmount(normalized);
+                      const num = parseFloat(normalized);
+                      if (!Number.isNaN(num)) {
                         setAmount(num.toLocaleString(undefined, { maximumFractionDigits: 4 }));
+                      } else {
+                        setAmount(normalized);
                       }
                     }}
                     placeholder="0.05"
@@ -506,10 +646,22 @@ export default function DonatePage() {
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const bal = parseFloat(balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] || "0");
-                        if (!isNaN(bal)) {
-                          const formatted = formatAmount(((bal * pct) / 100).toFixed(6));
-                          setAmount(formatted);
+                        const bal = parseFloat(
+                          balances[
+                            selectedToken.isNative
+                              ? "native"
+                              : selectedToken.address
+                                ? selectedToken.address.toLowerCase()
+                                : ""
+                          ] || "0"
+                        );
+                        if (!Number.isNaN(bal)) {
+                          const rawValue = ((bal * pct) / 100).toFixed(6);
+                          const clampedRaw = clampDecimals(rawValue);
+                          const normalizedRaw = clampedRaw.replace(/\.?0+$/, "");
+                          const usableRaw = normalizedRaw === "" ? "0" : normalizedRaw;
+                          setRawAmount(usableRaw);
+                          setAmount(formatAmount(usableRaw));
                         }
                       }}
                     >
@@ -538,10 +690,18 @@ export default function DonatePage() {
                 disabled={
                   !isConnected ||
                   submitted ||
-                  !amount ||
-                  parseFloat(amount) <= 0 ||
-                  parseFloat(amount) >
-                    parseFloat(balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] || "0")
+                  !rawAmount ||
+                  parseFloat(rawAmount) <= 0 ||
+                  parseFloat(rawAmount) >
+                    parseFloat(
+                      balances[
+                        selectedToken.isNative
+                          ? "native"
+                          : selectedToken.address
+                            ? selectedToken.address.toLowerCase()
+                            : ""
+                      ] || "0"
+                    )
                 }
               >
                 {submitted ? "Donation queued" : "Send donation"}
