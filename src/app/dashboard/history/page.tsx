@@ -22,6 +22,7 @@ type HistoryPageProps = {
     status?: string | string[];
     token?: string | string[];
     page?: string | string[];
+    pageSize?: string | string[];
   }>;
 };
 
@@ -51,7 +52,7 @@ const STATUS_OPTIONS = [{ value: "all", label: "All statuses" }].concat(
 );
 
 export default async function HistoryPage({ searchParams }: HistoryPageProps) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
     .map(({ name, value }) => `${name}=${value}`)
