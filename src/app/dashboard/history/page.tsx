@@ -150,7 +150,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     blockNumber: donation.blockNumber,
     donorWallet: donation.donorWallet,
     status: donation.status,
-    amountInRaw: donation.amountInRaw?.toString() ?? null,
+    amountInRaw: donation.amountInRaw
+      ? donation.amountInRaw.toFixed(donation.amountInRaw.decimalPlaces())
+      : null,
     token: {
       id: donation.tokenIn.id,
       symbol: donation.tokenIn.symbol,
@@ -158,7 +160,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       logoURI: donation.tokenIn.logoURI ?? null,
       decimals: donation.tokenIn.decimals,
     },
-    feeRaw: donation.feeRaw?.toString() ?? null,
+    feeRaw: donation.feeRaw
+      ? donation.feeRaw.toFixed(donation.feeRaw.decimalPlaces())
+      : null,
     createdAt: donation.createdAt.toISOString(),
   }));
 
@@ -368,7 +372,8 @@ function formatTokenAmount(value: string | null, decimals: number) {
     const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     const trimmedFraction = fraction.slice(0, Math.min(decimals, 18)).replace(/0+$/, "");
     return trimmedFraction ? `${groupedWhole}.${trimmedFraction}` : groupedWhole;
-  } catch {
+  } catch (error) {
+    console.error("[history] formatTokenAmount failed", { decimals, raw: value, error });
     return formatDecimal(value);
   }
 }
@@ -379,7 +384,8 @@ function formatDecimal(value: string | null) {
   const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   if (!fraction) return groupedWhole;
   const trimmedFraction = fraction.replace(/0+$/, "");
-  return trimmedFraction ? `${groupedWhole}.${trimmedFraction}` : groupedWhole;
+  const result = trimmedFraction ? `${groupedWhole}.${trimmedFraction}` : groupedWhole;
+  return result;
 }
 
 function formatRelativeTime(iso: string) {
