@@ -9,12 +9,19 @@ export async function GET(
   const { channel } = await context.params;
   try {
 
-    const streamer = await prisma.streamer.findUnique({
+    const streamer = await prisma.streamer.findFirst({
       where: { userId: channel },
       select: {
         id: true,
         userId: true,
-        user: true,
+        user: {
+          select: {
+            displayName: true,
+            wallet: true,
+            avatarUrl: true,
+            username: true,
+          },
+        },
         primaryTokenId: true,
         createdAt: true
       },
