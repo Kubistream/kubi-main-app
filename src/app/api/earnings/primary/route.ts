@@ -51,6 +51,10 @@ function getBucketConfig(tf: EarningsTimeframe, range: { from: Date | null; to: 
 }
 
 const ZERO_DECIMAL = new Prisma.Decimal(0);
+const FIAT_DECIMALS: Record<EarningsCurrency, number> = {
+  USD: 2,
+  IDR: 0,
+};
 
 function toDecimal(val: unknown): Prisma.Decimal {
   if (val == null) return ZERO_DECIMAL;
@@ -282,8 +286,8 @@ export async function GET(request: NextRequest) {
         name: meta.name,
         logoURI: meta.logoURI,
         decimals: meta.decimals,
-        amount: currentTokenSum.toString(),
-        fiatValue: currentFiat.toString(),
+        amount: currentTokenSum.toFixed(0),
+        fiatValue: currentFiat.toFixed(FIAT_DECIMALS[currency]),
         growthPercent: growth,
       };
     }
@@ -297,8 +301,8 @@ export async function GET(request: NextRequest) {
       name: entry.meta.name,
       logoURI: entry.meta.logoURI,
       decimals: entry.meta.decimals,
-      amount: entry.tokenSum.toString(),
-      fiatValue: entry.fiatSum.toString(),
+      amount: entry.tokenSum.toFixed(0),
+      fiatValue: entry.fiatSum.toFixed(FIAT_DECIMALS[currency]),
       growthPercent: entry.growthPercent,
     }));
 
@@ -317,7 +321,10 @@ export async function GET(request: NextRequest) {
       const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
       if (val !== null && val !== undefined) sums[b] = sums[b]!.add(toDecimal(val));
     }
-    buckets = sums.map((v, i) => ({ t: starts[i], v: v.toString() }));
+    buckets = sums.map((v, i) => ({
+      t: starts[i],
+      v: v.toFixed(FIAT_DECIMALS[currency]),
+    }));
   } else {
     // All: dynamic up to 30 buckets over available data range
     if (current.length === 0) {
@@ -338,12 +345,15 @@ export async function GET(request: NextRequest) {
         const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
         if (val !== null && val !== undefined) sums[b] = sums[b]!.add(toDecimal(val));
       }
-      buckets = sums.map((v, i) => ({ t: starts[i], v: v.toString() }));
+      buckets = sums.map((v, i) => ({
+        t: starts[i],
+        v: v.toFixed(FIAT_DECIMALS[currency]),
+      }));
     }
   }
 
   const res = NextResponse.json({
-    primaryTotal: currentTotal.toString(),
+    primaryTotal: currentTotal.toFixed(FIAT_DECIMALS[currency]),
     growthPercent,
     currency,
     sparkline: buckets,

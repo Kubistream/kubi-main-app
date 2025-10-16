@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { useEarningsOverview } from "@/hooks/use-earnings-overview";
 import { cn } from "@/lib/utils";
+import { formatTokenAmount } from "@/lib/format/token-amount";
 import {
   EARNINGS_CURRENCIES,
   EARNINGS_TIMEFRAMES,
@@ -409,16 +410,6 @@ function formatFiat(value: string | null | undefined, currency: Currency) {
     maximumFractionDigits: currency === "USD" ? 2 : 0,
   });
   return formatter.format(amount);
-}
-
-function formatTokenAmount(value: string | null | undefined, decimals: number) {
-  const amount = Number(value ?? 0);
-  if (!Number.isFinite(amount)) return "0";
-  const maximumFractionDigits = Math.min(Math.max(decimals, 0), 6);
-  return amount.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits,
-  });
 }
 
 function safeNumeric(value: string | null | undefined) {

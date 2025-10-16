@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 import { cookies } from "next/headers";
 import { DonationStatus, type Prisma } from "@prisma/client";
-import { formatUnits } from "ethers";
+import { formatTokenAmount as formatDisplayTokenAmount } from "@/lib/format/token-amount";
 
 import { HistoryFilters } from "@/components/features/dashboard/history-filters";
 import { HistoryPagination } from "@/components/features/dashboard/history-pagination";
@@ -258,13 +258,13 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                       <StatusBadge status={row.status} />
                     </td>
                     <td className="py-4 pr-3 font-mono text-slate-900">
-                      {formatTokenAmount(row.amountInRaw, row.token.decimals)}
+                      {formatDonationAmount(row.amountInRaw, row.token.decimals)}
                     </td>
                     <td className="py-4 pr-3">
                       <TokenCell token={row.token} />
                     </td>
                     <td className="py-4 pr-3 font-mono text-slate-700">
-                      {formatTokenAmount(row.feeRaw, row.token.decimals)}
+                      {formatDonationAmount(row.feeRaw, row.token.decimals)}
                     </td>
                     <td className="py-4 pr-3">
                       <time
@@ -364,28 +364,9 @@ function shortenHash(value: string, lead = 6, tail = 4) {
   return `${value.slice(0, lead)}...${value.slice(-tail)}`;
 }
 
-function formatTokenAmount(value: string | null, decimals: number) {
+function formatDonationAmount(value: string | null, decimals: number) {
   if (!value) return "--";
-  try {
-    const formatted = formatUnits(value, decimals);
-    const [whole, fraction = ""] = formatted.split(".");
-    const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    const trimmedFraction = fraction.slice(0, Math.min(decimals, 18)).replace(/0+$/, "");
-    return trimmedFraction ? `${groupedWhole}.${trimmedFraction}` : groupedWhole;
-  } catch (error) {
-    console.error("[history] formatTokenAmount failed", { decimals, raw: value, error });
-    return formatDecimal(value);
-  }
-}
-
-function formatDecimal(value: string | null) {
-  if (!value) return "--";
-  const [whole, fraction] = value.split(".");
-  const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  if (!fraction) return groupedWhole;
-  const trimmedFraction = fraction.replace(/0+$/, "");
-  const result = trimmedFraction ? `${groupedWhole}.${trimmedFraction}` : groupedWhole;
-  return result;
+  return formatDisplayTokenAmount(value, decimals);
 }
 
 function formatRelativeTime(iso: string) {
