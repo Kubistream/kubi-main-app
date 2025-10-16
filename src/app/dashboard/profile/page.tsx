@@ -19,6 +19,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useTokenSettings } from "@/hooks/use-token-settings";
 import { fetchTokenSettings } from "@/services/streamers/token-settings-service";
 import type { TokenDto } from "@/services/tokens/token-service";
+import { setPrimaryToken, setStreamerWhitelist } from "@/services/contracts/settings";
 
 type FormState = {
   username: string;
@@ -376,12 +377,12 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
   const [error, setError] = useState<string | null>(null);
 
   const [primaryTokenId, setPrimaryTokenId] = useState<string | "" | null>(settings?.primaryTokenId ?? null);
-  const [autoswapEnabled, setAutoswapEnabled] = useState<boolean>(settings?.autoswapEnabled ?? true);
+  // Autoswap permanently enabled for now
+  const [autoswapEnabled] = useState<boolean>(true);
   const [whitelist, setWhitelist] = useState<Set<string>>(new Set(settings?.whitelistTokenIds ?? []));
 
   useEffect(() => {
     setPrimaryTokenId(settings?.primaryTokenId ?? null);
-    setAutoswapEnabled(settings?.autoswapEnabled ?? true);
     setWhitelist(new Set(settings?.whitelistTokenIds ?? []));
   }, [settings]);
 
@@ -394,11 +395,43 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     });
   };
 
+  const { user } = useAuth();
+
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
     setError(null);
     try {
+      // On-chain updates
+      const streamerAddress = user?.wallet;
+      if (!streamerAddress) throw new Error("Streamer wallet not found");
+
+      const prevPrimaryId = settings?.primaryTokenId ?? null;
+      const nextPrimaryId = primaryTokenId ? String(primaryTokenId) : null;
+      if (nextPrimaryId && nextPrimaryId !== prevPrimaryId) {
+        const token = tokens.find((t) => String(t.id) === nextPrimaryId);
+        if (!token) throw new Error("Primary token not found");
+        if (token.isNative) throw new Error("Primary token cannot be native");
+        await setPrimaryToken(streamerAddress, token.address);
+      }
+
+      const prevWhitelist = new Set(settings?.whitelistTokenIds ?? []);
+      const nextWhitelist = new Set(Array.from(whitelist));
+      const toAdd = Array.from(nextWhitelist).filter((id) => !prevWhitelist.has(id));
+      const toRemove = Array.from(prevWhitelist).filter((id) => !nextWhitelist.has(id));
+
+      for (const id of toAdd) {
+        const token = tokens.find((t) => String(t.id) === String(id));
+        if (!token || token.isNative) continue;
+        await setStreamerWhitelist(streamerAddress, token.address, true);
+      }
+      for (const id of toRemove) {
+        const token = tokens.find((t) => String(t.id) === String(id));
+        if (!token || token.isNative) continue;
+        await setStreamerWhitelist(streamerAddress, token.address, false);
+      }
+
+      // Off-chain mirror
       await onSave({
         primaryTokenId: primaryTokenId ? String(primaryTokenId) : null,
         autoswapEnabled,
@@ -496,19 +529,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         <p className="text-xs text-slate-500">Donations are auto-swapped to this token unless the incoming token is whitelisted.</p>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <div className="space-y-0.5">
-          <Label htmlFor="autoswap">Enable auto-swap</Label>
-          <p className="text-xs text-slate-500">When off, all tokens are accepted as is.</p>
-        </div>
-        <Switch
-          id="autoswap"
-          checked={autoswapEnabled}
-          onCheckedChange={setAutoswapEnabled}
-          disabled={isDisabled}
-          aria-label="Toggle auto-swap"
-        />
-      </div>
+      {/* Autoswap toggle hidden for now (always true) */}
 
       <div className="space-y-2">
         <Label>Token whitelist (no auto-swap)</Label>
