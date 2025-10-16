@@ -4,12 +4,9 @@ import { FormEvent, useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { BrowserProvider, Contract, formatEther, formatUnits, JsonRpcProvider } from "ethers";
 import { parseUnits, parseEther, getAddress } from "ethers";
-// === Konstanta kontrak donasi (isi dari ABI dan address yang diberikan user) ===
-const DONATION_CONTRACT_ADDRESS = "0x4ff45f64d60fe55eff49077c876d3ea27936a7cd"; // Ganti dengan address kontrak sebenarnya
-const DONATION_ABI = [
-  // Contoh ABI, ganti dengan ABI sebenarnya
-  "function donate(address donor, address token, uint256 amount, address streamer, uint256 minAmountOut, uint256 deadline) payable"
-];
+// Kontrak & helper modular
+import { getDonationContractAddress } from "@/services/contracts/donation";
+import { getErc20Contract } from "@/services/contracts/erc20";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,12 +17,7 @@ import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { useWallet } from "@/hooks/use-wallet";
 import { SelectTokenModal } from "@/components/ui/select-token-modal";
 
-const ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)"
-];
+// ERC20 ABI disediakan via helper getErc20Contract
 
 export default function DonatePage() {
   const params = useParams<{ channel: string }>();
@@ -251,7 +243,7 @@ export default function DonatePage() {
                 continue;
               }
 
-              const contract = new Contract(token.address, ERC20_ABI, provider);
+              const contract = getErc20Contract(token.address, provider);
               const decimals = await withTimeout(contract.decimals(), 8000).catch(() => 18);
               const balanceRaw = await withTimeout(contract.balanceOf(address), 8000).catch(() => 0n);
               const balance = formatUnits(balanceRaw, decimals);
@@ -292,7 +284,9 @@ export default function DonatePage() {
       const provider = new BrowserProvider(window.ethereum as any);
       const signer = await provider.getSigner();
       // 2. Prepare contract
-      const contract = new Contract(DONATION_CONTRACT_ADDRESS, DONATION_ABI, signer);
+      const contract = new Contract(getDonationContractAddress(), [
+        "function donate(address addressSupporter, address tokenIn, uint256 amount, address streamer, uint256 amountOutMin, uint256 deadline) payable",
+      ], signer);
       // 3. Ambil amountIn
       let amountIn;
       let decimals = 18;
@@ -301,11 +295,11 @@ export default function DonatePage() {
         throw new Error("Invalid amount");
       }
 
-      let erc20;
+      let erc20: Contract | undefined;
       if (selectedToken.isNative) {
         amountIn = parseEther(cleanAmount);
       } else if (selectedToken.address) {
-        erc20 = new Contract(selectedToken.address, ERC20_ABI, signer);
+        erc20 = getErc20Contract(selectedToken.address, signer);
         decimals = await erc20.decimals();
         amountIn = parseUnits(cleanAmount, decimals);
       } else {
@@ -313,7 +307,7 @@ export default function DonatePage() {
       }
       // 4. Jika token ERC20, cek allowance dan approve jika kurang
       if (!selectedToken.isNative && selectedToken.address && erc20) {
-        const spender = DONATION_CONTRACT_ADDRESS;
+        const spender = getDonationContractAddress();
         const owner = getAddress(address!);
         let allowance = await erc20.allowance(owner, spender);
         console.log("🔎 Current allowance:", allowance.toString(), "Needed:", amountIn.toString());
@@ -600,4 +594,3 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       });
   });
 }
-
