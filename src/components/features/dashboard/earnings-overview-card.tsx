@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
 import { useEarningsOverview } from "@/hooks/use-earnings-overview";
@@ -209,12 +210,12 @@ function TokenBreakdownCard({
     <div className="rounded-3xl border border-rose-100 bg-white px-6 py-6 shadow-sm shadow-rose-200/40">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-rose-300">Others</p>
-        <button
-          type="button"
+        <Link
+          href="/dashboard/history"
           className="text-xs font-semibold text-rose-400 transition hover:text-rose-600"
         >
           See more
-        </button>
+        </Link>
       </div>
       <div className="mt-4 space-y-4">
         {loading ? (

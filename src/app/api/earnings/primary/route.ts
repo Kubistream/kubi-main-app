@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const range = getRangeForTimeframe(timeframe, now);
 
-  const amountField = currency === "USD" ? "amountOutUsd" : "amountOutIdr";
+  const amountField = currency === "USD" ? "amountInUsd" : "amountInIdr";
 
   const whereForSparkline: Prisma.DonationWhereInput = {
     streamerId,
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
     streamerId,
     status: DonationStatus.CONFIRMED,
     [amountField]: { not: null },
-    amountOutRaw: { not: null },
+    amountInRaw: { not: null },
   };
   if (range.from) {
     whereForTokenGroups.timestamp = { gte: range.from, lte: range.to };
@@ -131,24 +131,24 @@ export async function GET(request: NextRequest) {
 
   const current = await prisma.donation.findMany({
     where: whereForSparkline,
-    select: { timestamp: true, amountOutUsd: true, amountOutIdr: true },
+    select: { timestamp: true, amountInUsd: true, amountInIdr: true },
     orderBy: { timestamp: "asc" },
   });
 
   const currentTokenGroups = await prisma.donation.groupBy({
-    by: ["tokenOutId"],
+    by: ["tokenInId"],
     where: whereForTokenGroups,
     _sum: {
-      amountOutUsd: true,
-      amountOutIdr: true,
-      amountOutRaw: true,
+      amountInUsd: true,
+      amountInIdr: true,
+      amountInRaw: true,
     },
   });
 
   // Sum current total
   let currentTotal = new Prisma.Decimal(0);
   for (const d of current) {
-    const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+    const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
     if (val != null) currentTotal = currentTotal.add(toDecimal(val));
   }
 
@@ -164,40 +164,40 @@ export async function GET(request: NextRequest) {
         timestamp: { gte: prevFrom, lt: prevTo }, // exclude boundary to avoid double count
         [amountField]: { not: null },
       },
-      select: { amountOutUsd: true, amountOutIdr: true },
+      select: { amountInUsd: true, amountInIdr: true },
     });
     let prevTotal = new Prisma.Decimal(0);
     for (const d of previous) {
-      const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+      const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
       if (val != null) prevTotal = prevTotal.add(toDecimal(val));
     }
     const previousTokenGroups = await prisma.donation.groupBy({
-      by: ["tokenOutId"],
+      by: ["tokenInId"],
       where: {
         streamerId,
         status: DonationStatus.CONFIRMED,
         timestamp: { gte: prevFrom, lt: prevTo },
         [amountField]: { not: null },
-        amountOutRaw: { not: null },
+        amountInRaw: { not: null },
       },
       _sum: {
-        amountOutUsd: true,
-        amountOutIdr: true,
-        amountOutRaw: true,
+        amountInUsd: true,
+        amountInIdr: true,
+        amountInRaw: true,
       },
     });
     previousTokenMap = new Map(
       previousTokenGroups
-        .filter((group) => Boolean(group.tokenOutId))
+        .filter((group) => Boolean(group.tokenInId))
         .map((group) => {
-          const tokenId = group.tokenOutId as string;
+          const tokenId = group.tokenInId as string;
           return [
             tokenId,
             {
               fiat: toDecimal(
-                currency === "USD" ? group._sum.amountOutUsd : group._sum.amountOutIdr,
+                currency === "USD" ? group._sum.amountInUsd : group._sum.amountInIdr,
               ),
-              raw: toDecimal(group._sum.amountOutRaw),
+              raw: toDecimal(group._sum.amountInRaw),
             },
           ];
         }),
@@ -210,8 +210,8 @@ export async function GET(request: NextRequest) {
 
   const tokenIds = new Set<string>();
   for (const group of currentTokenGroups) {
-    if (group.tokenOutId) {
-      tokenIds.add(group.tokenOutId);
+    if (group.tokenInId) {
+      tokenIds.add(group.tokenInId);
     }
   }
   if (primaryTokenId) {
@@ -244,14 +244,14 @@ export async function GET(request: NextRequest) {
 
   const tokenAggregates: TokenAggregate[] = [];
   for (const group of currentTokenGroups) {
-    const tokenId = group.tokenOutId;
+    const tokenId = group.tokenInId;
     if (!tokenId) continue;
     const meta = tokenMetaMap.get(tokenId);
     if (!meta) continue;
     const fiatSum = currency === "USD"
-      ? toDecimal(group._sum.amountOutUsd)
-      : toDecimal(group._sum.amountOutIdr);
-    const tokenSum = toDecimal(group._sum.amountOutRaw);
+      ? toDecimal(group._sum.amountInUsd)
+      : toDecimal(group._sum.amountInIdr);
+    const tokenSum = toDecimal(group._sum.amountInRaw);
     const previous = previousTokenMap.get(tokenId);
     const previousFiat = previous?.fiat ?? ZERO_DECIMAL;
     tokenAggregates.push({
@@ -318,7 +318,7 @@ export async function GET(request: NextRequest) {
       const ts = new Date(d.timestamp).getTime();
       if (ts < from.getTime() || ts > to.getTime()) continue;
       const b = Math.min(Math.floor((ts - from.getTime()) / bucketMs), count - 1);
-      const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+      const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
       if (val !== null && val !== undefined) sums[b] = sums[b]!.add(toDecimal(val));
     }
     buckets = sums.map((v, i) => ({
@@ -342,7 +342,7 @@ export async function GET(request: NextRequest) {
       for (const d of current) {
         const ts = new Date(d.timestamp).getTime();
         const b = Math.min(Math.floor((ts - startMs) / bucketMs), count - 1);
-        const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+        const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
         if (val !== null && val !== undefined) sums[b] = sums[b]!.add(toDecimal(val));
       }
       buckets = sums.map((v, i) => ({
