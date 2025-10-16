@@ -34,7 +34,12 @@ export async function POST(
       return NextResponse.json({ error: "Invalid session - Missing wallet address" }, { status: 401 });
     }
 
-    const donorWallet = user.user.wallet;
+    let donorWallet: string;
+    try {
+      donorWallet = ethers.getAddress(user.user.wallet);
+    } catch {
+      return NextResponse.json({ error: "Invalid session wallet address" }, { status: 400 });
+    }
 
     // Validasi data dasar
     if (!txHash || !streamerId) {
@@ -85,23 +90,37 @@ export async function POST(
 
     const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
 
-    if (donor.toLowerCase() !== donorWallet.toLowerCase()) {
+    let donorAddress: string;
+    let streamerAddress: string;
+    let tokenInAddress: string;
+    let tokenOutAddress: string;
+
+    try {
+      donorAddress = ethers.getAddress(donor as string);
+      streamerAddress = ethers.getAddress(streamer as string);
+      tokenInAddress = ethers.getAddress(tokenIn as string);
+      tokenOutAddress = ethers.getAddress(tokenOut as string);
+    } catch {
+      return NextResponse.json({ error: "Malformed donation event addresses" }, { status: 400 });
+    }
+
+    if (donorAddress !== donorWallet) {
       return NextResponse.json({ error: "Donor address does not match session wallet" }, { status: 400 });
     }
 
     console.log("✅ Transaction verified on chain:", txHash);
-    console.log("   Donor:", donor);
-    console.log("   Streamer:", streamer);
-    console.log("   Token In:", tokenIn);
+    console.log("   Donor:", donorAddress);
+    console.log("   Streamer:", streamerAddress);
+    console.log("   Token In:", tokenInAddress);
     console.log("   Amount In:", amountIn.toString());
     console.log("   Fee Amount:", feeAmount.toString());
-    console.log("   Token Out:", tokenOut);
+    console.log("   Token Out:", tokenOutAddress);
     console.log("   Amount Out To Streamer:", amountOutToStreamer.toString());
 
     const tokenInRecord = await prisma.token.findFirst({
       where: {
         address: {
-          equals: tokenIn,
+          equals: tokenInAddress,
           mode: "insensitive", // ⬅️ ini yang bikin case-insensitive
         },
       },
@@ -110,7 +129,7 @@ export async function POST(
     const tokenOutRecord = await prisma.token.findFirst({
       where: {
         address: {
-          equals: tokenOut,
+          equals: tokenOutAddress,
           mode: "insensitive", // ⬅️ ini juga
         },
       },
@@ -136,8 +155,8 @@ export async function POST(
     };
 
     // 💵 Hitung nilai USD dan IDR
-    const priceInUsd = tokenPricesUsd[tokenIn.toLowerCase()] || 0;
-    const priceOutUsd = tokenPricesUsd[tokenOut.toLowerCase()] || 0;
+    const priceInUsd = tokenPricesUsd[tokenInAddress.toLowerCase()] || 0;
+    const priceOutUsd = tokenPricesUsd[tokenOutAddress.toLowerCase()] || 0;
     const amountInFloat = parseFloat(ethers.formatUnits(amountIn, 18));
     const amountOutFloat = parseFloat(ethers.formatUnits(amountOutToStreamer, 18));
     const amountInUsd = amountInFloat * priceInUsd;
@@ -151,7 +170,7 @@ export async function POST(
       data: {
         txHash,
         message,
-        donorWallet: donor,
+        donorWallet: donorAddress,
         streamerId,
         tokenInId: tokenInRecord.id,
         tokenOutId: tokenOutRecord.id,

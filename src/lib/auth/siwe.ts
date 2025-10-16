@@ -1,4 +1,5 @@
 import { generateNonce, SiweMessage } from "siwe";
+import { getAddress } from "ethers";
 
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -111,8 +112,15 @@ export async function verifySiweMessage({ message, signature }: VerifySiweParams
     data: { consumedAt: new Date() },
   });
 
+  let checksumAddress: string;
+  try {
+    checksumAddress = getAddress(siweMessage.address);
+  } catch {
+    throw new SiweError("Invalid wallet address provided in SIWE message");
+  }
+
   return {
-    address: siweMessage.address.toLowerCase(),
+    address: checksumAddress,
     chainId: siweMessage.chainId,
     nonce: nonceRecord.nonce,
   };

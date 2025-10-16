@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { Role, type Streamer, type User } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { getAddress } from "ethers";
 // Zod removed per request; using manual checks
 
 import { SiweError, verifySiweMessage } from "@/lib/auth/siwe";
@@ -166,10 +167,16 @@ export async function POST(request: NextRequest) {
       signature: payload.signature,
     });
 
-    const wallet = verification.address.toLowerCase();
+    const wallet = getAddress(verification.address);
+    const legacyWallet = wallet.toLowerCase();
 
-    let user = await prisma.user.findUnique({
-      where: { wallet },
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { wallet },
+          { wallet: legacyWallet },
+        ],
+      },
       include: { streamer: true },
     });
 
@@ -188,6 +195,12 @@ export async function POST(request: NextRequest) {
       user = await prisma.user.update({
         where: { id: user.id },
         data: { role: Role.STREAMER },
+        include: { streamer: true },
+      });
+    } else if (user.wallet !== wallet) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { wallet },
         include: { streamer: true },
       });
     }
