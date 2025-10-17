@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { publicUrlForKey, requiredBucket, s3 } from "@/lib/s3";
 
 import {
   applySessionCookies,
@@ -45,17 +45,21 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = type === "image/png" ? "png" : "jpg";
-    const fileName = `${sessionRecord.user.id}-${Date.now()}.${ext}`;
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "avatars");
-
-    await fs.mkdir(uploadsDir, { recursive: true });
-    const filePath = path.join(uploadsDir, fileName);
+    const key = `avatars/${sessionRecord.user.id}-${Date.now()}.${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    await fs.writeFile(filePath, buffer);
 
-    const publicUrl = `/uploads/avatars/${fileName}`;
+    const put = new PutObjectCommand({
+      Bucket: requiredBucket(),
+      Key: key,
+      Body: buffer,
+      ContentType: type,
+      CacheControl: "public, max-age=31536000, immutable",
+    });
+    await s3.send(put);
+
+    const publicUrl = publicUrlForKey(key);
 
     const response = NextResponse.json({ url: publicUrl });
     return applySessionCookies(sessionResponse, response);
@@ -64,4 +68,3 @@ export async function POST(request: NextRequest) {
     return error(sessionResponse, 500, "Failed to upload avatar");
   }
 }
-

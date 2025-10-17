@@ -2,7 +2,7 @@
   "name": "kubi-web",
   "version": "0.1.0",
   "private": true,
-  "type":"module",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,6 +15,7 @@
     "ws": "node src/server/websocket.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.911.0",
     "@prisma/client": "^6.17.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@rainbow-me/rainbowkit": "^2.2.8",
