@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     streamer: sessionRecord.user.streamer
       ? {
           id: sessionRecord.user.streamer.id,
+          userId: sessionRecord.user.streamer.userId,
           primaryTokenId: sessionRecord.user.streamer.primaryTokenId ?? null,
         }
       : null,
