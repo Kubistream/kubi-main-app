@@ -2,7 +2,7 @@
 
 import { ChangeEventHandler, FormEvent, useEffect, useRef, useState } from "react";
 import { Loader2, PartyPopper, UserRound } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { BrowserProvider, Contract, formatEther, formatUnits, JsonRpcProvider } from "ethers";
 import { parseUnits, parseEther, getAddress } from "ethers";
 // Kontrak & helper modular
@@ -32,6 +32,7 @@ const CELEBRATION_MESSAGES = [
 export default function DonatePage() {
   const params = useParams<{ channel: string }>();
   const channel = params?.channel ?? "";
+  const router = useRouter();
   const [displayName, setDisplayName] = useState<string>("");
   const [streamerAddress, setStreamerAddress] = useState<string>("");
   const [streamerId, setStreamerId] = useState<string>("");
@@ -41,6 +42,10 @@ export default function DonatePage() {
     const fetchStreamer = async () => {
       try {
         const res = await fetch(`/api/streamer/${channel}`);
+        if (res.status === 404) {
+          router.replace("/404");
+          return;
+        }
         if (!res.ok) throw new Error("Failed to fetch streamer");
         const data = await res.json();
         setDisplayName(data.user.displayName || channel);
@@ -55,7 +60,7 @@ export default function DonatePage() {
       }
     };
     fetchStreamer();
-  }, [channel]);
+  }, [channel, router]);
   const { isConnected, address } = useWallet();
   const [donorAvatarUrl, setDonorAvatarUrl] = useState<string>("");
   const [donorAvatarPreview, setDonorAvatarPreview] = useState<string>("");
