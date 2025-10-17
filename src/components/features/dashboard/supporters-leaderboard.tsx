@@ -23,6 +23,7 @@ interface TokenBreakdown {
 
 interface SupporterEntry {
   wallet: string | null;
+  displayName: string | null;
   totalAmount: number;
   donationCount: number;
   tokens: TokenBreakdown[];
@@ -235,6 +236,10 @@ export function SupportersLeaderboard() {
               const key = supporter.wallet ?? `anon-${index}`;
               const isExpanded = expandedKey === key;
               const rankBadgeClasses = getRankBadgeClasses(index, sortDirection === "desc");
+              const trimmedDisplayName = supporter.displayName?.trim();
+              const primaryLabel = trimmedDisplayName && trimmedDisplayName.length > 0
+                ? trimmedDisplayName
+                : formatWallet(supporter.wallet);
 
               return (
                 <div
@@ -252,8 +257,13 @@ export function SupportersLeaderboard() {
                     <div className="flex items-center gap-4">
                       <span className={rankBadgeClasses}>{index + 1}</span>
                       <div>
-                        <p className="font-mono text-sm font-semibold uppercase tracking-[0.08em] text-slate-900">
-                          {formatWallet(supporter.wallet)}
+                        <p className="text-sm font-semibold text-slate-900">
+                          {primaryLabel}
+                          {supporter.wallet ? (
+                            <span className="ml-2 font-mono text-[11px] text-slate-400">
+                              ({supporter.wallet})
+                            </span>
+                          ) : null}
                         </p>
                         <p className="text-xs text-slate-500">
                           {supporter.donationCount} donation{supporter.donationCount === 1 ? "" : "s"}

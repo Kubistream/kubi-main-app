@@ -135,7 +135,8 @@ export async function GET(request: NextRequest) {
   const supportersMap = new Map<
     string,
     {
-      wallet: string | null;
+      walletChecksum: string | null;
+      walletRaw: string | null;
       totalAmount: number;
       donationCount: number;
       tokens: Map<
@@ -159,7 +160,8 @@ export async function GET(request: NextRequest) {
 
     if (!supportersMap.has(walletKey)) {
       supportersMap.set(walletKey, {
-        wallet: formatWallet(donation.donorWallet ?? null),
+        walletChecksum: formatWallet(donation.donorWallet ?? null),
+        walletRaw: donation.donorWallet ?? null,
         totalAmount: 0,
         donationCount: 0,
         tokens: new Map(),
@@ -195,32 +197,62 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const walletLookup = new Set<string>();
+  supportersMap.forEach((supporter) => {
+    if (supporter.walletRaw) {
+      walletLookup.add(supporter.walletRaw);
+    }
+  });
+
+  const userRecords =
+    walletLookup.size > 0
+      ? await prisma.user.findMany({
+          where: { wallet: { in: Array.from(walletLookup.values()) } },
+          select: { wallet: true, displayName: true },
+        })
+      : [];
+
+  const displayNameByWallet = new Map<string, string | null>();
+  for (const record of userRecords) {
+    if (!record.wallet) continue;
+    displayNameByWallet.set(record.wallet.toLowerCase(), record.displayName ?? null);
+  }
+
   const supporters = Array.from(supportersMap.values())
     .filter((supporter) => supporter.totalAmount > 0)
-    .map((supporter) => ({
-      wallet: supporter.wallet,
-      totalAmount: supporter.totalAmount,
-      donationCount: supporter.donationCount,
-      tokens: Array.from(supporter.tokens.values())
-        .map((token) => {
-          const decimals = Math.max(0, token.decimals ?? 18);
-          const divisor = decimals > 0 ? Math.pow(10, decimals) : 1;
-          const normalized =
-            divisor && Number.isFinite(divisor) ? token.amountRaw / divisor : token.amountRaw;
+    .map((supporter) => {
+      const walletLower = supporter.walletRaw?.toLowerCase() ?? null;
+      const displayName =
+        walletLower && displayNameByWallet.has(walletLower)
+          ? displayNameByWallet.get(walletLower) ?? null
+          : null;
 
-          return {
-            ...token,
-            amount: normalized,
-          };
-        })
-        .filter(
-          (token) =>
-            Number.isFinite(token.amount) &&
-            token.amount > 0 &&
-            Number.isFinite(token.amountRaw) &&
-            token.amountRaw > 0,
-        ),
-    }));
+      return {
+        wallet: supporter.walletChecksum,
+        totalAmount: supporter.totalAmount,
+        donationCount: supporter.donationCount,
+        displayName,
+        tokens: Array.from(supporter.tokens.values())
+          .map((token) => {
+            const decimals = Math.max(0, token.decimals ?? 18);
+            const divisor = decimals > 0 ? Math.pow(10, decimals) : 1;
+            const normalized =
+              divisor && Number.isFinite(divisor) ? token.amountRaw / divisor : token.amountRaw;
+
+            return {
+              ...token,
+              amount: normalized,
+            };
+          })
+          .filter(
+            (token) =>
+              Number.isFinite(token.amount) &&
+              token.amount > 0 &&
+              Number.isFinite(token.amountRaw) &&
+              token.amountRaw > 0,
+          ),
+      };
+    });
 
   supporters.sort((a, b) => {
     if (sortDirection === "asc") {
