@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
       donationCount: supporter.donationCount,
       tokens: Array.from(supporter.tokens.values())
         .map((token) => {
-          const decimals = token.decimals ?? 18;
+          const decimals = Math.max(0, token.decimals ?? 18);
           const divisor = decimals > 0 ? Math.pow(10, decimals) : 1;
           const normalized =
             divisor && Number.isFinite(divisor) ? token.amountRaw / divisor : token.amountRaw;

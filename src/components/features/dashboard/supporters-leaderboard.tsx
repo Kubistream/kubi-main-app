@@ -69,7 +69,7 @@ const tokenAmountFormatter = new Intl.NumberFormat("en-US", {
 function formatWallet(address: string | null) {
   if (!address) return "Anonymous supporter";
   if (address.length <= 12) return address;
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function formatTokenName(token: TokenBreakdown) {
