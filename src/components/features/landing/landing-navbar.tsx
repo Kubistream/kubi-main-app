@@ -49,9 +49,9 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Badge className="rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
+          {/* <Badge className="rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
             Role · {roleLabel}
-          </Badge>
+          </Badge> */}
           <button
             type="button"
             onClick={onLaunch}

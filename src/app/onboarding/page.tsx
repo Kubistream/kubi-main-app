@@ -39,7 +39,21 @@ export default function OnboardingPage() {
         await refreshAuth();
       }
 
-      // Decide destination based on latest server-backed profile.
+      // Fetch latest auth state to branch on role accurately.
+      const me = await fetch("/api/auth/me", { credentials: "include" });
+      if (!me.ok) {
+        throw new Error("Unable to verify your session. Please try again.");
+      }
+      const meData = (await me.json()) as { user: { role: "USER" | "STREAMER" | "SUPERADMIN" } | null };
+      const role = meData.user?.role;
+
+      // Superadmins go straight to Admin Dashboard; skip streamer onboarding entirely.
+      if (role === "SUPERADMIN") {
+        router.push("/dashboard/admin");
+        return;
+      }
+
+      // Decide destination based on latest server-backed profile for streamers.
       // Only navigate when the profile endpoint confirms an authorised session.
       const response = await fetch("/api/streamers/me", { credentials: "include" });
       if (!response.ok) {

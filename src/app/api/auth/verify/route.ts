@@ -207,8 +207,8 @@ export async function POST(request: NextRequest) {
 
     if (
       payload.createStreamerProfile ||
-      user.role === Role.STREAMER ||
-      user.role === Role.SUPERADMIN
+      user.role === Role.STREAMER
+      // Note: SUPERADMIN does not need streamer setup; avoid forcing profile flow.
     ) {
       user = await ensureStreamerSetup(user.id, wallet);
     }

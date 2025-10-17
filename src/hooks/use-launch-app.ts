@@ -23,8 +23,11 @@ export function useLaunchApp() {
       if (authRes.ok) {
         const authData = (await authRes.json()) as AuthMeResponse;
         const apiUser = authData.user;
-        const serverIsStreamer =
-          apiUser?.role === "STREAMER" || apiUser?.role === "SUPERADMIN";
+        if (apiUser?.role === "SUPERADMIN") {
+          router.push("/dashboard/admin");
+          return;
+        }
+        const serverIsStreamer = apiUser?.role === "STREAMER";
 
         if (serverIsStreamer) {
           // Check latest profile completion from streamer endpoint
@@ -59,7 +62,11 @@ export function useLaunchApp() {
       return;
     }
 
-    const isStreamer = user.role === "STREAMER" || user.role === "SUPERADMIN";
+    if (user.role === "SUPERADMIN") {
+      router.push("/dashboard/admin");
+      return;
+    }
+    const isStreamer = user.role === "STREAMER";
     if (!isStreamer) {
       router.push("/onboarding");
       return;

@@ -30,6 +30,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
     () => pathname?.startsWith("/dashboard/profile") ?? false,
     [pathname],
   );
+  const isAdminRoute = useMemo(
+    () => pathname?.startsWith("/dashboard/admin") ?? false,
+    [pathname],
+  );
 
   useEffect(() => {
     // When navigating within the dashboard, re-verify token readiness on non-profile routes
@@ -74,6 +78,13 @@ export function DashboardShell({ children }: DashboardShellProps) {
       return;
     }
 
+    // Superadmins: force them into Admin routes and skip streamer gating
+    if (isAdmin && !isAdminRoute) {
+      setGuardMessage("Redirecting to admin...");
+      router.replace("/dashboard/admin");
+      return;
+    }
+
     // For streamers, ensure both profile and primary token are set
     if (isStreamer) {
       // If we haven't checked token readiness yet, fetch it
@@ -114,7 +125,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
     }
 
     setGuardMessage(null);
-  }, [isDashboardRoute, isProfileRoute, pathname, router, status, user, isSigning, isConnected, hasPrimaryToken]);
+  }, [isDashboardRoute, isProfileRoute, isAdminRoute, pathname, router, status, user, isSigning, isConnected, hasPrimaryToken]);
 
   if (guardMessage) {
     return (

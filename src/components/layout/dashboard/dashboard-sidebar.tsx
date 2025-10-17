@@ -5,8 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { History, LayoutDashboard, Trophy, UserRound } from "lucide-react";
+import { History, LayoutDashboard, Settings, Trophy, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
 
 type DashboardNavItem = {
   label: string;
@@ -14,15 +15,25 @@ type DashboardNavItem = {
   icon?: ReactNode;
 };
 
-const DASHBOARD_NAV: DashboardNavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
-  { label: "Leaderboard", href: "/dashboard/leaderboard", icon: <Trophy className="h-5 w-5" /> },
-  { label: "Tx History", href: "/dashboard/history", icon: <History className="h-5 w-5" /> },
-  { label: "Profile", href: "/dashboard/profile", icon: <UserRound className="h-5 w-5" /> },
-];
+function buildNav(isSuperAdmin: boolean): DashboardNavItem[] {
+  if (isSuperAdmin) {
+    // Superadmin sees only Admin section
+    return [{ label: "Admin", href: "/dashboard/admin", icon: <Settings className="h-5 w-5" /> }];
+  }
+  // Streamers/users see the standard creator dashboard nav
+  return [
+    { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
+    { label: "Leaderboard", href: "/dashboard/leaderboard", icon: <Trophy className="h-5 w-5" /> },
+    { label: "Tx History", href: "/dashboard/history", icon: <History className="h-5 w-5" /> },
+    { label: "Profile", href: "/dashboard/profile", icon: <UserRound className="h-5 w-5" /> },
+  ];
+}
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPERADMIN";
+  const DASHBOARD_NAV = buildNav(Boolean(isSuperAdmin));
 
   return (
     <aside className="hidden w-64 flex-col border-r border-rose-100 bg-white text-slate-900 shadow-lg shadow-rose-200/40 md:flex lg:w-72">
