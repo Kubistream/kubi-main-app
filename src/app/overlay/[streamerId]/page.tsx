@@ -14,6 +14,9 @@ type OverlayMsg = {
   txHash: string;
 };
 
+const WS_BASE_URL =
+  (process.env.NEXT_PUBLIC_OVERLAY_WS_URL ?? "ws://localhost:8080").replace(/\/$/, "");
+
 export default function OverlayPage() {
   const [queue, setQueue] = useState<OverlayMsg[]>([]);
   const [current, setCurrent] = useState<OverlayMsg | null>(null);
@@ -23,7 +26,7 @@ export default function OverlayPage() {
     const streamerId = window.location.pathname.split("/").pop();
     if (!streamerId) return;
 
-    const socket = new WebSocket(`ws://localhost:8080/ws/${streamerId}`);
+    const socket = new WebSocket(`${WS_BASE_URL}/ws/${streamerId}`);
 
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);

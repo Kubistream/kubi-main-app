@@ -32,6 +32,7 @@ jobs:
           APP_URL: ${{ secrets.APP_URL }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
           NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
+          NEXT_PUBLIC_OVERLAY_WS_URL : ${{ secrets.NEXT_PUBLIC_OVERLAY_WS_URL }}
         run: NEXT_IGNORE_ESLINT_DURING_BUILD=1 npm run build
 
       - name: Stop PM2 app
@@ -58,6 +59,7 @@ jobs:
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
           NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
           NEXTAUTH_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_OVERLAY_WS_URL : ${{ secrets.NEXT_PUBLIC_OVERLAY_WS_URL }}
         run: | 
           npx pm2 delete nextjs-app || true 
           npx pm2 start npm --name "nextjs-app" -- start 
