@@ -15,8 +15,11 @@ function parseCurrency(input: string | null): EarningsCurrency {
   return "USD";
 }
 
-function getRangeForTimeframe(tf: EarningsTimeframe, now = new Date()) {
-  if (tf === "All") return { from: null as Date | null, to: now };
+function getRangeForTimeframe(tf: EarningsTimeframe, now = new Date(), earliest?: Date | null) {
+  if (tf === "All") {
+    const normalized = earliest ? new Date(earliest) : null;
+    return { from: normalized, to: now };
+  }
   const to = now;
   const from = new Date(to);
   if (tf === "1D") from.setUTCDate(from.getUTCDate() - 1);
@@ -103,47 +106,71 @@ export async function GET(request: NextRequest) {
     return applySessionCookies(sessionResponse, res);
   }
 
-  const streamerId = sessionRecord.user.streamer.id;
+  const streamer = sessionRecord.user.streamer;
+  const streamerId = streamer.id;
 
   const now = new Date();
-  const range = getRangeForTimeframe(timeframe, now);
+  let range = getRangeForTimeframe(timeframe, now, streamer.profileCompletedAt ?? null);
 
   const amountField = currency === "USD" ? "amountInUsd" : "amountInIdr";
 
-  const whereForSparkline: Prisma.DonationWhereInput = {
-    streamerId,
-    status: DonationStatus.CONFIRMED,
-    [amountField]: { not: null },
+  const buildSparklineWhere = (inputRange: { from: Date | null; to: Date }): Prisma.DonationWhereInput => {
+    const base: Prisma.DonationWhereInput = {
+      streamerId,
+      status: DonationStatus.CONFIRMED,
+      [amountField]: { not: null },
+    };
+    if (inputRange.from) {
+      base.timestamp = { gte: inputRange.from, lte: inputRange.to };
+    } else {
+      base.timestamp = { lte: inputRange.to };
+    }
+    return base;
   };
-  if (range.from) {
-    whereForSparkline.timestamp = { gte: range.from, lte: range.to };
-  }
 
-  const whereForTokenGroups: Prisma.DonationWhereInput = {
-    streamerId,
-    status: DonationStatus.CONFIRMED,
-    [amountField]: { not: null },
-    amountInRaw: { not: null },
+  const buildTokenGroupWhere = (inputRange: { from: Date | null; to: Date }): Prisma.DonationWhereInput => {
+    const base: Prisma.DonationWhereInput = {
+      streamerId,
+      status: DonationStatus.CONFIRMED,
+      [amountField]: { not: null },
+      amountInRaw: { not: null },
+    };
+    if (inputRange.from) {
+      base.timestamp = { gte: inputRange.from, lte: inputRange.to };
+    } else {
+      base.timestamp = { lte: inputRange.to };
+    }
+    return base;
   };
-  if (range.from) {
-    whereForTokenGroups.timestamp = { gte: range.from, lte: range.to };
+
+  const loadCurrentSnapshot = async (inputRange: { from: Date | null; to: Date }) => {
+    const sparklineWhere = buildSparklineWhere(inputRange);
+    const tokenWhere = buildTokenGroupWhere(inputRange);
+    const [currentDonations, tokenGroups] = await Promise.all([
+      prisma.donation.findMany({
+        where: sparklineWhere,
+        select: { timestamp: true, amountInUsd: true, amountInIdr: true },
+        orderBy: { timestamp: "asc" },
+      }),
+      prisma.donation.groupBy({
+        by: ["tokenInId"],
+        where: tokenWhere,
+        _sum: {
+          amountInUsd: true,
+          amountInIdr: true,
+          amountInRaw: true,
+        },
+      }),
+    ]);
+    return { currentDonations, tokenGroups };
+  };
+
+  let { currentDonations: current, tokenGroups: currentTokenGroups } = await loadCurrentSnapshot(range);
+
+  if (timeframe === "All" && range.from && current.length === 0) {
+    range = getRangeForTimeframe(timeframe, now, null);
+    ({ currentDonations: current, tokenGroups: currentTokenGroups } = await loadCurrentSnapshot(range));
   }
-
-  const current = await prisma.donation.findMany({
-    where: whereForSparkline,
-    select: { timestamp: true, amountInUsd: true, amountInIdr: true },
-    orderBy: { timestamp: "asc" },
-  });
-
-  const currentTokenGroups = await prisma.donation.groupBy({
-    by: ["tokenInId"],
-    where: whereForTokenGroups,
-    _sum: {
-      amountInUsd: true,
-      amountInIdr: true,
-      amountInRaw: true,
-    },
-  });
 
   // Sum current total
   let currentTotal = new Prisma.Decimal(0);
