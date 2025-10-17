@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useStreamerProfile } from "@/hooks/use-streamer-profile";
+import { useAuth } from "@/providers/auth-provider";
 import { brandPalette } from "@/constants/theme";
 
 interface FormState {
@@ -18,7 +19,8 @@ interface FormState {
 }
 
 export default function CreateLinkPage() {
-  const { profile, isConnected, isLoading } = useStreamerProfile();
+  const { isConnected, isLoading } = useStreamerProfile();
+  const { user } = useAuth();
   const [form, setForm] = useState<FormState>({ slug: "", message: "" });
   const [origin, setOrigin] = useState<string>("");
   const [submitted, setSubmitted] = useState(false);
@@ -28,12 +30,17 @@ export default function CreateLinkPage() {
   }, []);
 
   useEffect(() => {
-    if (!profile?.username) return;
-    setForm((prev) => ({
-      ...prev,
-      slug: prev.slug || profile.username || "",
-    }));
-  }, [profile]);
+    setForm((prev) => {
+      const nextSlug = user?.id ?? "";
+      if (prev.slug === nextSlug) {
+        return prev;
+      }
+      return {
+        ...prev,
+        slug: nextSlug,
+      };
+    });
+  }, [user?.id]);
 
   const donationUrl = useMemo(() => {
     if (!form.slug || !origin) return "";
@@ -80,12 +87,8 @@ export default function CreateLinkPage() {
                   <Input
                     required
                     value={form.slug}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, slug: event.target.value }))
-                    }
-                    placeholder={profile?.username ?? "your-handle"}
-                    pattern="[a-zA-Z0-9_-]+"
-                    title="Use letters, numbers, dashes, or underscores"
+                    readOnly
+                    placeholder={user?.id ?? "Connect to generate"}
                     disabled={!isConnected}
                     className="flex-1"
                   />

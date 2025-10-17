@@ -5,35 +5,56 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { History, LayoutDashboard, Settings, Trophy, UserRound } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { History, LayoutDashboard, MonitorPlay, Settings, Trophy, UserRound } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { cn } from "@/lib/utils";
 
 type DashboardNavItem = {
   label: string;
   href: string;
   icon?: ReactNode;
+  target?: string;
+  rel?: string;
+  disabled?: boolean;
 };
 
-function buildNav(isSuperAdmin: boolean): DashboardNavItem[] {
-  if (isSuperAdmin) {
-    // Superadmin sees only Admin section
-    return [{ label: "Admin", href: "/dashboard/admin", icon: <Settings className="h-5 w-5" /> }];
-  }
-  // Streamers/users see the standard creator dashboard nav
-  return [
-    { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
-    { label: "Leaderboard", href: "/dashboard/leaderboard", icon: <Trophy className="h-5 w-5" /> },
-    { label: "Tx History", href: "/dashboard/history", icon: <History className="h-5 w-5" /> },
-    { label: "Profile", href: "/dashboard/profile", icon: <UserRound className="h-5 w-5" /> },
+const SUPERADMIN_NAV: DashboardNavItem[] = [
+  { label: "Admin", href: "/dashboard/admin", icon: <Settings className="h-5 w-5" /> },
   ];
-}
+
+
+const STATIC_NAV: DashboardNavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
+  { label: "Leaderboard", href: "/dashboard/leaderboard", icon: <Trophy className="h-5 w-5" /> },
+  { label: "Tx History", href: "/dashboard/history", icon: <History className="h-5 w-5" /> },
+  { label: "Profile", href: "/dashboard/profile", icon: <UserRound className="h-5 w-5" /> },
+];
 
 export function DashboardSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPERADMIN";
-  const DASHBOARD_NAV = buildNav(Boolean(isSuperAdmin));
+
+  const overlayNav: DashboardNavItem = user?.streamerId
+    ? {
+        label: "Overlay",
+        href: `/overlay/${user.streamerId}`,
+        icon: <MonitorPlay className="h-5 w-5" />,
+        target: "_blank",
+        rel: "noopener noreferrer",
+      }
+    : {
+        label: "Overlay",
+        href: "#",
+        icon: <MonitorPlay className="h-5 w-5" />,
+        disabled: true,
+      };
+
+  const navItems: DashboardNavItem[] = isSuperAdmin ? [...SUPERADMIN_NAV] : [
+    ...STATIC_NAV.slice(0, 3),
+    overlayNav,
+    ...STATIC_NAV.slice(3),
+  ];
 
   return (
     <aside className="hidden w-64 flex-col border-r border-rose-100 bg-white text-slate-900 shadow-lg shadow-rose-200/40 md:flex lg:w-72">
@@ -54,29 +75,58 @@ export function DashboardSidebar() {
       </div>
 
       <nav className="flex-1 space-y-2 px-4 py-6">
-        {DASHBOARD_NAV.map((item) => {
+        {navItems.map((item) => {
           const isActive =
-            pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href));
+            !item.disabled &&
+            (pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href)));
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-rose-50 hover:text-slate-900",
-                isActive && "bg-gradient-to-r from-[#FFEEF5] to-[#FFE7DA] text-slate-900 shadow-md shadow-rose-200",
-              )}
-            >
+          const baseClasses =
+            "group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition";
+
+          const content = (
+            <>
               <span
                 aria-hidden="true"
                 className={cn(
                   "flex h-10 w-10 items-center justify-center rounded-xl text-[22px] text-rose-400 transition group-hover:text-rose-500",
                   isActive && "bg-white text-rose-500 shadow-inner shadow-rose-200",
+                  item.disabled && "group-hover:text-rose-400",
                 )}
               >
                 {item.icon ?? item.label.slice(0, 1)}
               </span>
               {item.label}
+            </>
+          );
+
+          if (item.disabled) {
+            return (
+              <span
+                key={item.label}
+                className={cn(
+                  baseClasses,
+                  "cursor-not-allowed text-slate-400",
+                )}
+                aria-disabled="true"
+              >
+                {content}
+              </span>
+            );
+          }
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              target={item.target}
+              rel={item.rel}
+              className={cn(
+                baseClasses,
+                "text-slate-600 hover:bg-rose-50 hover:text-slate-900",
+                isActive && "bg-gradient-to-r from-[#FFEEF5] to-[#FFE7DA] text-slate-900 shadow-md shadow-rose-200",
+              )}
+            >
+              {content}
             </Link>
           );
         })}

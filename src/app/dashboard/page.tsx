@@ -45,15 +45,15 @@ async function resolveDonationLink(): Promise<string> {
     }
 
     const data = (await response.json()) as {
-      streamer?: { id?: string | null } | null;
+      streamer?: { id?: string | null; userId?: string | null } | null;
     };
 
-    const streamerId = data.streamer?.id;
-    if (!streamerId) {
+    const userId = data.streamer?.userId ?? data.streamer?.id ?? null;
+    if (!userId) {
       return SAMPLE_DONATION_LINK;
     }
 
-    return `${normalizedBase}/donate/${streamerId}`;
+    return `${normalizedBase}/donate/${userId}`;
   } catch (error) {
     console.error("Failed to resolve donation link", error);
     return SAMPLE_DONATION_LINK;

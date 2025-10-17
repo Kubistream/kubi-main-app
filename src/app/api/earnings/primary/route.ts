@@ -15,8 +15,11 @@ function parseCurrency(input: string | null): EarningsCurrency {
   return "USD";
 }
 
-function getRangeForTimeframe(tf: EarningsTimeframe, now = new Date()) {
-  if (tf === "All") return { from: null as Date | null, to: now };
+function getRangeForTimeframe(tf: EarningsTimeframe, now = new Date(), earliest?: Date | null) {
+  if (tf === "All") {
+    const normalized = earliest ? new Date(earliest) : null;
+    return { from: normalized, to: now };
+  }
   const to = now;
   const from = new Date(to);
   if (tf === "1D") from.setUTCDate(from.getUTCDate() - 1);
@@ -51,6 +54,10 @@ function getBucketConfig(tf: EarningsTimeframe, range: { from: Date | null; to: 
 }
 
 const ZERO_DECIMAL = new Prisma.Decimal(0);
+const FIAT_DECIMALS: Record<EarningsCurrency, number> = {
+  USD: 2,
+  IDR: 0,
+};
 
 function toDecimal(val: unknown): Prisma.Decimal {
   if (val == null) return ZERO_DECIMAL;
@@ -99,52 +106,76 @@ export async function GET(request: NextRequest) {
     return applySessionCookies(sessionResponse, res);
   }
 
-  const streamerId = sessionRecord.user.streamer.id;
+  const streamer = sessionRecord.user.streamer;
+  const streamerId = streamer.id;
 
   const now = new Date();
-  const range = getRangeForTimeframe(timeframe, now);
+  let range = getRangeForTimeframe(timeframe, now, streamer.profileCompletedAt ?? null);
 
-  const amountField = currency === "USD" ? "amountOutUsd" : "amountOutIdr";
+  const amountField = currency === "USD" ? "amountInUsd" : "amountInIdr";
 
-  const whereForSparkline: Prisma.DonationWhereInput = {
-    streamerId,
-    status: DonationStatus.CONFIRMED,
-    [amountField]: { not: null },
+  const buildSparklineWhere = (inputRange: { from: Date | null; to: Date }): Prisma.DonationWhereInput => {
+    const base: Prisma.DonationWhereInput = {
+      streamerId,
+      status: DonationStatus.CONFIRMED,
+      [amountField]: { not: null },
+    };
+    if (inputRange.from) {
+      base.timestamp = { gte: inputRange.from, lte: inputRange.to };
+    } else {
+      base.timestamp = { lte: inputRange.to };
+    }
+    return base;
   };
-  if (range.from) {
-    whereForSparkline.timestamp = { gte: range.from, lte: range.to };
-  }
 
-  const whereForTokenGroups: Prisma.DonationWhereInput = {
-    streamerId,
-    status: DonationStatus.CONFIRMED,
-    [amountField]: { not: null },
-    amountOutRaw: { not: null },
+  const buildTokenGroupWhere = (inputRange: { from: Date | null; to: Date }): Prisma.DonationWhereInput => {
+    const base: Prisma.DonationWhereInput = {
+      streamerId,
+      status: DonationStatus.CONFIRMED,
+      [amountField]: { not: null },
+      amountInRaw: { not: null },
+    };
+    if (inputRange.from) {
+      base.timestamp = { gte: inputRange.from, lte: inputRange.to };
+    } else {
+      base.timestamp = { lte: inputRange.to };
+    }
+    return base;
   };
-  if (range.from) {
-    whereForTokenGroups.timestamp = { gte: range.from, lte: range.to };
+
+  const loadCurrentSnapshot = async (inputRange: { from: Date | null; to: Date }) => {
+    const sparklineWhere = buildSparklineWhere(inputRange);
+    const tokenWhere = buildTokenGroupWhere(inputRange);
+    const [currentDonations, tokenGroups] = await Promise.all([
+      prisma.donation.findMany({
+        where: sparklineWhere,
+        select: { timestamp: true, amountInUsd: true, amountInIdr: true },
+        orderBy: { timestamp: "asc" },
+      }),
+      prisma.donation.groupBy({
+        by: ["tokenInId"],
+        where: tokenWhere,
+        _sum: {
+          amountInUsd: true,
+          amountInIdr: true,
+          amountInRaw: true,
+        },
+      }),
+    ]);
+    return { currentDonations, tokenGroups };
+  };
+
+  let { currentDonations: current, tokenGroups: currentTokenGroups } = await loadCurrentSnapshot(range);
+
+  if (timeframe === "All" && range.from && current.length === 0) {
+    range = getRangeForTimeframe(timeframe, now, null);
+    ({ currentDonations: current, tokenGroups: currentTokenGroups } = await loadCurrentSnapshot(range));
   }
-
-  const current = await prisma.donation.findMany({
-    where: whereForSparkline,
-    select: { timestamp: true, amountOutUsd: true, amountOutIdr: true },
-    orderBy: { timestamp: "asc" },
-  });
-
-  const currentTokenGroups = await prisma.donation.groupBy({
-    by: ["tokenOutId"],
-    where: whereForTokenGroups,
-    _sum: {
-      amountOutUsd: true,
-      amountOutIdr: true,
-      amountOutRaw: true,
-    },
-  });
 
   // Sum current total
   let currentTotal = new Prisma.Decimal(0);
   for (const d of current) {
-    const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+    const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
     if (val != null) currentTotal = currentTotal.add(toDecimal(val));
   }
 
@@ -160,40 +191,40 @@ export async function GET(request: NextRequest) {
         timestamp: { gte: prevFrom, lt: prevTo }, // exclude boundary to avoid double count
         [amountField]: { not: null },
       },
-      select: { amountOutUsd: true, amountOutIdr: true },
+      select: { amountInUsd: true, amountInIdr: true },
     });
     let prevTotal = new Prisma.Decimal(0);
     for (const d of previous) {
-      const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+      const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
       if (val != null) prevTotal = prevTotal.add(toDecimal(val));
     }
     const previousTokenGroups = await prisma.donation.groupBy({
-      by: ["tokenOutId"],
+      by: ["tokenInId"],
       where: {
         streamerId,
         status: DonationStatus.CONFIRMED,
         timestamp: { gte: prevFrom, lt: prevTo },
         [amountField]: { not: null },
-        amountOutRaw: { not: null },
+        amountInRaw: { not: null },
       },
       _sum: {
-        amountOutUsd: true,
-        amountOutIdr: true,
-        amountOutRaw: true,
+        amountInUsd: true,
+        amountInIdr: true,
+        amountInRaw: true,
       },
     });
     previousTokenMap = new Map(
       previousTokenGroups
-        .filter((group) => Boolean(group.tokenOutId))
+        .filter((group) => Boolean(group.tokenInId))
         .map((group) => {
-          const tokenId = group.tokenOutId as string;
+          const tokenId = group.tokenInId as string;
           return [
             tokenId,
             {
               fiat: toDecimal(
-                currency === "USD" ? group._sum.amountOutUsd : group._sum.amountOutIdr,
+                currency === "USD" ? group._sum.amountInUsd : group._sum.amountInIdr,
               ),
-              raw: toDecimal(group._sum.amountOutRaw),
+              raw: toDecimal(group._sum.amountInRaw),
             },
           ];
         }),
@@ -206,8 +237,8 @@ export async function GET(request: NextRequest) {
 
   const tokenIds = new Set<string>();
   for (const group of currentTokenGroups) {
-    if (group.tokenOutId) {
-      tokenIds.add(group.tokenOutId);
+    if (group.tokenInId) {
+      tokenIds.add(group.tokenInId);
     }
   }
   if (primaryTokenId) {
@@ -240,14 +271,14 @@ export async function GET(request: NextRequest) {
 
   const tokenAggregates: TokenAggregate[] = [];
   for (const group of currentTokenGroups) {
-    const tokenId = group.tokenOutId;
+    const tokenId = group.tokenInId;
     if (!tokenId) continue;
     const meta = tokenMetaMap.get(tokenId);
     if (!meta) continue;
     const fiatSum = currency === "USD"
-      ? toDecimal(group._sum.amountOutUsd)
-      : toDecimal(group._sum.amountOutIdr);
-    const tokenSum = toDecimal(group._sum.amountOutRaw);
+      ? toDecimal(group._sum.amountInUsd)
+      : toDecimal(group._sum.amountInIdr);
+    const tokenSum = toDecimal(group._sum.amountInRaw);
     const previous = previousTokenMap.get(tokenId);
     const previousFiat = previous?.fiat ?? ZERO_DECIMAL;
     tokenAggregates.push({
@@ -282,8 +313,8 @@ export async function GET(request: NextRequest) {
         name: meta.name,
         logoURI: meta.logoURI,
         decimals: meta.decimals,
-        amount: currentTokenSum.toString(),
-        fiatValue: currentFiat.toString(),
+        amount: currentTokenSum.toFixed(0),
+        fiatValue: currentFiat.toFixed(FIAT_DECIMALS[currency]),
         growthPercent: growth,
       };
     }
@@ -297,8 +328,8 @@ export async function GET(request: NextRequest) {
       name: entry.meta.name,
       logoURI: entry.meta.logoURI,
       decimals: entry.meta.decimals,
-      amount: entry.tokenSum.toString(),
-      fiatValue: entry.fiatSum.toString(),
+      amount: entry.tokenSum.toFixed(0),
+      fiatValue: entry.fiatSum.toFixed(FIAT_DECIMALS[currency]),
       growthPercent: entry.growthPercent,
     }));
 
@@ -314,10 +345,13 @@ export async function GET(request: NextRequest) {
       const ts = new Date(d.timestamp).getTime();
       if (ts < from.getTime() || ts > to.getTime()) continue;
       const b = Math.min(Math.floor((ts - from.getTime()) / bucketMs), count - 1);
-      const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+      const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
       if (val !== null && val !== undefined) sums[b] = sums[b]!.add(toDecimal(val));
     }
-    buckets = sums.map((v, i) => ({ t: starts[i], v: v.toString() }));
+    buckets = sums.map((v, i) => ({
+      t: starts[i],
+      v: v.toFixed(FIAT_DECIMALS[currency]),
+    }));
   } else {
     // All: dynamic up to 30 buckets over available data range
     if (current.length === 0) {
@@ -335,15 +369,18 @@ export async function GET(request: NextRequest) {
       for (const d of current) {
         const ts = new Date(d.timestamp).getTime();
         const b = Math.min(Math.floor((ts - startMs) / bucketMs), count - 1);
-        const val = currency === "USD" ? d.amountOutUsd : d.amountOutIdr;
+        const val = currency === "USD" ? d.amountInUsd : d.amountInIdr;
         if (val !== null && val !== undefined) sums[b] = sums[b]!.add(toDecimal(val));
       }
-      buckets = sums.map((v, i) => ({ t: starts[i], v: v.toString() }));
+      buckets = sums.map((v, i) => ({
+        t: starts[i],
+        v: v.toFixed(FIAT_DECIMALS[currency]),
+      }));
     }
   }
 
   const res = NextResponse.json({
-    primaryTotal: currentTotal.toString(),
+    primaryTotal: currentTotal.toFixed(FIAT_DECIMALS[currency]),
     growthPercent,
     currency,
     sparkline: buckets,

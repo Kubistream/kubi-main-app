@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEventHandler } from "react";
+import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
 import { useEarningsOverview } from "@/hooks/use-earnings-overview";
 import { cn } from "@/lib/utils";
+import { formatTokenAmount } from "@/lib/format/token-amount";
 import {
   EARNINGS_CURRENCIES,
   EARNINGS_TIMEFRAMES,
@@ -23,6 +26,7 @@ export function EarningsOverviewCard() {
   const sparklineContainerRef = useRef<HTMLDivElement | null>(null);
   const [sparklineWidth, setSparklineWidth] = useState<number>(320);
   const sparklineHeight = 160;
+  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
 
   const { data, loading, error } = useEarningsOverview(timeframe, currency);
 
@@ -46,20 +50,38 @@ export function EarningsOverviewCard() {
     return () => observer.disconnect();
   }, []);
 
-  const sparkValues = useMemo(() => {
+  const sparklineData = useMemo(() => {
     const points = data?.sparkline ?? [];
-    return points.map((point) => safeNumeric(point.v));
+    return points.map((point) => ({
+      value: safeNumeric(point.v),
+      timestamp: point.t,
+    }));
   }, [data?.sparkline]);
 
-  const { linePath, areaPath } = useMemo(
-    () => buildSparklinePaths(sparkValues, sparklineWidth, sparklineHeight),
-    [sparkValues, sparklineWidth],
+  const sparklineGeometry = useMemo(
+    () => buildSparklineGeometry(sparklineData, sparklineWidth, sparklineHeight),
+    [sparklineData, sparklineWidth],
   );
+
+  useEffect(() => {
+    setActivePointIndex(null);
+  }, [sparklineData]);
+
+  const activePoint =
+    activePointIndex != null ? sparklineGeometry.points[activePointIndex] ?? null : null;
 
   const primaryTotalFormatted = useMemo(
     () => formatFiat(primaryTotal, currency),
     [primaryTotal, currency],
   );
+
+  const displayValue = loading
+    ? currency === "USD"
+      ? "$---"
+      : "Rp ---"
+    : activePoint
+      ? formatFiat(activePoint.value.toString(), currency)
+      : primaryTotalFormatted;
 
   const subtitle = currency === "USD" ? "Total earnings in USD" : "Total earnings in IDR";
 
@@ -115,16 +137,16 @@ export function EarningsOverviewCard() {
               <GrowthBadge value={growthPercent} loading={loading} />
             </div>
             <div>
-              <p className="text-4xl font-semibold text-[#FF6D6D]">
-                {loading ? (currency === "USD" ? "$—" : "Rp —") : primaryTotalFormatted}
-              </p>
+              <p className="text-4xl font-semibold text-[#FF6D6D]">{displayValue}</p>
               <div ref={sparklineContainerRef} className="mt-8">
                 <Sparkline
                   ariaLabel="Primary earnings trend"
-                  linePath={linePath}
-                  areaPath={areaPath}
-                  width={sparklineWidth}
+                  geometry={sparklineGeometry}
                   height={sparklineHeight}
+                  currency={currency}
+                  timeframe={timeframe}
+                  activeIndex={activePointIndex}
+                  onActivePointChange={setActivePointIndex}
                 />
               </div>
               {error && (
@@ -208,12 +230,12 @@ function TokenBreakdownCard({
     <div className="rounded-3xl border border-rose-100 bg-white px-6 py-6 shadow-sm shadow-rose-200/40">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-rose-300">Others</p>
-        <button
-          type="button"
+        <Link
+          href="/dashboard/history"
           className="text-xs font-semibold text-rose-400 transition hover:text-rose-600"
         >
           See more
-        </button>
+        </Link>
       </div>
       <div className="mt-4 space-y-4">
         {loading ? (
@@ -331,70 +353,322 @@ function TokenGrowthTag({ value }: { value: number }) {
   );
 }
 
-function Sparkline({
-  ariaLabel,
-  linePath,
-  areaPath,
-  width,
-  height,
-}: {
-  ariaLabel: string;
+type SparklineGeometryPoint = {
+  x: number;
+  y: number;
+  value: number;
+  timestamp: number;
+};
+
+type SparklineGeometry = {
   linePath: string;
   areaPath: string;
+  points: SparklineGeometryPoint[];
+  yTicks: number[];
+  xTicks: number[];
   width: number;
   height: number;
+};
+
+function Sparkline({
+  ariaLabel,
+  geometry,
+  height,
+  currency,
+  timeframe,
+  activeIndex,
+  onActivePointChange,
+}: {
+  ariaLabel: string;
+  geometry: SparklineGeometry;
+  height: number;
+  currency: Currency;
+  timeframe: Timeframe;
+  activeIndex: number | null;
+  onActivePointChange: (index: number | null) => void;
 }) {
-  const viewWidth = Math.max(width, 1);
-  const viewHeight = Math.max(height, 1);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const { linePath, areaPath, points, yTicks, xTicks, width: viewWidth, height: viewHeight } = geometry;
+  const hasData = points.length > 0;
+
+  const yAxisLabels = useMemo(() => {
+    if (!hasData) return [];
+    return yTicks.map((tick) => ({
+      value: tick,
+      label: formatFiat(tick.toString(), currency),
+    }));
+  }, [hasData, yTicks, currency]);
+
+  const xAxisLabels = useMemo(() => {
+    if (!hasData) return [];
+    const sortedTicks = [...xTicks].sort((a, b) => a - b);
+    return sortedTicks.map((tick) => ({
+      value: tick,
+      label: formatSparklineAxisDate(tick, timeframe),
+    }));
+  }, [hasData, xTicks, timeframe]);
+
+  const activePoint = activeIndex != null ? points[activeIndex] ?? null : null;
+  const xPercent = activePoint ? (activePoint.x / Math.max(viewWidth, 1)) * 100 : 0;
+  const yPercent = activePoint ? (activePoint.y / Math.max(viewHeight, 1)) * 100 : 0;
+  const tooltipValue = activePoint ? formatFiat(activePoint.value.toString(), currency) : null;
+  const tooltipDate = activePoint ? formatSparklineTooltipDate(activePoint.timestamp, timeframe) : null;
+
+  const handlePointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
+    if (!containerRef.current || !hasData) return;
+    if (event.pointerType === "touch") event.preventDefault();
+    const rect = containerRef.current.getBoundingClientRect();
+    const relativeX = event.clientX - rect.left;
+    const ratio = rect.width <= 0 ? 0 : relativeX / rect.width;
+    const svgX = ratio * viewWidth;
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < points.length; i += 1) {
+      const candidate = points[i];
+      if (!candidate) continue;
+      const distance = Math.abs(candidate.x - svgX);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = i;
+      }
+    }
+    if (nearestIndex !== activeIndex) {
+      onActivePointChange(nearestIndex);
+    }
+  };
+
+  const handlePointerLeave: PointerEventHandler<HTMLDivElement> = () => {
+    if (activeIndex !== null) {
+      onActivePointChange(null);
+    }
+  };
+
+  const viewBoxWidth = Math.max(viewWidth, 1);
+  const viewBoxHeight = Math.max(viewHeight, 1);
+
   return (
-    <svg
-      role="img"
-      aria-label={ariaLabel}
-      viewBox={`0 0 ${viewWidth} ${viewHeight}`}
-      className="w-full"
-      preserveAspectRatio="none"
-      style={{ height }}
-    >
-      <defs>
-        <linearGradient id="sparklineGradient" x1="0%" x2="100%" y1="0%" y2="0%">
-          <stop offset="0%" stopColor="#FFB15A" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="#FF3D86" stopOpacity="0.4" />
-        </linearGradient>
-        <linearGradient id="sparklineStroke" x1="0%" x2="100%" y1="0%" y2="0%">
-          <stop offset="0%" stopColor="#FFB15A" />
-          <stop offset="100%" stopColor="#FF3D86" />
-        </linearGradient>
-      </defs>
-      <path d={linePath} stroke="url(#sparklineStroke)" strokeWidth="6" fill="none" strokeLinecap="round" />
-      <path d={areaPath} fill="url(#sparklineGradient)" />
-    </svg>
+    <div>
+      <div ref={containerRef} className="relative">
+        <svg
+          role="img"
+          aria-label={ariaLabel}
+          viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+          className="w-full"
+          preserveAspectRatio="none"
+          style={{ height }}
+        >
+          <defs>
+            <linearGradient id="sparklineGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+              <stop offset="0%" stopColor="#FFB15A" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#FF3D86" stopOpacity="0.4" />
+            </linearGradient>
+            <linearGradient id="sparklineStroke" x1="0%" x2="100%" y1="0%" y2="0%">
+              <stop offset="0%" stopColor="#FFB15A" />
+              <stop offset="100%" stopColor="#FF3D86" />
+            </linearGradient>
+          </defs>
+          <path d={linePath} stroke="url(#sparklineStroke)" strokeWidth="6" fill="none" strokeLinecap="round" />
+          <path d={areaPath} fill="url(#sparklineGradient)" />
+        </svg>
+
+        {hasData && (
+          <>
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex flex-col justify-between text-[10px] font-medium text-slate-400">
+              {yAxisLabels.map((tick) => (
+                <span key={`${tick.value}`} className="rounded bg-white/75 px-1">
+                  {tick.label}
+                </span>
+              ))}
+            </div>
+
+            {activePoint && tooltipValue && tooltipDate && (
+              <>
+                <div
+                  className="pointer-events-none absolute inset-y-0 w-px bg-rose-300/80"
+                  style={{ left: `${xPercent}%` }}
+                />
+                <div
+                  className="pointer-events-none absolute z-20 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-rose-500 shadow"
+                  style={{ left: `${xPercent}%`, top: `${yPercent}%` }}
+                />
+                <div
+                  className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full pb-2"
+                  style={{ left: `${xPercent}%`, top: `${yPercent}%` }}
+                >
+                  <div className="rounded-xl bg-white px-3 py-2 text-xs shadow-lg shadow-rose-100">
+                    <div className="font-semibold text-slate-900">{tooltipValue}</div>
+                    <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">{tooltipDate}</div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div
+              className="absolute inset-0 cursor-crosshair"
+              onPointerMove={handlePointerMove}
+              onPointerDown={handlePointerMove}
+              onPointerLeave={handlePointerLeave}
+            />
+          </>
+        )}
+      </div>
+
+      {hasData && xAxisLabels.length > 0 && (
+        <div className="pointer-events-none mt-3 flex justify-between text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">
+          {xAxisLabels.map((tick) => (
+            <span key={tick.value}>{tick.label}</span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
-function buildSparklinePaths(values: number[], width = 320, height = 120) {
+function buildSparklineGeometry(
+  points: Array<{ value: number; timestamp: number }>,
+  width = 320,
+  height = 120,
+): SparklineGeometry {
   const safeWidth = Math.max(width, 1);
   const safeHeight = Math.max(height, 1);
 
-  if (!values || values.length === 0) {
+  if (!points || points.length === 0) {
     const midY = safeHeight * 0.75;
     const linePath = `M0 ${midY} L ${safeWidth} ${midY}`;
     const areaPath = `M0 ${midY} L ${safeWidth} ${midY} L ${safeWidth} ${safeHeight} L 0 ${safeHeight} Z`;
-    return { linePath, areaPath };
+    return {
+      linePath,
+      areaPath,
+      points: [],
+      yTicks: [],
+      xTicks: [],
+      width: safeWidth,
+      height: safeHeight,
+    };
   }
-  const n = values.length;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const stepX = n > 1 ? safeWidth / (n - 1) : safeWidth;
-  const points = values.map((v, i) => {
-    const x = Math.round(i * stepX);
-    const norm = (v - min) / range;
+
+  const values = points.map((point) => point.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const range = maxValue - minValue || 1;
+  const stepX = points.length > 1 ? safeWidth / (points.length - 1) : safeWidth;
+
+  const geometryPoints = points.map((point, index) => {
+    const norm = range === 0 ? 0 : (point.value - minValue) / range;
+    const x = Math.round(index * stepX);
     const y = Math.round(safeHeight - norm * safeHeight);
-    return { x, y };
+    return {
+      x,
+      y,
+      value: point.value,
+      timestamp: point.timestamp,
+    };
   });
-  const linePath = points.reduce((acc, p, i) => acc + (i === 0 ? `M${p.x} ${p.y}` : ` L ${p.x} ${p.y}`), "");
+
+  const pathPoints =
+    geometryPoints.length === 1
+      ? [geometryPoints[0], { ...geometryPoints[0], x: safeWidth }]
+      : geometryPoints;
+
+  const linePath = pathPoints.reduce(
+    (acc, point, index) => acc + (index === 0 ? `M${point.x} ${point.y}` : ` L ${point.x} ${point.y}`),
+    "",
+  );
   const areaPath = `${linePath} L ${safeWidth} ${safeHeight} L 0 ${safeHeight} Z`;
-  return { linePath, areaPath };
+
+  const yTicks = generateYAxisTicks(minValue, maxValue);
+  const xTicks = generateXAxisTicks(geometryPoints.map((point) => point.timestamp));
+
+  return {
+    linePath,
+    areaPath,
+    points: geometryPoints,
+    yTicks,
+    xTicks,
+    width: safeWidth,
+    height: safeHeight,
+  };
+}
+
+function generateYAxisTicks(minValue: number, maxValue: number): number[] {
+  if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) return [];
+  if (Math.abs(maxValue - minValue) < 1e-6) {
+    return [maxValue];
+  }
+  const midValue = minValue + (maxValue - minValue) / 2;
+  if (Math.abs(midValue - minValue) < 1e-6 || Math.abs(midValue - maxValue) < 1e-6) {
+    return [maxValue, minValue];
+  }
+  return [maxValue, midValue, minValue];
+}
+
+function generateXAxisTicks(timestamps: number[]): number[] {
+  if (timestamps.length === 0) return [];
+  const first = timestamps[0]!;
+  const last = timestamps[timestamps.length - 1]!;
+  const middle = timestamps[Math.floor(timestamps.length / 2)]!;
+  const ticks = [first];
+  if (timestamps.length > 2 && middle !== first && middle !== last) {
+    ticks.push(middle);
+  }
+  if (last !== first) {
+    ticks.push(last);
+  }
+  return ticks;
+}
+
+function formatSparklineAxisDate(timestamp: number, timeframe: Timeframe): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  if (timeframe === "1D") {
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  }
+  if (timeframe === "7D" || timeframe === "30D") {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatSparklineTooltipDate(timestamp: number, timeframe: Timeframe): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  if (timeframe === "1D") {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  }
+  if (timeframe === "7D") {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  }
+  if (timeframe === "30D") {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
 
 function formatFiat(value: string | null | undefined, currency: Currency) {
@@ -409,16 +683,6 @@ function formatFiat(value: string | null | undefined, currency: Currency) {
     maximumFractionDigits: currency === "USD" ? 2 : 0,
   });
   return formatter.format(amount);
-}
-
-function formatTokenAmount(value: string | null | undefined, decimals: number) {
-  const amount = Number(value ?? 0);
-  if (!Number.isFinite(amount)) return "0";
-  const maximumFractionDigits = Math.min(Math.max(decimals, 0), 6);
-  return amount.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits,
-  });
 }
 
 function safeNumeric(value: string | null | undefined) {
