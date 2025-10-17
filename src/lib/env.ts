@@ -8,6 +8,7 @@ type RawEnv = {
   APP_URL?: string;
   NEXT_PUBLIC_APP_URL?: string;
   NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID?: string;
+  NEXT_PUBLIC_OVERLAY_WS_URL?: string;
 };
 
 const rawEnv: RawEnv = {
@@ -17,6 +18,7 @@ const rawEnv: RawEnv = {
   APP_URL: process.env.APP_URL,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID,
+  NEXT_PUBLIC_OVERLAY_WS_URL: process.env.NEXT_PUBLIC_OVERLAY_WS_URL,
 };
 
 function isNonEmpty(str: unknown): str is string {
@@ -48,6 +50,7 @@ export const env = {
   )
     ? rawEnv.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
     : undefined,
+  NEXT_PUBLIC_OVERLAY_WS_URL: safeUrl(rawEnv.NEXT_PUBLIC_OVERLAY_WS_URL),
 } as const;
 
 export const isProduction = env.NODE_ENV === "production";
@@ -62,6 +65,8 @@ if (!env.NEXT_PUBLIC_APP_URL)
   warnings.push("NEXT_PUBLIC_APP_URL is missing or invalid URL");
 if (!env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID)
   warnings.push("NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID is missing");
+if (!env.NEXT_PUBLIC_OVERLAY_WS_URL)
+  warnings.push("NEXT_PUBLIC_OVERLAY_WS_URL is missing or invalid URL");
 
 if (warnings.length > 0) {
   // Keep non-fatal: only warn to console
