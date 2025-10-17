@@ -66,6 +66,41 @@ const tokenAmountFormatter = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 0,
 });
 
+function getRankBadgeClasses(index: number, isDescending: boolean) {
+  const base =
+    "flex items-center justify-center rounded-full font-semibold transition-shadow shadow-sm";
+
+  if (!isDescending) {
+    return cn(
+      base,
+      "h-9 w-9 bg-gradient-to-br from-rose-200 via-white to-rose-100 text-sm text-rose-600 shadow-rose-200/60",
+    );
+  }
+
+  switch (index) {
+    case 0:
+      return cn(
+        base,
+        "h-12 w-12 border border-amber-200 bg-gradient-to-br from-yellow-200 via-amber-100 to-amber-400 text-base text-amber-900 shadow-lg shadow-amber-300/70",
+      );
+    case 1:
+      return cn(
+        base,
+        "h-11 w-11 border border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-300 text-sm text-slate-700 shadow-md shadow-slate-300/60",
+      );
+    case 2:
+      return cn(
+        base,
+        "h-10 w-10 border border-orange-200 bg-gradient-to-br from-orange-200 via-amber-100 to-orange-300 text-sm text-amber-800 shadow-md shadow-orange-200/60",
+      );
+    default:
+      return cn(
+        base,
+        "h-9 w-9 bg-gradient-to-br from-rose-200 via-white to-rose-100 text-sm text-rose-600 shadow-rose-200/60",
+      );
+  }
+}
+
 function formatWallet(address: string | null) {
   if (!address) return "Anonymous supporter";
   if (address.length <= 12) return address;
@@ -199,6 +234,7 @@ export function SupportersLeaderboard() {
             {supporters.map((supporter, index) => {
               const key = supporter.wallet ?? `anon-${index}`;
               const isExpanded = expandedKey === key;
+              const rankBadgeClasses = getRankBadgeClasses(index, sortDirection === "desc");
 
               return (
                 <div
@@ -214,9 +250,7 @@ export function SupportersLeaderboard() {
                     className="flex w-full items-center justify-between gap-4 rounded-2xl px-5 py-4 text-left"
                   >
                     <div className="flex items-center gap-4">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-rose-200 via-white to-rose-100 text-sm font-semibold text-rose-600 shadow-sm shadow-rose-200/60">
-                        {index + 1}
-                      </span>
+                      <span className={rankBadgeClasses}>{index + 1}</span>
                       <div>
                         <p className="font-mono text-sm font-semibold uppercase tracking-[0.08em] text-slate-900">
                           {formatWallet(supporter.wallet)}
