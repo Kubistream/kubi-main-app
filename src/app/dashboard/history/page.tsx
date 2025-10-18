@@ -33,7 +33,15 @@ type HistoryRow = {
   donorWallet: string | null;
   status: DonationStatus;
   amountInRaw: string | null;
-  token: {
+  amountOutRaw: string | null;
+  tokenIn: {
+    id: string;
+    symbol: string;
+    name: string | null;
+    logoURI: string | null;
+    decimals: number;
+  };
+  tokenOut: {
     id: string;
     symbol: string;
     name: string | null;
@@ -138,6 +146,15 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           decimals: true,
         },
       },
+      tokenOut: {
+        select: {
+          id: true,
+          symbol: true,
+          name: true,
+          logoURI: true,
+          decimals: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     skip,
@@ -153,12 +170,22 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     amountInRaw: donation.amountInRaw
       ? donation.amountInRaw.toFixed(donation.amountInRaw.decimalPlaces())
       : null,
-    token: {
+    amountOutRaw: donation.amountOutRaw
+      ? donation.amountOutRaw.toFixed(donation.amountOutRaw.decimalPlaces())
+      : null,
+    tokenIn: {
       id: donation.tokenIn.id,
       symbol: donation.tokenIn.symbol,
       name: donation.tokenIn.name ?? null,
       logoURI: donation.tokenIn.logoURI ?? null,
       decimals: donation.tokenIn.decimals,
+    },
+    tokenOut: {
+      id: donation.tokenOut.id,
+      symbol: donation.tokenOut.symbol,
+      name: donation.tokenOut.name ?? null,
+      logoURI: donation.tokenOut.logoURI ?? null,
+      decimals: donation.tokenOut.decimals,
     },
     feeRaw: donation.feeRaw
       ? donation.feeRaw.toFixed(donation.feeRaw.decimalPlaces())
@@ -196,16 +223,16 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           resetPath={RESET_PATH}
         />
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-100/80">
+          <table className="w-full min-w-[960px] divide-y divide-slate-200 text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-500">
                 <th className="py-3 pr-3">Tx hash</th>
                 <th className="py-3 pr-3">Block</th>
                 <th className="py-3 pr-3">From</th>
                 <th className="py-3 pr-3">Status</th>
-                <th className="py-3 pr-3">Amount</th>
-                <th className="py-3 pr-3">Token</th>
+                <th className="py-3 pr-3">In</th>
+                <th className="py-3 pr-3">Out</th>
                 <th className="py-3 pr-3">Fee</th>
                 <th className="py-3 pr-3">Time</th>
               </tr>
@@ -257,14 +284,14 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                     <td className="py-4 pr-3">
                       <StatusBadge status={row.status} />
                     </td>
-                    <td className="py-4 pr-3 font-mono text-slate-900">
-                      {formatDonationAmount(row.amountInRaw, row.token.decimals)}
+                    <td className="py-4 pr-3 align-top">
+                      <TokenAmountCell amountRaw={row.amountInRaw} token={row.tokenIn} />
                     </td>
-                    <td className="py-4 pr-3">
-                      <TokenCell token={row.token} />
+                    <td className="py-4 pr-3 align-top">
+                      <TokenAmountCell amountRaw={row.amountOutRaw} token={row.tokenOut} />
                     </td>
                     <td className="py-4 pr-3 font-mono text-slate-700">
-                      {formatDonationAmount(row.feeRaw, row.token.decimals)}
+                      {formatDonationAmount(row.feeRaw, row.tokenIn.decimals)}
                     </td>
                     <td className="py-4 pr-3">
                       <time
@@ -317,30 +344,37 @@ function StatusBadge({ status }: { status: DonationStatus }) {
   );
 }
 
-function TokenCell({
+function TokenAmountCell({
+  amountRaw,
   token,
 }: {
-  token: { symbol: string; name: string | null; logoURI: string | null };
+  amountRaw: string | null;
+  token: { symbol: string; name: string | null; logoURI: string | null; decimals: number };
 }) {
   const label = token.name ?? token.symbol;
   return (
-    <div className="flex items-center gap-2 text-sm text-slate-700">
+    <div className="flex items-center gap-3 text-sm text-slate-700">
       {token.logoURI ? (
         // eslint-disable-next-line @next/next/no-img-element -- remote token logos may not be whitelisted for next/image
         <img
           src={token.logoURI}
           alt={label}
-          className="h-6 w-6 rounded-full object-cover"
+          className="h-8 w-8 rounded-full object-cover"
           loading="lazy"
         />
       ) : (
-        <div className="grid h-6 w-6 place-items-center rounded-full bg-slate-200 text-[0.7rem] font-semibold text-slate-600">
+        <div className="grid h-8 w-8 place-items-center rounded-full bg-slate-200 text-[0.75rem] font-semibold text-slate-600">
           {token.symbol.slice(0, 2).toUpperCase()}
         </div>
       )}
-      <div className="flex flex-col">
-        <span className="font-medium text-slate-900">{token.symbol}</span>
-        {token.name && <span className="text-xs text-slate-500">{token.name}</span>}
+      <div className="flex min-w-0 flex-col">
+        <span className="font-mono text-sm font-semibold text-slate-900">
+          {formatDonationAmount(amountRaw, token.decimals)}
+        </span>
+        <span className="truncate text-xs text-slate-500">
+          {token.symbol}
+          {/* {token.name ? ` - ${token.name}` : ""} */}
+        </span>
       </div>
     </div>
   );

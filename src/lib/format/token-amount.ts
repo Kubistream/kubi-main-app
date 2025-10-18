@@ -7,7 +7,11 @@ type FormatTokenAmountOptions = {
   useGrouping?: boolean;
 };
 
-const DEFAULT_MAX_FRACTION_DIGITS = 8;
+const DEFAULT_MAX_FRACTION_DIGITS = {
+  subUnit: 8,
+  standard: 4,
+  large: 2,
+} as const;
 
 export function formatTokenAmount(
   value: string | null | undefined,
@@ -18,7 +22,7 @@ export function formatTokenAmount(
 
   const {
     trimTrailingZeros = true,
-    maxFractionDigits = Math.min(decimals, DEFAULT_MAX_FRACTION_DIGITS),
+    maxFractionDigits: providedMaxFractionDigits,
     minFractionDigits = 0,
     useGrouping = true,
   } = options;
@@ -26,10 +30,14 @@ export function formatTokenAmount(
   try {
     const normalized = normalizeRawValue(value);
     const formatted = formatUnits(normalized, decimals);
+    const resolvedMaxFractionDigits = Math.min(
+      decimals,
+      providedMaxFractionDigits ?? resolveDefaultMaxFractionDigits(formatted),
+    );
     const [wholePart, fractionPart = ""] = formatted.split(".");
 
     const groupedWhole = useGrouping ? groupThousands(wholePart) : wholePart;
-    const limitedFraction = fractionPart.slice(0, Math.max(maxFractionDigits, minFractionDigits));
+    const limitedFraction = fractionPart.slice(0, Math.max(resolvedMaxFractionDigits, minFractionDigits));
     const trimmedFraction = trimTrailingZeros
       ? limitedFraction.replace(/0+$/, "")
       : limitedFraction.padEnd(Math.max(minFractionDigits, limitedFraction.length), "0");
@@ -42,7 +50,6 @@ export function formatTokenAmount(
     return finalFraction ? `${groupedWhole}.${finalFraction}` : groupedWhole;
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console -- developer signal for formatting issues
       console.error("[formatTokenAmount] Failed to format value", {
         value,
         decimals,
@@ -116,4 +123,21 @@ function groupThousands(value: string) {
   const unsigned = negative ? value.slice(1) : value;
   const grouped = unsigned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return negative ? `-${grouped}` : grouped;
+}
+
+function resolveDefaultMaxFractionDigits(formattedValue: string): number {
+  const numeric = Number.parseFloat(formattedValue);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_MAX_FRACTION_DIGITS.large;
+  }
+
+  const absValue = Math.abs(numeric);
+  if (absValue < 1) {
+    return DEFAULT_MAX_FRACTION_DIGITS.subUnit;
+  }
+  if (absValue < 10) {
+    return DEFAULT_MAX_FRACTION_DIGITS.standard;
+  }
+
+  return DEFAULT_MAX_FRACTION_DIGITS.large;
 }

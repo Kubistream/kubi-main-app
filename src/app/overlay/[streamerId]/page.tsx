@@ -14,8 +14,19 @@ type OverlayMsg = {
   txHash: string;
 };
 
-const WS_BASE_URL =
-  (process.env.NEXT_PUBLIC_OVERLAY_WS_URL ?? "ws://localhost:8080").replace(/\/$/, "");
+const normalizeWsBaseUrl = (url: string) => {
+  if (!url.trim()) return "ws://localhost:8080";
+  if (url.includes("://")) return url;
+  if (typeof window !== "undefined") {
+    const isHttp = window.location.protocol === "http:";
+    return `${isHttp ? "ws" : "wss"}://${url}`;
+  }
+  return `wss://${url}`;
+};
+
+const WS_BASE_URL = normalizeWsBaseUrl(
+  process.env.NEXT_PUBLIC_OVERLAY_WS_URL ?? "ws://localhost:8080",
+).replace(/\/$/, "");
 
 export default function OverlayPage() {
   const [queue, setQueue] = useState<OverlayMsg[]>([]);

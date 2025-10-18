@@ -39,6 +39,14 @@ const NODE_ENV = isNonEmpty(rawEnv.NODE_ENV)
   ? (rawEnv.NODE_ENV as "development" | "test" | "production")
   : "development";
 
+function ensureWsUrl(value: unknown, defaultProtocol: "ws" | "wss"): string | undefined {
+  if (!isNonEmpty(value)) return undefined;
+  const str = value.includes("://") ? value : `${defaultProtocol}://${value}`;
+  return safeUrl(str);
+}
+
+const defaultWsProtocol = NODE_ENV === "development" ? "ws" : "wss";
+
 export const env = {
   NODE_ENV,
   DATABASE_URL: isNonEmpty(rawEnv.DATABASE_URL) ? rawEnv.DATABASE_URL : undefined,
@@ -50,7 +58,10 @@ export const env = {
   )
     ? rawEnv.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
     : undefined,
-  NEXT_PUBLIC_OVERLAY_WS_URL: safeUrl(rawEnv.NEXT_PUBLIC_OVERLAY_WS_URL),
+  NEXT_PUBLIC_OVERLAY_WS_URL: ensureWsUrl(
+    rawEnv.NEXT_PUBLIC_OVERLAY_WS_URL,
+    defaultWsProtocol,
+  ),
 } as const;
 
 export const isProduction = env.NODE_ENV === "production";
