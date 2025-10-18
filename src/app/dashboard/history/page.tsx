@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { cookies } from "next/headers";
+import { ArrowUpRight } from "lucide-react";
 import { DonationStatus, type Prisma } from "@prisma/client";
 import { formatTokenAmount as formatDisplayTokenAmount } from "@/lib/format/token-amount";
 
@@ -252,9 +253,10 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                         href={`${BASESCAN_TX_URL}${row.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sky-600 transition hover:text-sky-700"
+                        className="inline-flex items-center gap-1 text-sky-600 transition hover:text-sky-700"
                       >
-                        {shortenHash(row.txHash)}
+                        <span>{shortenHash(row.txHash)}</span>
+                        <ArrowUpRight aria-hidden className="h-3 w-3" />
                       </Link>
                     </td>
                     <td className="py-4 pr-3 font-mono">
@@ -262,9 +264,10 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                         href={`${BASESCAN_BLOCK_URL}${row.blockNumber}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sky-600 transition hover:text-sky-700"
+                        className="inline-flex items-center gap-1 text-sky-600 transition hover:text-sky-700"
                       >
-                        {row.blockNumber}
+                        <span>{row.blockNumber}</span>
+                        <ArrowUpRight aria-hidden className="h-3 w-3" />
                       </Link>
                     </td>
                     <td className="py-4 pr-3 font-mono text-slate-700">
@@ -273,9 +276,10 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                           href={`${BASESCAN_ADDRESS_URL}${row.donorWallet}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sky-600 transition hover:text-sky-700"
+                          className="inline-flex items-center gap-1 text-sky-600 transition hover:text-sky-700"
                         >
-                          {shortenHash(row.donorWallet)}
+                          <span>{shortenHash(row.donorWallet)}</span>
+                          <ArrowUpRight aria-hidden className="h-3 w-3" />
                         </Link>
                       ) : (
                         "â€”"
