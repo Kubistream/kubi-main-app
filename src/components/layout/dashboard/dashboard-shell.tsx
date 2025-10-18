@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 import { DashboardNavbar } from "@/components/layout/dashboard/dashboard-navbar";
 import { DashboardSidebar } from "@/components/layout/dashboard/dashboard-sidebar";
@@ -58,11 +59,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
     if (status === "unauthenticated" || !user) {
       // If wallet is connected, give auto-SIWE a brief window to complete
       // before redirecting back to onboarding to avoid redirect loops.
-      if (isConnected && !isSigning) {
+      if (isConnected && !isSigning && !deferRedirect) {
         setGuardMessage("Establishing session...");
         setDeferRedirect(true);
         const t = setTimeout(() => setDeferRedirect(false), 1200);
         return () => clearTimeout(t);
+      }
+      if (deferRedirect) {
+        return;
       }
       setGuardMessage("Redirecting to onboarding...");
       router.replace("/onboarding");
@@ -125,12 +129,15 @@ export function DashboardShell({ children }: DashboardShellProps) {
     }
 
     setGuardMessage(null);
-  }, [isDashboardRoute, isProfileRoute, isAdminRoute, pathname, router, status, user, isSigning, isConnected, hasPrimaryToken]);
+  }, [isDashboardRoute, isProfileRoute, isAdminRoute, pathname, router, status, user, isSigning, isConnected, hasPrimaryToken, deferRedirect]);
 
   if (guardMessage) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
-        <p className="text-sm text-slate-300">{guardMessage}</p>
+      <div className="flex min-h-screen items-center justify-center bg-white text-slate-900">
+        <div className="flex flex-col items-center gap-4 text-slate-700">
+          <Loader2 className="h-10 w-10 animate-spin text-slate-900" />
+          <span className="sr-only">{guardMessage}</span>
+        </div>
       </div>
     );
   }
