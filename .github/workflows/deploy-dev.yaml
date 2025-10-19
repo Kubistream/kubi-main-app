@@ -40,6 +40,7 @@ jobs:
           S3_FORCE_PATH_STYLE : ${{ secrets.S3_FORCE_PATH_STYLE }}
           S3_BUCKET_AVATARS : ${{ secrets.S3_BUCKET_AVATARS }}
           S3_PUBLIC_BASE_URL : ${{ secrets.S3_PUBLIC_BASE_URL }}
+          NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS : ${{ secrets.NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS }}
         run: NEXT_IGNORE_ESLINT_DURING_BUILD=1 npm run build
 
       - name: Stop PM2 app
@@ -74,6 +75,7 @@ jobs:
           S3_FORCE_PATH_STYLE : ${{ secrets.S3_FORCE_PATH_STYLE }}
           S3_BUCKET_AVATARS : ${{ secrets.S3_BUCKET_AVATARS }}
           S3_PUBLIC_BASE_URL : ${{ secrets.S3_PUBLIC_BASE_URL }}
+          NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS : ${{ secrets.NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS }}
         run: | 
           npx pm2 delete nextjs-app || true 
           npx pm2 start npm --name "nextjs-app" -- start 
