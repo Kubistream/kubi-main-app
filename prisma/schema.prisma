@@ -25,6 +25,20 @@ enum OverlayStatus {
   DISPLAYED
 }
 
+// Yield provider related enums
+enum YieldProviderStatus {
+  ACTIVE
+  PAUSED
+  DEPRECATED
+}
+
+enum APRSource {
+  ONCHAIN
+  SUBGRAPH
+  PROTOCOL_API
+  MANUAL
+}
+
 model User {
   id                   String                    @id @default(cuid())
   wallet               String                    @unique
@@ -130,6 +144,9 @@ model Token {
   queueOverlaysIn   QueueOverlay[]           @relation("QueueOverlayTokenIn")
   streamerWhitelist StreamerTokenWhitelist[]
   globalWhitelist   GlobalTokenWhitelist?
+  // Back-relations for YieldProvider
+  yieldUnderlyingProviders     YieldProvider[] @relation("YieldUnderlying")
+  yieldRepresentativeProviders YieldProvider[] @relation("YieldRepresentative")
 
   @@unique([chainId, address])
 }
@@ -246,6 +263,46 @@ model SiweNonce {
   session    Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([expiresAt])
+}
+
+// Yield provider markets for auto-yield selection and admin whitelist
+model YieldProvider {
+  id                   String   @id @default(cuid())
+  chainId              Int
+  protocol             String
+  protocolName         String
+  protocolImageUrl     String?
+
+  // Relations to tokens (addresses remain as stored in Token)
+  underlyingTokenId    String
+  underlyingToken      Token    @relation("YieldUnderlying", fields: [underlyingTokenId], references: [id], onDelete: Restrict)
+
+  representativeTokenId String
+  representativeToken   Token    @relation("YieldRepresentative", fields: [representativeTokenId], references: [id], onDelete: Restrict)
+
+  status               YieldProviderStatus @default(ACTIVE)
+
+  // Adapter routing + APR sourcing
+  adapterKey           String?
+  aprSource            APRSource           @default(ONCHAIN)
+
+  // Store raw on-chain scaled APR (e.g., 1e18 or 1e27) and its scale
+  aprScaled            Decimal? @db.Decimal(30, 0)
+  aprScale             Int      @default(18)
+  aprUpdatedAt         DateTime?
+
+  // Optional protocol-specific fields
+  extraData            Json?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Ensure single provider per representative (yield) token
+  @@unique([representativeTokenId])
+  @@index([chainId])
+  @@index([status])
+  @@index([underlyingTokenId])
+  @@index([aprUpdatedAt])
 }
 
 model QueueOverlay {
