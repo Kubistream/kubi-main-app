@@ -111,18 +111,39 @@ export async function PATCH(request: NextRequest) {
         create: { userId: sessionRecord.user.id },
       });
 
-      // Validate tokens exist (skip if null primary)
+      // Validate primary token: must exist, be globally whitelisted (allowed), and not native
       if (primaryTokenId) {
-        const token = await tx.token.findUnique({ where: { id: primaryTokenId }, select: { id: true } });
+        const token = await tx.token.findUnique({
+          where: { id: primaryTokenId },
+          select: {
+            id: true,
+            isNative: true,
+            globalWhitelist: { select: { allowed: true } },
+          },
+        });
         if (!token) {
           throw new Error("Primary token not found");
         }
+        if (!token.globalWhitelist?.allowed) {
+          throw new Error("Primary token is not globally whitelisted");
+        }
+        if (token.isNative) {
+          throw new Error("Primary token cannot be native");
+        }
       }
 
+      // Validate whitelist tokens: all must exist, be globally whitelisted (allowed), and not native
       if (whitelistTokenIds.length > 0) {
-        const count = await tx.token.count({ where: { id: { in: whitelistTokenIds } } });
-        if (count !== whitelistTokenIds.length) {
-          throw new Error("One or more whitelist tokens not found");
+        const allowed = await tx.token.findMany({
+          where: {
+            id: { in: whitelistTokenIds },
+            isNative: false,
+            globalWhitelist: { is: { allowed: true } },
+          },
+          select: { id: true },
+        });
+        if (allowed.length !== whitelistTokenIds.length) {
+          throw new Error("One or more whitelist tokens are not globally allowed");
         }
       }
 
@@ -196,4 +217,3 @@ export async function PATCH(request: NextRequest) {
     return errorResponse(sessionResponse, 400, message);
   }
 }
-

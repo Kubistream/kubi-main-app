@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, ChangeEventHandler, useEffect, useMemo, useRef, useState } from "react";
-import { UserRound } from "lucide-react";
+import { UserRound, TrendingUp, CircleHelp, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Toggle } from "@/components/ui/toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStreamerProfile } from "@/hooks/use-streamer-profile";
@@ -20,6 +19,7 @@ import { useTokenSettings } from "@/hooks/use-token-settings";
 import { fetchTokenSettings } from "@/services/streamers/token-settings-service";
 import type { TokenDto } from "@/services/tokens/token-service";
 import { setPrimaryToken, setStreamerWhitelist } from "@/services/contracts/settings";
+import { AutoYieldBadge } from "@/components/ui/auto-yield-badge";
 
 type FormState = {
   username: string;
@@ -38,6 +38,9 @@ export default function ProfilePage() {
 
   // Token settings hooks
   const { tokens, settings, isConnected: canEditTokens, isLoading: loadingTokens, save: saveTokenSettings, refresh: refreshTokenSettings } = useTokenSettings();
+
+  // (Auto Yield subscriptions handled inside PaymentSettingsForm)
+
 
   const [form, setForm] = useState<FormState>({
     username: "",
@@ -351,7 +354,7 @@ export default function ProfilePage() {
           <PaymentSettingsForm
             disabled={!canEditTokens}
             loading={loadingTokens}
-            tokens={tokens}
+            tokens={tokens.map((t) => ({ ...t, logoURI: t.logoURI ?? undefined }))}
             settings={settings}
             onSave={async (next) => {
               await saveTokenSettings(next);
@@ -360,6 +363,7 @@ export default function ProfilePage() {
           />
         </CardContent>
       </Card>
+
     </div>
   );
 }
@@ -380,6 +384,14 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
   // Autoswap permanently enabled for now
   const [autoswapEnabled] = useState<boolean>(true);
   const [whitelist, setWhitelist] = useState<Set<string>>(new Set(settings?.whitelistTokenIds ?? []));
+  const [subscriptions, setSubscriptions] = useState<Record<string, string | null>>({});
+  const toggleSubscription = (tokenId: string, protocolId: string) => {
+    setSubscriptions((prev) => {
+      const current = prev[tokenId] ?? null;
+      const next = current === protocolId ? null : protocolId;
+      return { ...prev, [tokenId]: next };
+    });
+  };
 
   useEffect(() => {
     setPrimaryTokenId(settings?.primaryTokenId ?? null);
@@ -442,18 +454,36 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
   const selectedPrimary = tokens.find((t) => String(t.id) === String(primaryTokenId ?? ""));
 
+  // Dummy eligibility for Auto Yield (adjust later when backend is ready)
+  const AUTO_YIELD_ELIGIBLE_SYMBOLS = useMemo(
+    () => new Set(["USDC", "USDT", "DAI", "USDE", "WETH", "WBTC", "PYUSD"]),
+    [],
+  );
+  const isAutoYieldAvailable = (t: TokenDto | undefined | null): boolean => {
+    if (!t || t.isNative) return false;
+    const sym = (t.symbol || "").toUpperCase();
+    return AUTO_YIELD_ELIGIBLE_SYMBOLS.has(sym);
+  };
+
   const [primaryDialogOpen, setPrimaryDialogOpen] = useState(false);
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="primaryToken">Primary token (auto-swap)</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="primaryToken">Primary token (auto-swap)</Label>
+          <span
+            title="Auto Yield lets you subscribe per whitelisted token. Donations in non-whitelisted tokens auto-swap to your primary token. If a token is subscribed, its whitelist toggle is locked."
+          >
+            <CircleHelp className="h-4 w-4 text-slate-400" />
+          </span>
+        </div>
         <button
           id="primaryToken"
           type="button"
           disabled={isDisabled}
           onClick={() => setPrimaryDialogOpen(true)}
-          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 text-left text-sm shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 text-left text-sm shadow-sm transition hover:border-rose-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="flex items-center gap-2 text-slate-800">
             {selectedPrimary?.logoURI && (
@@ -480,6 +510,11 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
+        {selectedPrimary && (
+          <div className="mt-2">
+            <AutoYieldBadge available={isAutoYieldAvailable(selectedPrimary)} compact />
+          </div>
+        )}
         <Dialog open={primaryDialogOpen} onOpenChange={setPrimaryDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -547,9 +582,12 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                       <span className="truncate text-xs text-slate-500">{t.name}</span>
                     ) : null}
                   </div>
-                  {String(t.id) === String(primaryTokenId ?? "") && (
-                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500">Selected</span>
-                  )}
+                  <div className="flex flex-col items-end gap-1">
+                    <AutoYieldBadge available={isAutoYieldAvailable(t)} compact />
+                    {String(t.id) === String(primaryTokenId ?? "") && (
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-500">Selected</span>
+                    )}
+                  </div>
                 </button>
               ))}
               {tokens.length === 0 && (
@@ -561,6 +599,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         <p className="text-xs text-slate-500">Donations are auto-swapped to this token unless the incoming token is whitelisted.</p>
       </div>
 
+      
+
       {/* Autoswap toggle hidden for now (always true) */}
 
       <div className="space-y-2">
@@ -571,14 +611,16 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           )}
           {tokens.map((t) => {
             const selected = whitelist.has(t.id);
+            const tokenLocked = Boolean(subscriptions[t.id ?? ""]);
             return (
               <Toggle
                 key={t.id}
                 pressed={selected}
                 onPressedChange={(pressed) => handleToggleWhitelist(t.id, pressed)}
-                disabled={isDisabled}
+                disabled={tokenLocked || isDisabled}
                 size="sm"
-                title={t.name ?? t.symbol}
+                title={tokenLocked ? "Unsubscribe to change whitelist" : t.name ?? t.symbol}
+                className="border-slate-300 hover:border-rose-300"
               >
                 {t.logoURI && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -592,11 +634,188 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         <p className="text-xs text-slate-500">Tokens in this list are accepted without auto-swap.</p>
       </div>
 
+      {/* Auto Yield by Token */}
+      <div className="mt-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-700">Auto Yield by Token</h3>
+          <p className="text-xs text-slate-500">Subscribe one protocol per token</p>
+        </div>
+        <AutoYieldByTokenSection
+          tokens={tokens}
+          whitelist={whitelist}
+          subscriptions={subscriptions}
+          disabled={isDisabled}
+          onToggle={(tokenId, protocolId) => toggleSubscription(tokenId, protocolId)}
+        />
+      </div>
+
       {/* <Button onClick={handleSave} disabled={isDisabled} className="w-full">
         {saving ? "Saving..." : "Save payment settings"}
       </Button> */}
 
       {error && <p className="text-center text-xs font-medium text-rose-500">{error}</p>}
+    </div>
+  );
+}
+
+// Auto Yield by Token (collapsible list)
+function AutoYieldByTokenSection({
+  tokens,
+  whitelist,
+  subscriptions,
+  disabled,
+  onToggle,
+}: {
+  tokens: (TokenDto & { logoURI?: string })[];
+  whitelist: Set<string>;
+  subscriptions: Record<string, string | null>;
+  disabled: boolean;
+  onToggle: (tokenId: string, protocolId: string) => void;
+}) {
+  type Offer = { id: string; name: string; icon: string; apr: number };
+
+  const ICONS = {
+    aave: "https://icons.llamao.fi/icons/protocols/aave?w=48&h=48",
+    morpho: "https://icons.llamao.fi/icons/protocols/morpho?w=48&h=48",
+    spark: "https://icons.llamao.fi/icons/protocols/sparklend?w=48&h=48",
+    justlend: "https://icons.llamao.fi/icons/protocols/justlend?w=48&h=48",
+    kamino: "https://icons.llamao.fi/icons/protocols/kamino-lend?w=48&h=48",
+  } as const;
+
+  const normalizeKey = (symbol?: string | null, name?: string | null): string => {
+    const s = (symbol || name || "").toUpperCase();
+    if (s.includes("USDT")) return "USDT";
+    if (s.includes("USDC")) return "USDC";
+    if (s.includes("BTC") || s.includes("BITCOIN")) return "BTC";
+    if (s.includes("ETH") || s.includes("WETH")) return "ETH";
+    return "GEN";
+  };
+
+  const offersForKey = (key: string): Offer[] => {
+    switch (key) {
+      case "USDT":
+        return [
+          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 10.5 },
+          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 8.3 },
+          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 7.0 },
+          { id: "justlend", name: "JustLend", icon: ICONS.justlend, apr: 5.1 },
+        ];
+      case "USDC":
+        return [
+          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 11.2 },
+          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 9.1 },
+          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 8.2 },
+          { id: "kamino", name: "Kamino Lend", icon: ICONS.kamino, apr: 6.0 },
+        ];
+      case "BTC":
+        return [
+          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 4.2 },
+          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 3.7 },
+          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 3.2 },
+        ];
+      case "ETH":
+        return [
+          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 4.4 },
+          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 3.9 },
+          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 3.5 },
+        ];
+      default:
+        return [
+          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 2.1 },
+          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 1.8 },
+        ];
+    }
+  };
+
+  const weightForKey = (key: string): number => ({ USDT: 1, BTC: 2, ETH: 3, USDC: 4 }[key] ?? 99);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const shownTokens = useMemo(() => {
+    return [...tokens].sort((a, b) => {
+      const ak = normalizeKey(a.symbol, a.name);
+      const bk = normalizeKey(b.symbol, b.name);
+      return weightForKey(ak) - weightForKey(bk);
+    });
+  }, [tokens]);
+
+  return (
+    <div className="space-y-2">
+      {shownTokens.map((t) => {
+        const sym = (t.symbol || "").toUpperCase();
+        const key = normalizeKey(t.symbol, t.name);
+        const offers = [...offersForKey(key)].sort((a, b) => b.apr - a.apr);
+        const minApr = offers.length ? offers[offers.length - 1].apr : 0;
+        const maxApr = offers.length ? offers[0].apr : 0;
+        const tokenId = String(t.id);
+        const active = subscriptions[tokenId] ?? null;
+        const isWhitelisted = whitelist.has(tokenId);
+        const isOpen = expanded[tokenId] ?? false;
+        return (
+          <div key={tokenId} className="rounded-2xl border border-slate-300 bg-white">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-4 py-3"
+              onClick={() => setExpanded((prev) => ({ ...prev, [tokenId]: !isOpen }))}
+            >
+              <span className="flex items-center gap-3">
+                {t.logoURI ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={t.logoURI} alt={sym} className="h-6 w-6 rounded-full" />
+                ) : null}
+                <span className="text-sm font-semibold text-slate-900">{sym}</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-700">{minApr.toFixed(2)}%~{maxApr.toFixed(2)}%</span>
+                {isOpen ? (
+                  <ChevronUp className="h-4 w-4 text-slate-500" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                )}
+              </span>
+            </button>
+            {isOpen && (
+              <div className="mx-3 mb-3 rounded-2xl border border-slate-200 bg-slate-50">
+                {offers.map((o, idx) => {
+                  const isBest = idx === 0;
+                  const isActive = active === o.id;
+                  const subscribeDisabled = disabled || (!isWhitelisted && !isActive) || (!!active && !isActive);
+                  return (
+                    <div key={o.id} className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 last:border-none">
+                      <div className="flex items-center gap-3">
+                        {isBest && (
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-[10px] font-bold text-white ring-2 ring-amber-300">1</span>
+                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={o.icon} alt={o.name} className="h-6 w-6 rounded" />
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm font-semibold text-slate-900">{o.name}</span>
+                          {!isWhitelisted && !isActive && (
+                            <span className="text-xs text-slate-500">Whitelist to enable</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 text-sm font-semibold text-slate-700">
+                          <TrendingUp className="h-4 w-4 text-emerald-600" />
+                          {o.apr.toFixed(2)}%
+                        </span>
+                        <Button
+                          onClick={() => onToggle(tokenId, o.id)}
+                          disabled={subscribeDisabled}
+                          variant={isActive ? "outline" : "default"}
+                          className="min-w-[110px]"
+                        >
+                          {isActive ? "Unsubscribe" : "Subscribe"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

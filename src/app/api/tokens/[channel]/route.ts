@@ -26,7 +26,13 @@ export async function GET(
 
     // ambil token yang di-whitelist untuk streamer itu
     const whitelistedTokens = await prisma.streamerTokenWhitelist.findMany({
-      where: { streamerId: streamer.id, allowed: true },
+      where: {
+        streamerId: streamer.id,
+        allowed: true,
+        token: {
+          globalWhitelist: { is: { allowed: true } },
+        },
+      },
       include: { token: true },
     });
 

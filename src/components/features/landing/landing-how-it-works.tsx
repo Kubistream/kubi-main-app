@@ -16,9 +16,9 @@ export function LandingHowItWorks() {
           { step: "3", title: "Receive Donation", description: "Funds flow straight into your wallet.", image: "/assets/illustrations/receive-donation.png" },
         ]
       : [
-          { step: "1", title: "Choose Amount & Token", description: "Pick tokens you already hold.", image: "/assets/illustrations/connect-wallet.png" },
-          { step: "2", title: "Sign & Send", description: "Confirm safely from your wallet.", image: "/assets/illustrations/share-link.png" },
-          { step: "3", title: "Trigger the Alert", description: "Your message appears on stream.", image: "/assets/illustrations/receive-donation.png" },
+          { step: "1", title: "Choose Amount & Token", description: "Pick tokens you already hold.", image: "/assets/illustrations/choose-token.png" },
+          { step: "2", title: "Sign & Send", description: "Confirm safely from your wallet.", image: "/assets/illustrations/sign-send.png" },
+          { step: "3", title: "Trigger the Alert", description: "Your message appears on stream.", image: "/assets/illustrations/alert.png" },
         ];
 
   return (

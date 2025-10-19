@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 import { DonationLinkCard } from "@/components/features/dashboard/donation-link-card";
 import { EarningsOverviewCard } from "@/components/features/dashboard/earnings-overview-card";
+import { AutoYieldPositionsCard } from "@/components/features/dashboard/auto-yield-positions-card";
 import { QuickActionsCard } from "@/components/features/dashboard/quick-actions-card";
 import { SupporterHighlightsCard } from "@/components/features/dashboard/supporter-highlights-card";
 import { env } from "@/lib/env";
@@ -74,6 +75,8 @@ export default async function DashboardLandingPage() {
         <EarningsOverviewCard />
         {/* <SupporterHighlightsCard /> */}
       </div>
+
+      <AutoYieldPositionsCard />
     </div>
   );
 }
