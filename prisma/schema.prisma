@@ -288,7 +288,7 @@ model YieldProvider {
   aprSource            APRSource           @default(ONCHAIN)
 
   // Store raw on-chain scaled APR value (e.g., 1e18 or 1e27)
-  apr                  Decimal? @db.Decimal(30, 0)
+  apr                  Decimal? @db.Decimal(30, 2)
   aprUpdatedAt         DateTime?
 
   // Optional protocol-specific fields
