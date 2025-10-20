@@ -19,6 +19,7 @@ import { useTokenSettings } from "@/hooks/use-token-settings";
 import { fetchTokenSettings } from "@/services/streamers/token-settings-service";
 import type { TokenDto } from "@/services/tokens/token-service";
 import { setPrimaryToken, setStreamerWhitelist } from "@/services/contracts/settings";
+import { getStreamerYield, removeStreamerYieldContract, setStreamerYieldContract } from "@/services/contracts/yield";
 import { AutoYieldBadge } from "@/components/ui/auto-yield-badge";
 
 type FormState = {
@@ -385,12 +386,31 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
   const [autoswapEnabled] = useState<boolean>(true);
   const [whitelist, setWhitelist] = useState<Set<string>>(new Set(settings?.whitelistTokenIds ?? []));
   const [subscriptions, setSubscriptions] = useState<Record<string, string | null>>({});
-  const toggleSubscription = (tokenId: string, protocolId: string) => {
-    setSubscriptions((prev) => {
-      const current = prev[tokenId] ?? null;
-      const next = current === protocolId ? null : protocolId;
-      return { ...prev, [tokenId]: next };
-    });
+  const [yieldProviders, setYieldProviders] = useState<YieldProviderDto[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
+
+  // Subscribe/Unsubscribe on-chain and mirror to local state
+  const { user } = useAuth();
+  const toggleSubscription = async (tokenId: string, representativeAddress: string) => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const streamerAddress = user?.wallet;
+      if (!streamerAddress) throw new Error("Streamer wallet not found");
+      const current = subscriptions[tokenId] ?? null;
+      if (current && current.toLowerCase() === representativeAddress.toLowerCase()) {
+        await removeStreamerYieldContract(streamerAddress, representativeAddress);
+        setSubscriptions((prev) => ({ ...prev, [tokenId]: null }));
+      } else {
+        await setStreamerYieldContract(streamerAddress, representativeAddress);
+        setSubscriptions((prev) => ({ ...prev, [tokenId]: representativeAddress }));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update yield subscription");
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -398,7 +418,25 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     setWhitelist(new Set(settings?.whitelistTokenIds ?? []));
   }, [settings]);
 
-  const { user } = useAuth();
+  // Fetch available yield providers (public API)
+  useEffect(() => {
+    let disposed = false;
+    (async () => {
+      try {
+        setLoadingProviders(true);
+        const res = await fetch("/api/admin/yield/providers", { credentials: "include" });
+        const data = await res.json().catch(() => ({ providers: [] }));
+        if (!disposed) setYieldProviders(Array.isArray(data?.providers) ? data.providers : []);
+      } catch {
+        if (!disposed) setYieldProviders([]);
+      } finally {
+        if (!disposed) setLoadingProviders(false);
+      }
+    })();
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   const handleToggleWhitelist = async (tokenId: string, nextPressed: boolean) => {
     if (saving) return;
@@ -451,19 +489,75 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
   const isDisabled = disabled || loading || saving;
 
+  // Compute providers by underlying token id (ACTIVE only) and sort by APR desc
+  type YieldProviderDto = {
+    id: string;
+    protocol: string;
+    protocolName: string;
+    protocolImageUrl?: string | null;
+    status: "ACTIVE" | "PAUSED" | "DEPRECATED";
+    apr?: string | number | null;
+    underlyingToken: TokenDto;
+    representativeToken: TokenDto;
+  };
+
+  const providersByUnderlying = useMemo(() => {
+    const map: Record<string, YieldProviderDto[]> = {};
+    for (const p of yieldProviders) {
+      if (p.status !== "ACTIVE") continue;
+      const key = String((p as any).underlyingToken?.id ?? "");
+      if (!key) continue;
+      const arr = map[key] || (map[key] = []);
+      arr.push(p);
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => {
+        const av = a.apr == null ? 0 : Number(a.apr);
+        const bv = b.apr == null ? 0 : Number(b.apr);
+        return bv - av;
+      });
+    }
+    return map;
+  }, [yieldProviders]);
+
   const selectedPrimary = tokens.find((t) => String(t.id) === String(primaryTokenId ?? ""));
 
-  // Dummy eligibility for Auto Yield (adjust later when backend is ready)
-  const AUTO_YIELD_ELIGIBLE_SYMBOLS = useMemo(
-    () => new Set(["USDC", "USDT", "DAI", "USDE", "WETH", "WBTC", "PYUSD"]),
-    [],
-  );
+  // Auto Yield availability based on DB YieldProvider: ACTIVE providers for this token as underlying
   const isAutoYieldAvailable = (t: TokenDto | undefined | null): boolean => {
     if (!t) return false;
-    if (t.isRepresentativeToken) return true;
-    const sym = (t.symbol || "").toUpperCase();
-    return AUTO_YIELD_ELIGIBLE_SYMBOLS.has(sym);
+    const list = providersByUnderlying[String(t.id)] ?? [];
+    return list.length > 0;
   };
+
+  // Initialize on-chain subscription state: getStreamerYield(streamer, underlying)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const streamerAddress = user?.wallet;
+        if (!streamerAddress) return;
+        const tasks: Promise<void>[] = [];
+        const next: Record<string, string | null> = {};
+        for (const t of tokens) {
+          const offers = providersByUnderlying[String(t.id)];
+          if (!offers || offers.length === 0) continue; // Only check underlying with providers
+          tasks.push(
+            (async () => {
+              const res = await getStreamerYield(streamerAddress, t.address);
+              next[String(t.id)] = res ?? null;
+            })(),
+          );
+        }
+        await Promise.all(tasks);
+        if (!cancelled) setSubscriptions(next);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.wallet, tokens, providersByUnderlying]);
 
   const [primaryDialogOpen, setPrimaryDialogOpen] = useState(false);
 
@@ -640,8 +734,9 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           tokens={tokens}
           whitelist={whitelist}
           subscriptions={subscriptions}
-          disabled={isDisabled}
-          onToggle={(tokenId, protocolId) => toggleSubscription(tokenId, protocolId)}
+          disabled={isDisabled || loadingProviders}
+          providersByUnderlying={providersByUnderlying}
+          onToggle={(tokenId, representativeAddress) => toggleSubscription(tokenId, representativeAddress)}
         />
       </div>
 
@@ -660,90 +755,36 @@ function AutoYieldByTokenSection({
   whitelist,
   subscriptions,
   disabled,
+  providersByUnderlying,
   onToggle,
 }: {
   tokens: (TokenDto & { logoURI?: string })[];
   whitelist: Set<string>;
   subscriptions: Record<string, string | null>;
   disabled: boolean;
-  onToggle: (tokenId: string, protocolId: string) => void;
+  providersByUnderlying: Record<string, any[]>;
+  onToggle: (tokenId: string, representativeAddress: string) => void;
 }) {
-  type Offer = { id: string; name: string; icon: string; apr: number };
-
-  const ICONS = {
-    aave: "https://icons.llamao.fi/icons/protocols/aave?w=48&h=48",
-    morpho: "https://icons.llamao.fi/icons/protocols/morpho?w=48&h=48",
-    spark: "https://icons.llamao.fi/icons/protocols/sparklend?w=48&h=48",
-    justlend: "https://icons.llamao.fi/icons/protocols/justlend?w=48&h=48",
-    kamino: "https://icons.llamao.fi/icons/protocols/kamino-lend?w=48&h=48",
-  } as const;
-
-  const normalizeKey = (symbol?: string | null, name?: string | null): string => {
-    const s = (symbol || name || "").toUpperCase();
-    if (s.includes("USDT")) return "USDT";
-    if (s.includes("USDC")) return "USDC";
-    if (s.includes("BTC") || s.includes("BITCOIN")) return "BTC";
-    if (s.includes("ETH") || s.includes("WETH")) return "ETH";
-    return "GEN";
-  };
-
-  const offersForKey = (key: string): Offer[] => {
-    switch (key) {
-      case "USDT":
-        return [
-          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 10.5 },
-          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 8.3 },
-          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 7.0 },
-          { id: "justlend", name: "JustLend", icon: ICONS.justlend, apr: 5.1 },
-        ];
-      case "USDC":
-        return [
-          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 11.2 },
-          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 9.1 },
-          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 8.2 },
-          { id: "kamino", name: "Kamino Lend", icon: ICONS.kamino, apr: 6.0 },
-        ];
-      case "BTC":
-        return [
-          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 4.2 },
-          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 3.7 },
-          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 3.2 },
-        ];
-      case "ETH":
-        return [
-          { id: "morpho", name: "Morpho Blue", icon: ICONS.morpho, apr: 4.4 },
-          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 3.9 },
-          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 3.5 },
-        ];
-      default:
-        return [
-          { id: "aave", name: "Aave v3", icon: ICONS.aave, apr: 2.1 },
-          { id: "spark", name: "Spark Lend", icon: ICONS.spark, apr: 1.8 },
-        ];
-    }
-  };
-
-  const weightForKey = (key: string): number => ({ USDT: 1, BTC: 2, ETH: 3, USDC: 4 }[key] ?? 99);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const shownTokens = useMemo(() => {
-    return [...tokens].sort((a, b) => {
-      const ak = normalizeKey(a.symbol, a.name);
-      const bk = normalizeKey(b.symbol, b.name);
-      return weightForKey(ak) - weightForKey(bk);
-    });
-  }, [tokens]);
+    // Only tokens that have ACTIVE providers (as underlying)
+    return tokens.filter((t) => Array.isArray(providersByUnderlying[String(t.id)]) && providersByUnderlying[String(t.id)].length > 0);
+  }, [tokens, providersByUnderlying]);
 
   return (
     <div className="space-y-2">
       {shownTokens.map((t) => {
         const sym = (t.symbol || "").toUpperCase();
-        const key = normalizeKey(t.symbol, t.name);
-        const offers = [...offersForKey(key)].sort((a, b) => b.apr - a.apr);
-        const minApr = offers.length ? offers[offers.length - 1].apr : 0;
-        const maxApr = offers.length ? offers[0].apr : 0;
         const tokenId = String(t.id);
+        const offers: any[] = (providersByUnderlying[tokenId] || []) as any[];
+        const minApr = offers.length ? Number(offers[offers.length - 1]?.apr ?? 0) : 0;
+        const maxApr = offers.length ? Number(offers[0]?.apr ?? 0) : 0;
         const active = subscriptions[tokenId] ?? null;
+        const knownActive = !!active && offers.some((p) => {
+          const repAddr: string = (p?.representativeToken?.address as string) || "";
+          return repAddr && active.toLowerCase() === repAddr.toLowerCase();
+        });
         const isWhitelisted = whitelist.has(tokenId);
         const isOpen = expanded[tokenId] ?? false;
         return (
@@ -771,33 +812,43 @@ function AutoYieldByTokenSection({
             </button>
             {isOpen && (
               <div className="mx-3 mb-3 rounded-2xl border border-slate-200 bg-slate-50">
-                {offers.map((o, idx) => {
+                {offers.map((p, idx) => {
                   const isBest = idx === 0;
-                  const isActive = active === o.id;
-                  const subscribeDisabled = disabled || (!isWhitelisted && !isActive) || (!!active && !isActive);
+                  const rep = p.representativeToken;
+                  const name: string = p.protocolName || p.protocol || rep?.symbol || "Provider";
+                  const icon: string | undefined = p.protocolImageUrl || rep?.logoURI || undefined;
+                  const aprNum = Number(p.apr ?? 0);
+                  const repAddr: string = (rep?.address as string) || "";
+                  const isActive = active != null && repAddr && active.toLowerCase() === repAddr.toLowerCase();
+                  const subscribeDisabled = disabled || (!isWhitelisted && !isActive) || (knownActive && !isActive);
                   return (
-                    <div key={o.id} className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 last:border-none">
+                    <div key={p.id} className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 last:border-none">
                       <div className="flex items-center gap-3">
                         {isBest && (
                           <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-[10px] font-bold text-white ring-2 ring-amber-300">1</span>
                         )}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={o.icon} alt={o.name} className="h-6 w-6 rounded" />
+                        {icon ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={icon} alt={name} className="h-6 w-6 rounded" />
+                        ) : null}
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm font-semibold text-slate-900">{o.name}</span>
+                          <span className="truncate text-sm font-semibold text-slate-900">{name}</span>
                           {!isWhitelisted && !isActive && (
                             <span className="text-xs text-slate-500">Whitelist to enable</span>
+                          )}
+                          {!!active && !knownActive && idx === 0 && (
+                            <span className="text-xs text-amber-600">On-chain subscription found (not in list)</span>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1 text-sm font-semibold text-slate-700">
                           <TrendingUp className="h-4 w-4 text-emerald-600" />
-                          {o.apr.toFixed(2)}%
+                          {aprNum.toFixed(2)}%
                         </span>
                         <Button
-                          onClick={() => onToggle(tokenId, o.id)}
-                          disabled={subscribeDisabled}
+                          onClick={() => onToggle(tokenId, repAddr)}
+                          disabled={subscribeDisabled || !repAddr}
                           variant={isActive ? "outline" : "default"}
                           className="min-w-[110px]"
                         >
@@ -812,6 +863,9 @@ function AutoYieldByTokenSection({
           </div>
         );
       })}
+      {shownTokens.length === 0 && (
+        <p className="py-4 text-center text-sm text-slate-500">No auto-yield providers available.</p>
+      )}
     </div>
   );
 }

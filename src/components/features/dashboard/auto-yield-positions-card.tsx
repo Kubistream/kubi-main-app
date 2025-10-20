@@ -6,9 +6,12 @@ import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { fetchTokens, type TokenDto } from "@/services/tokens/token-service";
+import { useAuth } from "@/providers/auth-provider";
+import { getStreamerYield } from "@/services/contracts/yield";
 
 type AutoYieldPosition = {
   id: string;
+  representativeAddress: string;
   repSymbol: string;
   underlyingSymbol: string;
   underlyingLogo: string | null | undefined;
@@ -16,14 +19,21 @@ type AutoYieldPosition = {
   growthPercent: number;
 };
 
-const FIXED_UNDERLYINGS: Array<{ key: string; protocol: string }> = [
-  { key: "BitcoinKb", protocol: "Aave v3" },
-  { key: "ETHkb", protocol: "Aave v3" },
-  { key: "USDCkb", protocol: "Compound v3" },
-];
+type YieldProviderDto = {
+  id: string;
+  protocol: string;
+  protocolName: string;
+  protocolImageUrl?: string | null;
+  status: "ACTIVE" | "PAUSED" | "DEPRECATED";
+  apr?: string | number | null;
+  underlyingToken: TokenDto;
+  representativeToken: TokenDto;
+};
 
 export function AutoYieldPositionsCard() {
+  const { user } = useAuth();
   const [tokens, setTokens] = useState<TokenDto[]>([]);
+  const [providers, setProviders] = useState<YieldProviderDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,10 +41,20 @@ export function AutoYieldPositionsCard() {
     let mounted = true;
     (async () => {
       try {
-        const list = await fetchTokens();
-        if (mounted) setTokens(list);
+        setLoading(true);
+        const [list, prov] = await Promise.all([
+          fetchTokens(),
+          fetch("/api/admin/yield/providers", { credentials: "include" })
+            .then((r) => r.json())
+            .then((j) => (Array.isArray(j?.providers) ? (j.providers as YieldProviderDto[]) : []))
+            .catch(() => []),
+        ]);
+        if (mounted) {
+          setTokens(list);
+          setProviders(prov);
+        }
       } catch (e) {
-        if (mounted) setError("Failed to load tokens");
+        if (mounted) setError("Failed to load auto-yield data");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -44,7 +64,81 @@ export function AutoYieldPositionsCard() {
     };
   }, []);
 
-  const positions = useMemo(() => buildDummyPositions(tokens), [tokens]);
+  const providersByUnderlying = useMemo(() => {
+    const map: Record<string, YieldProviderDto[]> = {};
+    for (const p of providers) {
+      if (p.status !== "ACTIVE") continue;
+      const key = String((p as any).underlyingToken?.id ?? "");
+      if (!key) continue;
+      const arr = map[key] || (map[key] = []);
+      arr.push(p);
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => {
+        const av = a.apr == null ? 0 : Number(a.apr);
+        const bv = b.apr == null ? 0 : Number(b.apr);
+        return bv - av;
+      });
+    }
+    return map;
+  }, [providers]);
+
+  const [positions, setPositions] = useState<AutoYieldPosition[]>([]);
+
+  // Read on-chain subscriptions for each underlying with providers
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const streamer = user?.wallet;
+        if (!streamer) return;
+        const tasks: Promise<void>[] = [];
+        const next: AutoYieldPosition[] = [];
+        for (const t of tokens) {
+          const offers = providersByUnderlying[String(t.id)];
+          if (!offers || offers.length === 0) continue;
+          tasks.push(
+            (async () => {
+              const repAddr = await getStreamerYield(streamer, t.address);
+              if (!repAddr) return;
+              const match = offers.find((p) => p.representativeToken?.address?.toLowerCase() === repAddr.toLowerCase());
+              if (match) {
+                const repSym = match.representativeToken?.symbol || `rep:${repAddr.slice(0, 6)}`;
+                const proto = match.protocolName || match.protocol || "Provider";
+                next.push({
+                  id: match.id,
+                  representativeAddress: repAddr,
+                  repSymbol: repSym,
+                  underlyingSymbol: t.symbol,
+                  underlyingLogo: t.logoURI ?? null,
+                  protocol: proto,
+                  growthPercent: deterministicGrowthPercent(repSym),
+                });
+              } else {
+                const repSym = `rep:${repAddr.slice(0, 6)}`;
+                next.push({
+                  id: `${t.id}:${repAddr}`,
+                  representativeAddress: repAddr,
+                  repSymbol: repSym,
+                  underlyingSymbol: t.symbol,
+                  underlyingLogo: t.logoURI ?? null,
+                  protocol: "Unknown",
+                  growthPercent: deterministicGrowthPercent(repSym),
+                });
+              }
+            })(),
+          );
+        }
+        await Promise.all(tasks);
+        if (!cancelled) setPositions(next);
+      } catch {
+        // swallow errors for dashboard UX
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.wallet, tokens, providersByUnderlying]);
 
   return (
     <section className="rounded-3xl border border-white/60 bg-white/90 px-8 py-8 shadow-[0_18px_32px_-26px_rgba(47,42,44,0.35)]">
@@ -54,11 +148,10 @@ export function AutoYieldPositionsCard() {
           <h3 className="mt-3 text-2xl font-semibold text-slate-900">Subscribed representative tokens</h3>
         </div>
         <Link
-          href="#"
+          href="/dashboard/profile"
           className="text-xs font-semibold text-rose-400 transition hover:text-rose-600"
-          aria-disabled
         >
-          View all
+          Manage
         </Link>
       </header>
 
@@ -68,7 +161,7 @@ export function AutoYieldPositionsCard() {
         ) : error ? (
           <p className="text-xs text-rose-500">{error}</p>
         ) : positions.length === 0 ? (
-          <p className="text-xs text-slate-500">No positions yet. Connect lending to start earning auto yield.</p>
+          <p className="text-xs text-slate-500">No positions yet. Subscribe in Profile to start earning auto yield.</p>
         ) : (
           positions.slice(0, 6).map((p) => <PositionRow key={p.id} p={p} />)
         )}
@@ -131,56 +224,7 @@ function TokenAvatar({
   );
 }
 
-function buildDummyPositions(tokens: TokenDto[]): AutoYieldPosition[] {
-  if (!Array.isArray(tokens) || tokens.length === 0) return [];
-
-  const picked: Array<{ base: TokenDto; protocol: string }> = [];
-
-  for (const pref of FIXED_UNDERLYINGS) {
-    const t = findTokenByPreference(tokens, pref.key);
-    if (t) picked.push({ base: t, protocol: pref.protocol });
-  }
-
-  if (picked.length === 0) {
-    for (const t of tokens.slice(0, 3)) {
-      picked.push({ base: t, protocol: "Aave v3" });
-    }
-  }
-
-  return picked.map(({ base, protocol }) => {
-    const repSymbol = `s${base.symbol}`;
-    const growthPercent = deterministicGrowthPercent(repSymbol);
-    return {
-      id: `${base.chainId}:${base.address}:rep`,
-      repSymbol,
-      underlyingSymbol: base.symbol,
-      underlyingLogo: base.logoURI ?? null,
-      protocol,
-      growthPercent,
-    } satisfies AutoYieldPosition;
-  });
-}
-
-function findTokenByPreference(tokens: TokenDto[], key: string): TokenDto | null {
-  const wanted = key.toLowerCase();
-  const exact = tokens.find((t) => t.symbol.toLowerCase() === wanted || (t.name ?? "").toLowerCase() === wanted);
-  if (exact) return exact;
-  const loose = tokens.find((t) => t.symbol.toLowerCase().includes(wanted) || (t.name ?? "").toLowerCase().includes(wanted));
-  if (loose) return loose;
-  if (wanted.includes("eth")) {
-    const ethish = tokens.find((t) => /eth/i.test(t.symbol));
-    if (ethish) return ethish;
-  }
-  if (wanted.includes("usdc")) {
-    const usdcish = tokens.find((t) => /usdc/i.test(t.symbol));
-    if (usdcish) return usdcish;
-  }
-  if (wanted.includes("btc") || wanted.includes("bitcoin")) {
-    const btcish = tokens.find((t) => /btc/i.test(t.symbol) || /btc/i.test(t.name ?? ""));
-    if (btcish) return btcish;
-  }
-  return null;
-}
+// Removed dummy builders; positions now source from contract + DB providers
 
 function deterministicGrowthPercent(symbol: string): number {
   let h = 0;

@@ -11,6 +11,8 @@ export type YieldConfig = {
   vault?: string | null;
 };
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
+
 export async function getYieldConfig(yieldContract: string): Promise<YieldConfig | null> {
   const contract = await getDonationContractReadOnly();
   const addr = getAddress(yieldContract);
@@ -60,4 +62,32 @@ export async function setYieldConfig(params: {
     const receipt = await tx.wait();
     return { hash: receipt?.hash ?? tx.hash };
   }
+}
+
+// Read streamer subscription for a given underlying token
+export async function getStreamerYield(streamer: string, underlying: string): Promise<string | null> {
+  const contract = await getDonationContractReadOnly();
+  try {
+    const res: string = await contract.getStreamerYield(getAddress(streamer), getAddress(underlying));
+    const addr = getAddress(res);
+    return addr === ZERO_ADDRESS ? null : addr;
+  } catch {
+    return null;
+  }
+}
+
+// Subscribe a streamer to a yield contract (representative token contract)
+export async function setStreamerYieldContract(streamer: string, yieldContract: string): Promise<{ hash: string }> {
+  const contract = await getDonationContractWithSigner();
+  const tx = await contract.setStreamerYieldContract(getAddress(streamer), getAddress(yieldContract));
+  const receipt = await tx.wait();
+  return { hash: receipt?.hash ?? tx.hash };
+}
+
+// Unsubscribe a streamer from a yield contract (representative token contract)
+export async function removeStreamerYieldContract(streamer: string, yieldContract: string): Promise<{ hash: string }> {
+  const contract = await getDonationContractWithSigner();
+  const tx = await contract.removeStreamerYieldContract(getAddress(streamer), getAddress(yieldContract));
+  const receipt = await tx.wait();
+  return { hash: receipt?.hash ?? tx.hash };
 }
