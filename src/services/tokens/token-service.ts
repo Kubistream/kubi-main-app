@@ -5,7 +5,7 @@ export type TokenDto = {
   symbol: string;
   name: string | null;
   decimals: number;
-  isNative: boolean;
+  isRepresentativeToken: boolean;
   logoURI?: string | null;
 };
 

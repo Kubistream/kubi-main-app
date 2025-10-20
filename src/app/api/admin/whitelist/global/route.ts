@@ -75,7 +75,6 @@ export async function PATCH(request: NextRequest) {
             symbol,
             name: name ?? symbol,
             decimals,
-            isNative: false,
           },
           select: { id: true },
         });
@@ -104,4 +103,3 @@ export async function PATCH(request: NextRequest) {
     return error(sessionResponse, 400, message);
   }
 }
-

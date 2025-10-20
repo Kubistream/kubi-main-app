@@ -136,7 +136,8 @@ model Token {
   name              String?
   logoURI           String?
   decimals          Int
-  isNative          Boolean                  @default(false)
+  // Flag for auto-yield: marks yield-representative tokens (e.g., vault/yield-bearing tokens)
+  isRepresentativeToken Boolean              @default(false)
   createdAt         DateTime                 @default(now())
   donationsIn       Donation[]               @relation("DonationTokenIn")
   donationsOut      Donation[]               @relation("DonationTokenOut")

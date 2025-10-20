@@ -410,7 +410,6 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
       const token = tokens.find((t) => String(t.id) === String(tokenId));
       if (!token) throw new Error("Token not found");
-      if (token.isNative) throw new Error("Cannot whitelist native token");
 
       await setStreamerWhitelist(streamerAddress, token.address, nextPressed);
 
@@ -460,7 +459,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     [],
   );
   const isAutoYieldAvailable = (t: TokenDto | undefined | null): boolean => {
-    if (!t || t.isNative) return false;
+    if (!t) return false;
+    if (t.isRepresentativeToken) return true;
     const sym = (t.symbol || "").toUpperCase();
     return AUTO_YIELD_ELIGIBLE_SYMBOLS.has(sym);
   };
@@ -493,7 +493,6 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
             {selectedPrimary ? (
               <>
                 <span>{selectedPrimary.symbol}</span>
-                {selectedPrimary.isNative ? <span className="text-xs text-slate-500">(native)</span> : null}
               </>
             ) : (
               <span className="text-slate-500">Select a token…</span>
@@ -534,7 +533,6 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                       if (!streamerAddress) throw new Error("Streamer wallet not found");
                       const token = tokens.find((x) => String(x.id) === String(t.id));
                       if (!token) throw new Error("Primary token not found");
-                      if (token.isNative) throw new Error("Primary token cannot be native");
 
                       // Ensure whitelisted first if not already
                       if (!whitelist.has(t.id)) {
@@ -569,19 +567,17 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                   }}
                   className="flex w-full items-center gap-3 rounded-md border border-slate-200 p-2 text-left hover:bg-rose-50"
                 >
-                  {t.logoURI && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.logoURI} alt={t.symbol} className="h-6 w-6 rounded-full" />
-                  )}
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className="font-semibold text-slate-900">{t.symbol}</span>
-                    {t.isNative ? (
-                      <span className="text-xs text-slate-500">(native)</span>
-                    ) : null}
-                    {t.name ? (
-                      <span className="truncate text-xs text-slate-500">{t.name}</span>
-                    ) : null}
-                  </div>
+                    {t.logoURI && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={t.logoURI} alt={t.symbol} className="h-6 w-6 rounded-full" />
+                    )}
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="font-semibold text-slate-900">{t.symbol}</span>
+                    
+                      {t.name ? (
+                        <span className="truncate text-xs text-slate-500">{t.name}</span>
+                      ) : null}
+                    </div>
                   <div className="flex flex-col items-end gap-1">
                     <AutoYieldBadge available={isAutoYieldAvailable(t)} compact />
                     {String(t.id) === String(primaryTokenId ?? "") && (
@@ -626,7 +622,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={t.logoURI} alt={t.symbol} className="mr-2 h-4 w-4 rounded-full" />
                 )}
-                {t.symbol}{t.isNative ? " (native)" : ""}
+                {t.symbol}
               </Toggle>
             );
           })}

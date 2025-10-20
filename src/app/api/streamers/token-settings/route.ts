@@ -111,13 +111,12 @@ export async function PATCH(request: NextRequest) {
         create: { userId: sessionRecord.user.id },
       });
 
-      // Validate primary token: must exist, be globally whitelisted (allowed), and not native
+      // Validate primary token: must exist and be globally whitelisted (allowed)
       if (primaryTokenId) {
         const token = await tx.token.findUnique({
           where: { id: primaryTokenId },
           select: {
             id: true,
-            isNative: true,
             globalWhitelist: { select: { allowed: true } },
           },
         });
@@ -127,17 +126,13 @@ export async function PATCH(request: NextRequest) {
         if (!token.globalWhitelist?.allowed) {
           throw new Error("Primary token is not globally whitelisted");
         }
-        if (token.isNative) {
-          throw new Error("Primary token cannot be native");
-        }
       }
 
-      // Validate whitelist tokens: all must exist, be globally whitelisted (allowed), and not native
+      // Validate whitelist tokens: all must exist and be globally whitelisted (allowed)
       if (whitelistTokenIds.length > 0) {
         const allowed = await tx.token.findMany({
           where: {
             id: { in: whitelistTokenIds },
-            isNative: false,
             globalWhitelist: { is: { allowed: true } },
           },
           select: { id: true },

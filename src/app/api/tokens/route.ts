@@ -19,10 +19,10 @@ export async function GET(_request: NextRequest) {
         symbol: true,
         name: true,
         decimals: true,
-        isNative: true,
+        isRepresentativeToken: true,
         logoURI: true,
       },
-      orderBy: [{ isNative: "desc" }, { symbol: "asc" }],
+      orderBy: [{ symbol: "asc" }],
     });
 
     return NextResponse.json({ tokens });
