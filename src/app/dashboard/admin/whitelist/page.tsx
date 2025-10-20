@@ -42,6 +42,19 @@ export default function AdminWhitelistPage() {
       setAllowed(status);
       setSymbol(meta?.symbol ?? null);
       setDecimals(meta?.decimals ?? null);
+      // Sync DB with on-chain state (non-blocking). If token doesn't exist, symbol/decimals help creation.
+      try {
+        await fetch("/api/admin/whitelist/global", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: addr,
+            allowed: status,
+            symbol: meta?.symbol,
+            decimals: typeof meta?.decimals === "number" ? meta.decimals : undefined,
+          }),
+        });
+      } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to check whitelist");
     } finally {
@@ -57,6 +70,19 @@ export default function AdminWhitelistPage() {
       const { hash } = await setGlobalWhitelist(addr, nextAllowed);
       setAllowed(nextAllowed);
       setTxHash(hash);
+      // Mirror to DB so token appears in global whitelist list
+      try {
+        await fetch("/api/admin/whitelist/global", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: addr,
+            allowed: nextAllowed,
+            symbol,
+            decimals,
+          }),
+        });
+      } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update whitelist");
     }
@@ -154,4 +180,3 @@ async function readErc20Meta(address: string): Promise<{ symbol: string; decimal
     return null;
   }
 }
-

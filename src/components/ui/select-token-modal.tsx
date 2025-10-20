@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
@@ -9,6 +9,7 @@ interface Token {
   name: string;
   address: string;
   logoURI?: string;
+  decimals?: number;
 }
 
 interface SelectTokenModalProps {
@@ -19,16 +20,32 @@ interface SelectTokenModalProps {
   tokens?: Token[];
 }
 
-export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances = {}, tokens: propTokens = [] }: SelectTokenModalProps) {
+// Stable empty fallbacks to avoid new identity each render
+const EMPTY_BALANCES: { [address: string]: number } = Object.freeze({});
+const EMPTY_TOKENS: Token[] = Object.freeze([]);
+
+export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tokens: propTokens }: SelectTokenModalProps) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [search, setSearch] = useState("");
-  const [localBalances, setLocalBalances] = useState<{ [address: string]: number }>({});
+
+  // Ensure stable reference when balances is undefined
+  const stableBalances = balances ?? EMPTY_BALANCES;
+  const localBalances = useMemo(() => {
+    const normalized: { [address: string]: number } = {};
+    for (const addr in stableBalances) {
+      if (Object.prototype.hasOwnProperty.call(stableBalances, addr)) {
+        normalized[addr.toLowerCase()] = stableBalances[addr];
+      }
+    }
+    return normalized;
+  }, [stableBalances]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    if (propTokens && propTokens.length > 0) {
-      const normalized = propTokens.map((t) => ({
+    const providedTokens = propTokens ?? EMPTY_TOKENS;
+    if (providedTokens.length > 0) {
+      const normalized = providedTokens.map((t) => ({
         ...t,
         address: t.address.toLowerCase(),
       }));
@@ -50,18 +67,7 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances = {}
       })
       .catch(() => setTokens([]));
   }, [isOpen, propTokens]);
-
-  useEffect(() => {
-    // Normalize all keys in balances to lowercase for consistent access
-    const normalizedBalances: { [address: string]: number } = {};
-    for (const addr in balances) {
-      if (Object.prototype.hasOwnProperty.call(balances, addr)) {
-        normalizedBalances[addr.toLowerCase()] = balances[addr];
-      }
-    }
-    setLocalBalances(normalizedBalances);
-    console.log("✅ Updated localBalances:", normalizedBalances);
-  }, [balances]);
+  // localBalances is memoized above; no state updates here to avoid re-render loops
 
   const filtered = (tokens || []).filter(
     (t) =>
