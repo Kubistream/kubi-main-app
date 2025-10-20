@@ -286,9 +286,8 @@ model YieldProvider {
   adapterKey           String?
   aprSource            APRSource           @default(ONCHAIN)
 
-  // Store raw on-chain scaled APR (e.g., 1e18 or 1e27) and its scale
-  aprScaled            Decimal? @db.Decimal(30, 0)
-  aprScale             Int      @default(18)
+  // Store raw on-chain scaled APR value (e.g., 1e18 or 1e27)
+  apr                  Decimal? @db.Decimal(30, 0)
   aprUpdatedAt         DateTime?
 
   // Optional protocol-specific fields
