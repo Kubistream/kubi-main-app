@@ -4,6 +4,7 @@ import { LandingHowItWorks } from "@/components/features/landing/landing-how-it-
 import { LandingFaq } from "@/components/features/landing/landing-faq";
 import { LandingFooter } from "@/components/features/landing/landing-footer";
 import { LandingCallout } from "@/components/features/landing/landing-callout";
+import { LandingAutoFeatures } from "@/components/features/landing/landing-auto-features";
 
 export default function LandingPage() {
   return (
@@ -11,6 +12,7 @@ export default function LandingPage() {
       <LandingHero />
       <LandingBenefits />
       <LandingHowItWorks />
+      <LandingAutoFeatures />
       {/* <LandingSecurityAndCommunity /> */}
       <LandingFaq />
       <LandingCallout />

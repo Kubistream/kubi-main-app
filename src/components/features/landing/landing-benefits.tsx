@@ -5,24 +5,24 @@ import { brandPalette } from "./brand";
 
 const benefits = [
   {
-    title: "Secure",
-    description: "Every donations from supporters will be sent directly to your wallet",
+    title: "Non-Custodial",
+    description: "Donations go directly to your wallet. We never hold funds.",
     image: "/assets/illustrations/secure.png",
   },
   {
-    title: "Instant",
-    description: "Quick on-chain transactions with real-time on-stream alerts",
-    image: "/assets/illustrations/quick.png",
-  },
-  {
     title: "Flexible",
-    description: "Support any ERC-20 tokens or your token preferences",
+    description: "Supporters can use any supported ERC-20 — no lock-in.",
     image: "/assets/illustrations/flexible.png",
   },
   {
-    title: "Low-Fees",
-    description: "Enjoy minimal fees for streaming donations in our platform",
-    image: "/assets/illustrations/low-fees.png",
+    title: "Auto-Swap",
+    description: "Donations can auto-convert to your preferred token on-chain.",
+    image: "/assets/illustrations/auto-swap.png",
+  },
+  {
+    title: "Auto-Yield",
+    description: "Earn yield via top Base lending protocols; you keep custody.",
+    image: "/assets/illustrations/auto-yield.png",
   },
 ];
 

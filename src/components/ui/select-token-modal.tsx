@@ -22,7 +22,7 @@ interface SelectTokenModalProps {
 
 // Stable empty fallbacks to avoid new identity each render
 const EMPTY_BALANCES: { [address: string]: number } = Object.freeze({});
-const EMPTY_TOKENS: Token[] = Object.freeze([]);
+const EMPTY_TOKENS: ReadonlyArray<Token> = Object.freeze([]);
 
 export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tokens: propTokens }: SelectTokenModalProps) {
   const [tokens, setTokens] = useState<Token[]>([]);

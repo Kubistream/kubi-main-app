@@ -111,20 +111,33 @@ export interface FaqItem {
 
 export const faqItems: FaqItem[] = [
   {
-    question: "Does Kubi hold my funds?",
-    answer: "No. Kubi is non-custodial; funds move directly from supporters to your wallet.",
+    question: "Do you custody funds?",
+    answer:
+      "No—tips go wallet-to-wallet. Kubi never holds user balances; funds settle directly to the creator's address.",
   },
   {
-    question: "Which tokens are supported?",
-    answer: "ERC-20 tokens across major EVM networks with more networks on the roadmap.",
+    question: "Which tokens/networks?",
+    answer:
+      "ERC-20s on supported EVM networks (Base Sepolia in beta; more networks coming). Creators can set preferred tokens.",
   },
   {
-    question: "Can I add it to my overlay?",
-    answer: "Yes. We provide OBS/Streamlabs widgets, webhooks, and ready-to-use React components.",
+    question: "How does Auto-Swap work?",
+    answer:
+      "If a donor pays with a different token, we swap to the creator's preferred token at checkout using on-chain liquidity. Rates and any fees are shown before you sign.",
   },
   {
-    question: "What about fees?",
-    answer: "We charge 0% platform fees during beta—you only cover network gas fees.",
+    question: "Is Auto-Yield safe?",
+    answer:
+      "Auto-Yield is optional and integrates with leading lending protocols on Base (more providers coming). You keep custody—yield accrues to your wallet—and you can withdraw directly on the provider you chose. It carries smart-contract and market risk; APR varies and is not guaranteed.",
+  },
+  {
+    question: "Can I donate without crypto?",
+    answer: "Crypto only for now. A fiat on-ramp is on the roadmap.",
+  },
+  {
+    question: "How do I get my link?",
+    answer:
+      "Connect a wallet, finish onboarding, set your preferred token, then copy your donation link from the dashboard.",
   },
 ];
 

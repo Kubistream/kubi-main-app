@@ -6,7 +6,6 @@ import Image from "next/image";
 const productLinks = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how" },
-  { label: "Pricing", href: "#pricing" },
 ];
 
 const resourceLinks = ["Docs & SDK", "Guides", "Brand assets"];

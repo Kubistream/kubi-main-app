@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { LandingNavbar } from "@/components/features/landing/landing-navbar";
@@ -49,12 +50,9 @@ export function AppLayout({ children }: AppLayoutProps) {
           style={{ backgroundColor: `${brandPalette.cream}CC` }}
         >
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-4 transition sm:h-20 sm:flex-row sm:items-center sm:justify-between">
-            <Link
-              href="/"
-              className="text-xl font-semibold tracking-tight text-slate-900 transition hover:text-rose-500"
-            >
-              Kubi
-            </Link>
+            <Link href="/" className="inline-flex items-center gap-2" aria-label="Kubi Home">
+                        <Image src="/assets/brand/logo2.png" alt="Kubi" width={100} height={100} />
+                      </Link>
 
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
               <span className="flex items-center gap-2 rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-wide text-rose-500">
