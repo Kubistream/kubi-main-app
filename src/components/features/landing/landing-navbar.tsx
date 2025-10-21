@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { AccentPill, BrandButton, brandPalette } from "./brand";
+import { LANDING_GUIDES_SECTION_ID } from "./landing-hero";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useLaunchApp } from "@/hooks/use-launch-app";
@@ -16,6 +17,7 @@ interface LandingNavbarProps {
 const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#how", label: "How it works" },
+  { href: `#${LANDING_GUIDES_SECTION_ID}`, label: "Guides" },
   { href: "#faq", label: "FAQ" },
 ];
 

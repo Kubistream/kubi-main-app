@@ -7,8 +7,15 @@ import { BrandButton, AccentPill } from "./brand";
 import { useLaunchApp } from "@/hooks/use-launch-app";
 import { Button } from "@/components/ui/button";
 
+export const LANDING_GUIDES_SECTION_ID = "landing-guides";
+
 export function LandingHero() {
   const { onLaunch, label, disabled } = useLaunchApp();
+
+  const handleGuidesClick = () => {
+    const guidesSection = document.getElementById(LANDING_GUIDES_SECTION_ID);
+    guidesSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <section className="relative">
@@ -54,7 +61,13 @@ export function LandingHero() {
           >
             Lets Stream & Earn
           </BrandButton>
-          <Button type="button" variant="secondary" size="lg" aria-label="Guides" onClick={() => {}}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            aria-label="Guides"
+            onClick={handleGuidesClick}
+          >
             Guides
           </Button>
           <Link href="#how" className="text-sm font-medium text-rose-600 underline-offset-4 hover:underline">
