@@ -64,6 +64,31 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({ url: publicUrl });
     return applySessionCookies(sessionResponse, response);
   } catch (e) {
+    try {
+      const anyErr = e as any;
+      const resp = anyErr?.$response;
+      if (resp) {
+        const status = resp.statusCode ?? resp.status;
+        let raw = "";
+        // Attempt to read raw response body if available (Node Readable stream)
+        const body: any = resp.body;
+        if (body && typeof body[Symbol.asyncIterator] === "function") {
+          const chunks: Buffer[] = [];
+          for await (const chunk of body as AsyncIterable<Buffer | Uint8Array | string>) {
+            if (typeof chunk === "string") chunks.push(Buffer.from(chunk));
+            else chunks.push(Buffer.from(chunk));
+          }
+          raw = Buffer.concat(chunks).toString("utf8");
+        }
+        console.error("S3 PutObject error", {
+          status,
+          headers: resp.headers,
+          raw,
+        });
+      }
+    } catch (inner) {
+      console.error("Failed to inspect S3 error response", inner);
+    }
     console.error("Avatar upload failed", e);
     return error(sessionResponse, 500, "Failed to upload avatar");
   }

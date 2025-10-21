@@ -78,7 +78,7 @@ export function useLaunchApp() {
   const label = useMemo(() => {
     if (isSigning) return "Check wallet";
     if (status === "loading") return "Launching...";
-    if (status === "authenticated" && user?.profile.isComplete) return "Go to dashboard";
+    if (status === "authenticated" && user?.profile.isComplete) return "Launch App";
     if (status === "authenticated") return "Continue setup";
     return "Launch App";
   }, [isSigning, status, user]);

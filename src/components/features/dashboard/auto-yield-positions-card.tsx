@@ -8,11 +8,16 @@ import { cn } from "@/lib/utils";
 import { fetchTokens, type TokenDto } from "@/services/tokens/token-service";
 import { useAuth } from "@/providers/auth-provider";
 import { getStreamerYield } from "@/services/contracts/yield";
+import { getErc20Contract } from "@/services/contracts/erc20";
+import { getRpcProvider } from "@/services/contracts/provider";
+import { formatUnits } from "ethers";
+import { getWalletGrowthPercent } from "@/services/contracts/yield-token";
 
 type AutoYieldPosition = {
   id: string;
   representativeAddress: string;
   repSymbol: string;
+  repDecimals?: number;
   underlyingSymbol: string;
   underlyingLogo: string | null | undefined;
   protocol: string;
@@ -84,6 +89,7 @@ export function AutoYieldPositionsCard() {
   }, [providers]);
 
   const [positions, setPositions] = useState<AutoYieldPosition[]>([]);
+  const [balances, setBalances] = useState<Record<string, { raw: bigint; decimals: number }>>({});
 
   // Read on-chain subscriptions for each underlying with providers
   useEffect(() => {
@@ -109,6 +115,7 @@ export function AutoYieldPositionsCard() {
                   id: match.id,
                   representativeAddress: repAddr,
                   repSymbol: repSym,
+                  repDecimals: Number(match.representativeToken?.decimals ?? 18),
                   underlyingSymbol: t.symbol,
                   underlyingLogo: t.logoURI ?? null,
                   protocol: proto,
@@ -120,6 +127,7 @@ export function AutoYieldPositionsCard() {
                   id: `${t.id}:${repAddr}`,
                   representativeAddress: repAddr,
                   repSymbol: repSym,
+                  repDecimals: undefined,
                   underlyingSymbol: t.symbol,
                   underlyingLogo: t.logoURI ?? null,
                   protocol: "Unknown",
@@ -140,12 +148,90 @@ export function AutoYieldPositionsCard() {
     };
   }, [user?.wallet, tokens, providersByUnderlying]);
 
+  // Fetch ERC-20 balances for each representative token for the streamer
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const holder = user?.wallet;
+        if (!holder) return;
+        if (positions.length === 0) {
+          setBalances({});
+          return;
+        }
+
+        const provider = getRpcProvider();
+        const tasks = positions.map(async (p) => {
+          try {
+            const contract = getErc20Contract(p.representativeAddress, provider);
+            // Prefer decimals from DB; fall back to on-chain call
+            const decimals = typeof p.repDecimals === "number" && !Number.isNaN(p.repDecimals)
+              ? p.repDecimals
+              : await withTimeout(contract.decimals(), 8000).catch(() => 18);
+            const raw = await withTimeout(contract.balanceOf(holder), 8000).catch(() => 0n);
+            return [p.representativeAddress.toLowerCase(), { raw, decimals }] as const;
+          } catch {
+            return [p.representativeAddress.toLowerCase(), { raw: 0n, decimals: p.repDecimals ?? 18 }] as const;
+          }
+        });
+
+        const settled = await Promise.all(tasks);
+        if (cancelled) return;
+        const map: Record<string, { raw: bigint; decimals: number }> = {};
+        for (const [addr, value] of settled) {
+          map[addr] = value;
+        }
+        setBalances(map);
+      } catch {
+        if (!cancelled) setBalances({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [positions, user?.wallet]);
+
+  // Fetch on-chain growth percent (walletGrowth 1e18 scaled) for each representative
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const holder = user?.wallet;
+        if (!holder || positions.length === 0) return;
+        const tasks = positions.map(async (p, idx) => {
+          const growth = await getWalletGrowthPercent(p.representativeAddress, holder).catch(() => null);
+          return { idx, growth } as const;
+        });
+        const results = await Promise.all(tasks);
+        if (cancelled) return;
+        setPositions((prev) => {
+          const next = [...prev];
+          for (const r of results) {
+            if (r.growth == null) continue;
+            const i = r.idx;
+            if (!next[i]) continue;
+            next[i] = { ...next[i], growthPercent: r.growth };
+          }
+          return next;
+        });
+      } catch {
+        // ignore; leave placeholders
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [positions.length, user?.wallet]);
+
   return (
     <section className="rounded-3xl border border-white/60 bg-white/90 px-8 py-8 shadow-[0_18px_32px_-26px_rgba(47,42,44,0.35)]">
       <header className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Auto Yield</p>
           <h3 className="mt-3 text-2xl font-semibold text-slate-900">Subscribed representative tokens</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Growth percentage shows on-chain growth of your yield assets (walletGrowth).
+          </p>
         </div>
         <Link
           href="/dashboard/profile"
@@ -163,15 +249,34 @@ export function AutoYieldPositionsCard() {
         ) : positions.length === 0 ? (
           <p className="text-xs text-slate-500">No positions yet. Subscribe in Profile to start earning auto yield.</p>
         ) : (
-          positions.slice(0, 6).map((p) => <PositionRow key={p.id} p={p} />)
+          positions.slice(0, 6).map((p) => (
+            <PositionRow
+              key={p.id}
+              p={p}
+              balance={balances[p.representativeAddress.toLowerCase()]}
+            />
+          ))
         )}
       </div>
     </section>
   );
 }
 
-function PositionRow({ p }: { p: AutoYieldPosition }) {
+function PositionRow({ p, balance }: { p: AutoYieldPosition; balance?: { raw: bigint; decimals: number } }) {
   const meta = getGrowthMeta(p.growthPercent);
+  const formattedBalance = useMemo(() => {
+    try {
+      if (!balance) return null;
+      const v = formatUnits(balance.raw, balance.decimals);
+      // Limit to 4 decimal places for UI brevity
+      const n = Number.parseFloat(v);
+      if (!Number.isFinite(n)) return v;
+      if (n === 0) return "0";
+      return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    } catch {
+      return null;
+    }
+  }, [balance]);
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-rose-100 bg-rose-50/40 px-4 py-3">
       <div className="flex items-center gap-3">
@@ -179,9 +284,21 @@ function PositionRow({ p }: { p: AutoYieldPosition }) {
         <div>
           <p className="text-sm font-semibold text-slate-900">{p.repSymbol}</p>
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">via {p.protocol}</p>
+          {formattedBalance != null && (
+            <p className="mt-0.5 text-[11px] font-medium text-slate-600">
+              Balance: {formattedBalance} {p.repSymbol}
+            </p>
+          )}
         </div>
       </div>
-      <div className={cn("flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium", meta.background, meta.text)}>
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
+          meta.background,
+          meta.text,
+        )}
+        title="Growth percentage of your yield assets (from on-chain walletGrowth)"
+      >
         <span aria-hidden>▲</span>
         <span>+{p.growthPercent.toFixed(2)}%</span>
       </div>
@@ -239,4 +356,18 @@ function getGrowthMeta(value: number) {
   if (value > 0) return { background: "bg-emerald-100", text: "text-emerald-600" };
   if (value < 0) return { background: "bg-rose-100", text: "text-rose-500" };
   return { background: "bg-slate-100", text: "text-slate-500" };
+}
+
+// Small timeout wrapper to keep dashboard responsive
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    p.then((v) => {
+      clearTimeout(t);
+      resolve(v);
+    }).catch((e) => {
+      clearTimeout(t);
+      reject(e);
+    });
+  });
 }
