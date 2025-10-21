@@ -322,3 +322,9 @@ model QueueOverlay {
   @@index([linkId])
   @@index([txHash])
 }
+
+model Utils {
+  id    String @id @default(cuid())
+  name  String
+  value String
+}
