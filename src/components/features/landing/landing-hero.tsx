@@ -54,7 +54,7 @@ export function LandingHero() {
           >
             Lets Stream & Earn
           </BrandButton>
-          <Button type="button" variant="secondary" aria-label="Guides" onClick={() => {}}>
+          <Button type="button" variant="secondary" size="lg" aria-label="Guides" onClick={() => {}}>
             Guides
           </Button>
           <Link href="#how" className="text-sm font-medium text-rose-600 underline-offset-4 hover:underline">

@@ -56,7 +56,7 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
             type="button"
             onClick={onLaunch}
             disabled={disabled}
-            className="inline-flex h-11 items-center rounded-full border border-rose-200 px-5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex h-11 items-center rounded-full border border-rose-200 px-5 text-base font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {ctaLabel}
           </button>
