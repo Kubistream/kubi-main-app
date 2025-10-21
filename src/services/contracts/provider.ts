@@ -12,7 +12,7 @@ export function getBrowserProvider(): BrowserProvider {
 export function getRpcProvider(): JsonRpcProvider {
   const url =
     (process.env.NEXT_PUBLIC_BASE_RPC_URL as string | undefined) ||
-    "https://sepolia.base.org";
+    "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa";
   return new JsonRpcProvider(url);
 }
 

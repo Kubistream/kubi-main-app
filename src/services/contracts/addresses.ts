@@ -1,6 +1,6 @@
 import { assert } from "./utils";
 
-const FALLBACK_DONATION_ADDRESS = "0x4ff45f64d60fe55eff49077c876d3ea27936a7cd";
+const FALLBACK_DONATION_ADDRESS = "0xe938D69B23fF0E8EF24442736Ecc6ec324022eaB";
 
 export function getDonationContractAddress(): string {
   const fromEnv = process.env.NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS?.trim();

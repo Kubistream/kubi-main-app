@@ -1,12 +1,13 @@
-import { prisma } from "@/lib/prisma";
-import { NextRequest, NextResponse } from "next/server";
 import { JsonRpcProvider, ethers } from "ethers";
 import { Prisma } from "@prisma/client";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import {
   applySessionCookies,
   getAuthSession,
   resolveAuthenticatedUser,
 } from "@/lib/auth/session";
+import { getDonationContractAddress } from "@/services/contracts/addresses";
 
 export async function POST(
   req: NextRequest,
@@ -78,15 +79,25 @@ export async function POST(
       "event Donation(address indexed donor, address indexed streamer, address indexed tokenIn, uint256 amountIn, uint256 feeAmount, address tokenOut, uint256 amountOutToStreamer, uint256 timestamp)"
     ];
     const iface = new ethers.Interface(abi);
-    const donationLog = receipt.logs.find(
-      (l) => l.address.toLowerCase() === "0x4ff45f64d60fe55eff49077c876d3ea27936a7cd"
+    const donationAddress = getDonationContractAddress().toLowerCase();
+    const donationTopic = ethers.id(
+      "Donation(address,address,address,uint256,uint256,address,uint256,uint256)"
     );
+    const donationLog = receipt.logs.find(
+      (log) =>
+        log.address.toLowerCase() === donationAddress &&
+        log.topics[0] === donationTopic
+    );
+
     if (!donationLog) {
       return NextResponse.json({ error: "Donation log not found" }, { status: 400 });
     }
-    const parsed = iface.parseLog(donationLog);
 
-    if (!parsed) {
+    let parsed;
+    try {
+      parsed = iface.parseLog(donationLog);
+    } catch (parseError) {
+      console.error("Failed to parse donation log", parseError);
       return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
     }
 
