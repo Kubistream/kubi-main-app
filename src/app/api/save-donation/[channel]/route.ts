@@ -93,11 +93,15 @@ export async function POST(
       return NextResponse.json({ error: "Donation log not found" }, { status: 400 });
     }
 
-    let parsed;
+    let parsed: ethers.LogDescription | null = null;
     try {
       parsed = iface.parseLog(donationLog);
     } catch (parseError) {
       console.error("Failed to parse donation log", parseError);
+      return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
+    }
+
+    if (!parsed) {
       return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
     }
 
