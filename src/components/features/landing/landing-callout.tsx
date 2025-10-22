@@ -1,7 +1,7 @@
 export function LandingCallout() {
   return (
     <section className="mx-auto w-full max-w-4xl px-6 pb-10 pt-6 text-center">
-      <p className="font-modak modak-readable modak-stroke-warm text-3xl font-extrabold leading-snug sm:text-4xl">
+      <p className="font-modak modak-readable modak-stroke-warm text-4xl font-extrabold leading-tight sm:text-5xl md:text-6xl">
         <span className="block bg-gradient-to-b from-[#FF3D86] via-[#FF6D6D] to-[#FFA24C] bg-clip-text text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]">
           Supercharge Tips That Grow on Base
         </span>
@@ -10,7 +10,7 @@ export function LandingCallout() {
         </span>
       </p>
 
-      <p className="mt-8 text-xs text-slate-400">Made with 💜 by Kubi</p>
+      <p className="mt-8 text-sm text-slate-400 sm:text-base">Made with 💜 by Kubi</p>
     </section>
   );
 }

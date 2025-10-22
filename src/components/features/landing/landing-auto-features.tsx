@@ -10,8 +10,8 @@ export function LandingAutoFeatures() {
           <CardHeader className="flex flex-row items-start gap-4">
             <Image src="/assets/illustrations/auto-swap.png" alt="Auto-Swap" width={44} height={44} />
             <div>
-              <CardTitle>Auto-Swap</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-2xl font-semibold text-slate-900 sm:text-3xl">Auto-Swap</CardTitle>
+              <CardDescription className="text-base leading-relaxed text-slate-600 sm:text-lg">
                 Let supporters pay with whatever ERC-20 they have. Kubi swaps on-the-fly to your
                 preferred token using on-chain liquidity, so your balance stays consistent.
               </CardDescription>
@@ -31,10 +31,12 @@ export function LandingAutoFeatures() {
             <Image src="/assets/illustrations/auto-yield.png" alt="Auto-Yield" width={44} height={44} />
             <div>
               <div className="flex items-center gap-2">
-                <CardTitle>Auto-Yield</CardTitle>
-                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">optional</span>
+                <CardTitle className="text-2xl font-semibold text-slate-900 sm:text-3xl">Auto-Yield</CardTitle>
+                <span className="rounded-full bg-amber-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-600 sm:text-sm">
+                  optional
+                </span>
               </div>
-              <CardDescription>
+              <CardDescription className="text-base leading-relaxed text-slate-600 sm:text-lg">
                 Opt-in to route received tokens into a yield strategy via leading lending protocols on Base. You keep custody at all times while funds remain in your wallet.
               </CardDescription>
             </div>

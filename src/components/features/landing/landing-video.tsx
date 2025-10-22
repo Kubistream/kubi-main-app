@@ -16,11 +16,11 @@ export function LandingVideo({ videoUrl, sectionId = "landing-video" }: LandingV
     <section id={sectionId} className="bg-white/90">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 px-6 py-16 text-center">
         <div className="space-y-2">
-          <span className="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-rose-600">
+          <span className="inline-flex items-center rounded-full bg-rose-100 px-4 py-1 text-sm font-semibold uppercase tracking-wider text-rose-600 sm:text-base">
             Demo Video
           </span>
-          <h2 className="text-3xl font-semibold text-slate-900 md:text-4xl">Quick Guides</h2>
-          <p className="text-base text-slate-600 md:text-lg">
+          <h2 className="text-4xl font-semibold text-slate-900 md:text-5xl">Quick Guides</h2>
+          <p className="text-lg text-slate-600 md:text-xl">
             Watch a concise walkthrough of how Kubi helps streamers receive and manage Web3 donations.
           </p>
         </div>

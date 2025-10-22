@@ -5,6 +5,7 @@ import Image from "next/image";
 
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function LandingHowItWorks() {
   const [view, setView] = useState<"streamer" | "supporter">("streamer");
@@ -25,7 +26,7 @@ export function LandingHowItWorks() {
     <section id="how" className="bg-gradient-to-b from-white to-rose-50/40">
       <div className="mx-auto w-full max-w-6xl px-6 pb-24 pt-16">
         <header className="mb-8 text-center">
-          <h2 className="font-modak modak-readable modak-stroke-warm text-3xl font-extrabold tracking-wider sm:text-4xl md:text-5xl">
+          <h2 className="font-modak modak-readable modak-stroke-warm text-4xl font-extrabold tracking-wider sm:text-5xl md:text-6xl">
             <span className="bg-gradient-to-b from-[#FF3D86] via-[#FF6D6D] to-[#FFA24C] bg-clip-text text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]">
               How It Works?
             </span>
@@ -45,7 +46,7 @@ export function LandingHowItWorks() {
           {steps.map((step) => (
             <Card key={step.title} className="border-white/70 bg-white">
               <CardHeader className="flex flex-col items-center gap-4 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-lg font-semibold text-rose-500">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-xl font-semibold text-rose-500 sm:h-16 sm:w-16 sm:text-2xl">
                   {step.step}
                 </span>
                 <Image
@@ -53,9 +54,9 @@ export function LandingHowItWorks() {
                   alt={step.title}
                   width={180}
                   height={140}
-                  className="mx-auto h-24 w-auto sm:h-28"
+                  className="mx-auto h-24 w-auto sm:h-32"
                 />
-                <CardTitle className="text-lg text-slate-900">{step.title}</CardTitle>
+                <CardTitle className="text-xl font-semibold text-slate-900 sm:text-2xl">{step.title}</CardTitle>
                 {/* <CardDescription className="text-slate-600">{step.description}</CardDescription> */}
               </CardHeader>
             </Card>
@@ -77,7 +78,10 @@ function TogglePill({ active, onClick, children }: TogglePillProps) {
     <Button
       type="button"
       variant={active ? "default" : "ghost"}
-      className={active ? "bg-gradient-to-r from-[#FF3D86] to-[#FFA24C] text-white" : "text-slate-600"}
+      className={cn(
+        "text-base sm:text-lg",
+        active ? "bg-gradient-to-r from-[#FF3D86] to-[#FFA24C] text-white" : "text-slate-600",
+      )}
       onClick={onClick}
     >
       {children}
