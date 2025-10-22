@@ -49,13 +49,13 @@ export function AppLayout({ children }: AppLayoutProps) {
           className="sticky top-0 z-50 border-b border-rose-200/70 backdrop-blur"
           style={{ backgroundColor: `${brandPalette.cream}CC` }}
         >
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-4 transition sm:h-20 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 transition sm:h-20 sm:flex-nowrap sm:px-6">
             <Link href="/" className="inline-flex items-center gap-2" aria-label="Kubi Home">
-                        <Image src="/assets/brand/logo2.png" alt="Kubi" width={100} height={100} />
-                      </Link>
+              <Image src="/assets/brand/logo2.png" alt="Kubi" width={100} height={100} />
+            </Link>
 
-            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <span className="flex items-center gap-2 rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-wide text-rose-500">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <span className="hidden flex-wrap items-center justify-between gap-2 rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-wide text-rose-500 sm:flex">
                 <span className="text-[0.65rem] font-semibold text-rose-400">Role</span>
                 <span className="text-slate-900">{ROLE_LABEL[role]}</span>
               </span>

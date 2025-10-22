@@ -58,7 +58,7 @@ export async function POST(
     }
 
     // 🔗 Verifikasi transaksi di chain
-    const provider = new JsonRpcProvider(process.env.BASE_RPC_URL || "https://base-sepolia.drpc.org");
+    const provider = new JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://base-sepolia.drpc.org");
     const tx = await provider.getTransaction(txHash);
     const receipt = await provider.getTransactionReceipt(txHash);
     if (!receipt || receipt.status !== 1) {

@@ -36,10 +36,10 @@ export function ConnectWalletButton({ label }: ConnectWalletButtonProps) {
           ready && account && chain && (!authenticationStatus || authenticationStatus === "authenticated");
 
         const gradientButtonClass =
-          "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#FFA24C] via-[#FF5F74] to-[#FF3D86] px-6 py-2 text-sm font-semibold text-white shadow-[0_14px_24px_-12px_rgba(255,61,134,0.5)] transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-12px_rgba(255,61,134,0.45)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5F74]";
+          "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#FFA24C] via-[#FF5F74] to-[#FF3D86] px-5 py-2 text-sm font-semibold text-white shadow-[0_14px_24px_-12px_rgba(255,61,134,0.5)] transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-12px_rgba(255,61,134,0.45)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5F74]";
 
         const secondaryButtonClass =
-          "inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-200/80";
+          "hidden sm:inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-200/80";
 
         return (
           <div

@@ -16,8 +16,8 @@ const projectId =
 const customBaseSepolia = {
   ...baseSepolia,
   rpcUrls: {
-    default: { http: ["https://sepolia.base.org"] }, // default official RPC
-    public: { http: ["https://sepolia.base.org"] },
+    default: { http: [process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://sepolia.base.org"] },
+    public: { http: [process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://sepolia.base.org"] },
   },
 };
 
