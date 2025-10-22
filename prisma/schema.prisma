@@ -104,13 +104,13 @@ model Donation {
   tokenIn       Token         @relation("DonationTokenIn", fields: [tokenInId], references: [id])
   tokenOutId    String
   tokenOut      Token         @relation("DonationTokenOut", fields: [tokenOutId], references: [id])
-  amountInRaw    Decimal? @db.Decimal(30, 8)
-  amountOutRaw   Decimal? @db.Decimal(30, 8)
-  amountOutUsd   Decimal? @db.Decimal(30, 8)
-  amountOutIdr   Decimal? @db.Decimal(30, 8)
-  amountInUsd    Decimal? @db.Decimal(30, 8)
-  amountInIdr    Decimal? @db.Decimal(30, 8)
-  feeRaw        Decimal? @db.Decimal(30, 8)
+  amountInRaw    Decimal? @db.Decimal(300, 8)
+  amountOutRaw   Decimal? @db.Decimal(300, 8)
+  amountOutUsd   Decimal? @db.Decimal(300, 8)
+  amountOutIdr   Decimal? @db.Decimal(300, 8)
+  amountInUsd    Decimal? @db.Decimal(300, 8)
+  amountInIdr    Decimal? @db.Decimal(300, 8)
+  feeRaw        Decimal? @db.Decimal(300, 8)
   txHash        String
   logIndex      Int
   blockNumber   Int
