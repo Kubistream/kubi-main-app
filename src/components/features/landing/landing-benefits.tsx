@@ -30,7 +30,7 @@ export function   LandingBenefits() {
   return (
     <section id="features" className="mx-auto max-w-6xl px-6 pb-20">
       <header className="mb-10 space-y-2 text-center">
-        <h2 className="font-modak modak-readable modak-stroke-warm text-3xl font-extrabold tracking-wider sm:text-4xl md:text-5xl">
+        <h2 className="font-modak modak-readable modak-stroke-warm text-4xl font-extrabold tracking-wider sm:text-5xl md:text-6xl">
           <span className="bg-gradient-to-b from-[#FF3D86] via-[#FF6D6D] to-[#FFA24C] bg-clip-text text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]">
             Why Kubi?
           </span>
@@ -52,14 +52,14 @@ export function   LandingBenefits() {
                 className="h-16 w-auto"
               />
               <CardTitle
-                className="font-modak modak-readable modak-stroke-pink modak-stroke-strong text-2xl sm:text-3xl leading-none tracking-wider drop-shadow-[0_2px_1px_rgba(217,30,88,0.25)]"
+                className="font-modak modak-readable modak-stroke-pink modak-stroke-strong text-3xl leading-none tracking-wider drop-shadow-[0_2px_1px_rgba(217,30,88,0.25)] sm:text-4xl"
                 style={{ color: brandPalette.pink }}
               >
                 {benefit.title}
               </CardTitle>
             </CardHeader>
             <CardContent className="mt-auto pt-0">
-              <CardDescription className="text-center text-base leading-relaxed text-slate-600">
+              <CardDescription className="text-center text-lg leading-relaxed text-slate-600 sm:text-xl">
                 {benefit.description}
               </CardDescription>
             </CardContent>

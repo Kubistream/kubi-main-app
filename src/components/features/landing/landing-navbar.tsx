@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
 import { AccentPill, BrandButton, brandPalette } from "./brand";
+import { LANDING_GUIDES_SECTION_ID } from "./landing-hero";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useLaunchApp } from "@/hooks/use-launch-app";
@@ -16,15 +17,61 @@ interface LandingNavbarProps {
 const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#how", label: "How it works" },
+  { href: `#${LANDING_GUIDES_SECTION_ID}`, label: "Guides" },
   { href: "#faq", label: "FAQ" },
 ];
 
 export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
   const { onLaunch, label: ctaLabel, disabled } = useLaunchApp();
+
+  const scrollToSection = (hash: string) => {
+    const targetId = hash.startsWith("#") ? hash.slice(1) : hash;
+    if (!targetId) return;
+    const section = document.getElementById(targetId);
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleNavItemClick = (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    if (href.startsWith("#")) {
+      event.preventDefault();
+      scrollToSection(href);
+    }
+    setMobileOpen(false);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateNavHeight = () => {
+      const height = headerRef.current?.offsetHeight ?? 0;
+      document.documentElement.style.setProperty("--landing-nav-height", `${height}px`);
+    };
+
+    updateNavHeight();
+    window.addEventListener("resize", updateNavHeight);
+
+    return () => {
+      window.removeEventListener("resize", updateNavHeight);
+      document.documentElement.style.removeProperty("--landing-nav-height");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const height = headerRef.current?.offsetHeight ?? 0;
+      document.documentElement.style.setProperty("--landing-nav-height", `${height}px`);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [mobileOpen]);
 
   return (
     <header
+      ref={headerRef}
       className="sticky top-0 z-40 border-b border-rose-200/70 backdrop-blur"
       style={{ backgroundColor: `${brandPalette.cream}CC` }}
     >
@@ -42,7 +89,12 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
           {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="transition hover:text-slate-900">
+            <Link
+              key={link.href}
+              href={link.href}
+              className="transition hover:text-slate-900"
+              onClick={handleNavItemClick(link.href)}
+            >
               {link.label}
             </Link>
           ))}
@@ -75,21 +127,28 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
       <div
         className={cn(
           "border-t border-rose-200/70 transition-all duration-200 md:hidden",
-          mobileOpen ? "max-h-64 opacity-100" : "max-h-0 overflow-hidden opacity-0",
+          mobileOpen
+            ? "max-h-[calc(100vh-var(--landing-nav-height,0px))] overflow-y-auto opacity-100"
+            : "max-h-0 overflow-hidden opacity-0",
         )}
         style={{ backgroundColor: `${brandPalette.cream}F2` }}
       >
-        <div className="flex flex-col gap-4 px-6 py-4 text-sm text-slate-700">
+        <div className="flex flex-col gap-4 px-6 py-6 text-sm text-slate-700">
           <Badge className="w-max rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
             Role · {roleLabel}
           </Badge>
           {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-base font-medium" onClick={() => setMobileOpen(false)}>
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-base font-medium"
+              onClick={handleNavItemClick(link.href)}
+            >
               {link.label}
             </Link>
           ))}
           <BrandButton
-            className="h-11 justify-center"
+            className="h-12 w-full justify-center text-base"
             type="button"
             disabled={disabled}
             onClick={() => {

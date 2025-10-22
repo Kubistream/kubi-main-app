@@ -8,7 +8,7 @@ const productLinks = [
   { label: "How it works", href: "#how" },
 ];
 
-const resourceLinks = ["Docs & SDK", "Guides", "Brand assets"];
+const resourceLinks = ["Docs", "Brand assets"];
 const communityLinks = ["Discord", "Twitter/X", "GitHub"];
 
 export function LandingFooter() {

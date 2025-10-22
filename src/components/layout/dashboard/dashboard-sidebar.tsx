@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { History, LayoutDashboard, MonitorPlay, Settings, Trophy, UserRound } from "lucide-react";
+import { GraduationCap, History, LayoutDashboard, MonitorPlay, Settings, Trophy, UserRound } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ const STATIC_NAV: DashboardNavItem[] = [
   { label: "Leaderboard", href: "/dashboard/leaderboard", icon: <Trophy className="h-5 w-5" /> },
   { label: "Tx History", href: "/dashboard/history", icon: <History className="h-5 w-5" /> },
   { label: "Profile", href: "/dashboard/profile", icon: <UserRound className="h-5 w-5" /> },
+  { label: "Tutorial", href: "/dashboard/tutorial", icon: <GraduationCap className="h-5 w-5" /> },
 ];
 
 export function DashboardSidebar() {
