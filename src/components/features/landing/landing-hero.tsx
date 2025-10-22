@@ -81,7 +81,7 @@ export function LandingHero() {
               type="button"
               aria-label="Guides"
               onClick={handleGuidesClick}
-              className="inline-flex h-11 items-center rounded-full border border-rose-200 px-5 text-base font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex h-12 items-center rounded-full border border-rose-200 bg-white px-5 text-base font-semibold text-rose-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
             >
               Guides
             </button>
