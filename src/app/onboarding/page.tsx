@@ -1,125 +1,162 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { useWallet } from "@/hooks/use-wallet";
-import { getProfile, saveProfile, type StreamerProfile } from "@/services/streamers/profile-service";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { address, isConnected } = useWallet();
-  const [username, setUsername] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  // On onboarding we intentionally do not auto-trigger SIWE sign-in.
+  // Do not destructure `signIn` here to avoid accidental use.
+  const { status: authStatus, user, isSigning, signIn, refresh: refreshAuth } = useAuth();
 
-  const existingProfile = useMemo(() => {
-    if (!address) return null;
-    return getProfile(address);
-  }, [address]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
-    if (!existingProfile) return;
-    setUsername(existingProfile.username);
-    setAvatarUrl(existingProfile.avatarUrl ?? "");
-  }, [existingProfile]);
+    setErrorMessage(null);
+  }, [address]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!address) return;
+  const handleGoToDashboard = async () => {
+    if (!isConnected || isSigning || isNavigating) return;
+    setIsNavigating(true);
+    setErrorMessage(null);
 
-    setStatus("saving");
-    const profile: StreamerProfile = {
-      address,
-      username,
-      avatarUrl: avatarUrl || undefined,
-      updatedAt: Date.now(),
-    };
+    try {
+      const needsRoleUpgrade =
+        authStatus === "authenticated" && user?.role === "USER";
 
-    saveProfile(profile);
-    setStatus("saved");
+      if (authStatus !== "authenticated" || !user || needsRoleUpgrade) {
+        // Promote to streamer on first-time sign-in from onboarding
+        await signIn({ createStreamerProfile: true });
+        await refreshAuth();
+      }
 
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 800);
+      // Fetch latest auth state to branch on role accurately.
+      const me = await fetch("/api/auth/me", { credentials: "include" });
+      if (!me.ok) {
+        throw new Error("Unable to verify your session. Please try again.");
+      }
+      const meData = (await me.json()) as { user: { role: "USER" | "STREAMER" | "SUPERADMIN" } | null };
+      const role = meData.user?.role;
+
+      // Superadmins go straight to Admin Dashboard; skip streamer onboarding entirely.
+      if (role === "SUPERADMIN") {
+        router.push("/dashboard/admin");
+        return;
+      }
+
+      // Decide destination based on latest server-backed profile for streamers.
+      // Only navigate when the profile endpoint confirms an authorised session.
+      const response = await fetch("/api/streamers/me", { credentials: "include" });
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("You need to sign the message to continue.");
+        }
+        throw new Error("Unable to verify your session. Please try again.");
+      }
+
+      const data = (await response.json()) as {
+        profile: { isComplete: boolean } | null;
+        onboardingComplete?: boolean;
+        hasPrimaryToken?: boolean;
+      };
+
+      const isReady =
+        typeof data.onboardingComplete === "boolean"
+          ? data.onboardingComplete
+          : Boolean(data.profile?.isComplete) && Boolean(data.hasPrimaryToken);
+
+      const destination = isReady ? "/dashboard" : "/dashboard/profile?onboarding=1";
+      router.push(destination);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Unable to proceed. Please try again.");
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
+  const statusMessage = useMemo(() => {
+    if (!isConnected) {
+      return "Connect a wallet to begin your streamer onboarding.";
+    }
+    if (isSigning) {
+      return "Check your wallet to sign the message.";
+    }
+    if (authStatus === "loading") {
+      return "Verifying your session...";
+    }
+    if (authStatus === "authenticated") {
+      if (!user) return "You’re signed in. Continue below.";
+      if (user.role === "USER") {
+        return "Ready to upgrade your account. Continue to become a streamer.";
+      }
+      return user.profile.isComplete
+        ? "You’re signed in. Open your dashboard."
+        : "You’re signed in. Finish your profile setup.";
+    }
+    if (errorMessage) {
+      return errorMessage;
+    }
+    return "Getting ready to launch your creator dashboard.";
+  }, [authStatus, errorMessage, isConnected, isSigning, user]);
+
+  const showConnectButton = !isConnected || authStatus !== "authenticated";
+  const canProceed = isConnected && !isSigning && authStatus !== "loading" && !isNavigating;
+
   return (
-    <main className="flex min-h-screen flex-col items-center bg-gradient-to-br from-rose-100 via-white to-rose-50 px-6 py-20 text-slate-900">
-      <Card className="w-full max-w-2xl border-white/70 bg-white/90 shadow-lg shadow-rose-200/40">
-        <CardHeader>
-          <CardTitle className="text-3xl font-semibold text-slate-900">
-            Set up your streamer profile
-          </CardTitle>
-          <CardDescription className="text-sm text-slate-600">
-            We&apos;ll use your connected wallet to create a profile page and donation link. You can tweak these settings later in the dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {!isConnected && (
-            <div className="flex flex-col items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center">
-              <p className="text-sm text-slate-600">
-                Connect your wallet to continue. We support popular providers through RainbowKit.
-              </p>
-              <ConnectWalletButton label="Connect wallet" />
-            </div>
-          )}
+    <section className="flex items-center justify-center text-slate-900">
+      <Card className="mx-auto w-full max-w-2xl border-white/70 bg-white/95 p-0 shadow-xl shadow-rose-200/40">
+        <CardContent className="space-y-6 p-8 sm:p-10">
+          <div className="flex flex-col items-center text-center">
+            <Image
+              src="/assets/illustrations/mascot2.png"
+              alt="Kubi mascot"
+              width={320}
+              height={240}
+              priority
+              className="h-auto w-52 sm:w-64"
+            />
 
-          {isConnected && (
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <Label>Streamer username</Label>
-                <Input
-                  required
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="e.g. kubi_sensei"
-                />
-                <p className="text-xs text-slate-500">
-                  This handle appears on your donation page and leaderboard.
-                </p>
-              </div>
+            <h1
+              className="font-modak modak-readable modak-stroke-warm modak-stroke-strong mt-4 bg-gradient-to-r from-[#FFA24C] via-[#FF5F74] to-[#FF3D86] bg-clip-text text-4xl tracking-wider text-transparent drop-shadow-[0_2px_1px_rgba(255,61,134,0.25)] sm:text-5xl"
+            >
+              Welcome to Kubi!
+            </h1>
 
-              <div className="space-y-2">
-                <Label>Profile image URL</Label>
-                <Input
-                  value={avatarUrl}
-                  onChange={(event) => setAvatarUrl(event.target.value)}
-                  placeholder="https://..."
-                />
-                <p className="text-xs text-slate-500">
-                  Paste an image link for now. We&apos;ll support uploading soon.
-                </p>
-              </div>
+            <p className="mt-4 max-w-md text-balance text-base text-slate-600 sm:text-lg">
+              {statusMessage}
+            </p>
+          </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!username || status === "saving"}
-              >
-                {status === "saving"
-                  ? "Saving profile..."
-                  : status === "saved"
-                    ? "Profile saved!"
-                    : existingProfile
-                      ? "Update profile"
-                      : "Save and continue"}
-              </Button>
+          <div className="mt-2 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            {showConnectButton && (
+              <ConnectWalletButton label="Connect Wallet" />
+            )}
 
-              {existingProfile && (
-                <p className="text-xs text-slate-500">
-                  Last updated: {new Date(existingProfile.updatedAt).toLocaleString()}
-                </p>
-              )}
-            </form>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!canProceed}
+              onClick={handleGoToDashboard}
+              className="rounded-full border border-rose-200/70 bg-white/90 px-6 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50"
+            >
+              Go to Dashboard
+            </Button>
+          </div>
+
+          {errorMessage && (
+            <p className="text-center text-xs font-medium text-rose-500">{errorMessage}</p>
           )}
         </CardContent>
       </Card>
-    </main>
+    </section>
   );
 }

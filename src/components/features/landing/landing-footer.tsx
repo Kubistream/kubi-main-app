@@ -1,16 +1,14 @@
 import type { ReactNode } from "react";
 
 import Link from "next/link";
-
-import { BeeLogo, brandPalette } from "./brand";
+import Image from "next/image";
 
 const productLinks = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how" },
-  { label: "Pricing", href: "#pricing" },
 ];
 
-const resourceLinks = ["Docs & SDK", "Guides", "Brand assets"];
+const resourceLinks = ["Docs", "Brand assets"];
 const communityLinks = ["Discord", "Twitter/X", "GitHub"];
 
 export function LandingFooter() {
@@ -19,9 +17,8 @@ export function LandingFooter() {
       <div className="mx-auto w-full max-w-6xl px-6 py-14">
         <div className="grid gap-8 md:grid-cols-4">
           <div>
-            <div className="flex items-center gap-3 text-lg font-semibold" style={{ color: brandPalette.ink }}>
-              <BeeLogo size={26} />
-              Kubi
+            <div className="flex items-center">
+              <Image src="/assets/brand/logo2.png" alt="Kubi logo" width={150} height={150} />
             </div>
             <p className="mt-3 text-sm text-slate-500">
               Creator-friendly on-chain donations. Built for diverse communities.

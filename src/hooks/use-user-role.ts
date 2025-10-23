@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
-import { useWallet } from "@/hooks/use-wallet";
-import { getProfile } from "@/services/streamers/profile-service";
+import { useAuth } from "@/providers/auth-provider";
 
 export type UserRole = "streamer" | "supporter";
 
@@ -17,36 +15,20 @@ const matchesPrefix = (pathname: string | null, prefixes: readonly string[]) => 
 };
 
 export function useUserRole(): UserRole {
-  const { address } = useWallet();
   const pathname = usePathname();
-  const [hasStreamerProfile, setHasStreamerProfile] = useState(false);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    if (!address) {
-      setHasStreamerProfile(false);
-      return;
-    }
-
-    try {
-      const profile = getProfile(address);
-      setHasStreamerProfile(Boolean(profile));
-    } catch (error) {
-      console.error("Failed to load streamer profile", error);
-      setHasStreamerProfile(false);
-    }
-  }, [address]);
-
-  const routeRole = useMemo(() => {
+  const routeRole = (() => {
     if (matchesPrefix(pathname, STREAMER_PREFIXES)) return "streamer" as const;
     if (matchesPrefix(pathname, SUPPORTER_PREFIXES)) return "supporter" as const;
     return null;
-  }, [pathname]);
+  })();
 
   if (routeRole) {
     return routeRole;
   }
 
-  if (hasStreamerProfile) {
+  if (user?.role === "STREAMER" || user?.role === "SUPERADMIN") {
     return "streamer";
   }
 

@@ -1,0 +1,132 @@
+name: Auto Deploy Next.js (Dev)
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Migrate Prisma
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate deploy && npx prisma generate
+
+      - name: Build Next.js
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
+          NEXT_PUBLIC_OVERLAY_WS_URL : ${{ secrets.NEXT_PUBLIC_OVERLAY_WS_URL }}
+          S3_ENDPOINT : ${{ secrets.S3_ENDPOINT }}
+          S3_REGION : ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY_ID : ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_FORCE_PATH_STYLE : ${{ secrets.S3_FORCE_PATH_STYLE }}
+          S3_BUCKET_AVATARS : ${{ secrets.S3_BUCKET_AVATARS }}
+          S3_PUBLIC_BASE_URL : ${{ secrets.S3_PUBLIC_BASE_URL }}
+          NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS : ${{ secrets.NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS }}
+          NEXT_PUBLIC_BASE_RPC_URL : ${{ secrets.NEXT_PUBLIC_BASE_RPC_URL }}
+        run: NEXT_IGNORE_ESLINT_DURING_BUILD=1 npm run build
+
+      - name: Stop PM2 app
+        run: npx pm2 stop nextjs-app || true
+
+      - name: Sync to production directory
+        run: |
+          rsync -av --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude '.env' \
+            ${{ github.workspace }}/ /home/zee/project/kubi/kubi-main-app/
+
+      - name: Install dependencies in production
+        working-directory: /home/zee/project/kubi/kubi-main-app
+        run: npm install --production
+
+      - name: Restart Next.js app 
+        working-directory: /home/zee/project/kubi/kubi-main-app 
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID }}
+          NEXTAUTH_URL: ${{ secrets.APP_URL }}
+          NEXT_PUBLIC_OVERLAY_WS_URL : ${{ secrets.NEXT_PUBLIC_OVERLAY_WS_URL }}
+          S3_ENDPOINT : ${{ secrets.S3_ENDPOINT }}
+          S3_REGION : ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY_ID : ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_FORCE_PATH_STYLE : ${{ secrets.S3_FORCE_PATH_STYLE }}
+          S3_BUCKET_AVATARS : ${{ secrets.S3_BUCKET_AVATARS }}
+          S3_PUBLIC_BASE_URL : ${{ secrets.S3_PUBLIC_BASE_URL }}
+          NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS : ${{ secrets.NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS }}
+          NEXT_PUBLIC_BASE_RPC_URL : ${{ secrets.NEXT_PUBLIC_BASE_RPC_URL }}
+        run: | 
+          npx pm2 delete nextjs-app || true 
+          npx pm2 start npm --name "nextjs-app" -- start 
+          npx pm2 save
+
+      - name: Generate commit messages list
+        id: commits
+        run: |
+          echo "COMMITS=$(git log ${{ github.event.before }}..${{ github.sha }} --pretty=format:'• %s (%an)' | tr '\n' '\r')" >> $GITHUB_ENV
+
+      - name: Notify Telegram (Success)
+        if: success()
+        run: |
+          TEXT=$(cat <<'EOF'
+          ✅ *Deploy Success!*
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          By: ${{ github.actor }}
+          
+          *Commits:*
+          ${{ env.COMMITS }}
+          
+          🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+          )
+          TEXT_URLENCODED=$(echo "$TEXT" | jq -s -R -r @uri)
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d message_thread_id="${{ secrets.TELEGRAM_TOPIC_ID }}" \
+            -d text="$TEXT_URLENCODED" \
+            -d parse_mode="Markdown"
+
+      - name: Notify Telegram (Failed)
+        if: failure()
+        run: |
+          TEXT=$(cat <<'EOF'
+          ❌ *Deploy Failed!*
+          
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          By: ${{ github.actor }}
+          
+          🧩 [View Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          EOF
+          )
+          TEXT_URLENCODED=$(echo "$TEXT" | jq -s -R -r @uri)
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d message_thread_id="${{ secrets.TELEGRAM_TOPIC_ID }}" \
+            -d text="$TEXT_URLENCODED" \
+            -d parse_mode="Markdown"

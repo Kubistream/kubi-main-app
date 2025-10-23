@@ -10,6 +10,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-modak: var(--font-modak);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +24,34 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.font-modak {
+  font-family: var(--font-modak);
+}
+
+/* Improve Modak readability on light backgrounds (avoid black outline) */
+.modak-readable {
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  /* Configurable stroke to better suit fill colors */
+  --modak-stroke-width: 0.8px;
+  --modak-stroke-color: rgba(160, 32, 73, 0.45); /* deep warm tint */
+  -webkit-text-stroke-width: var(--modak-stroke-width);
+  -webkit-text-stroke-color: var(--modak-stroke-color);
+}
+
+/* Optional variants to better match different fills */
+.modak-stroke-warm {
+  --modak-stroke-color: rgba(160, 32, 73, 0.45);
+}
+.modak-stroke-pink {
+  /* Deeper pink for higher contrast against light backgrounds */
+  --modak-stroke-color: rgba(217, 30, 88, 0.75);
+}
+.modak-stroke-amber {
+  --modak-stroke-color: rgba(255, 162, 76, 0.5);
+}
+.modak-stroke-strong {
+  --modak-stroke-width: 1px;
 }
