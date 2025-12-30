@@ -88,6 +88,7 @@ function broadcastToStreamer(streamerId: string, data: any) {
 }
 
 const PORT = 8080;
-server.listen(PORT, () => {
-    console.log(`WebSocket server listening on port ${PORT}`);
-});
+// server.listen(PORT, () => {
+//     console.log(`WebSocket server listening on port ${PORT}`);
+// });
+console.log("Local WebSocket server is currently disabled. Please use the external WebSocket service.");

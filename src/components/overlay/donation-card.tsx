@@ -12,8 +12,9 @@ export type DonationCardProps = {
     theme?: "Vibrant Dark" | "Minimal Light";
     animationPreset?: string;
     showYieldApy?: boolean;
-    mediaType?: "TEXT" | "AUDIO" | "VIDEO";
+    mediaType?: "TEXT" | "AUDIO" | "VIDEO" | "IMAGE";
     mediaUrl?: string;
+    playMedia?: boolean;
 };
 
 export const getYouTubeId = (url: string) => {
@@ -35,8 +36,18 @@ export function DonationCard({
     showYieldApy = true,
     mediaType,
     mediaUrl,
+    playMedia = false,
 }: DonationCardProps) {
     const isDark = theme === "Vibrant Dark";
+    const videoRef = React.useRef<HTMLIFrameElement>(null);
+    const audioRef = React.useRef<HTMLAudioElement>(null);
+
+    // Effect to handle audio playback when playMedia becomes true
+    React.useEffect(() => {
+        if (playMedia && mediaType === "AUDIO" && audioRef.current) {
+            audioRef.current.play().catch(e => console.error("Audio play failed", e));
+        }
+    }, [playMedia, mediaType]);
 
     const getAnimationClass = (preset: string) => {
         switch (preset) {
@@ -57,15 +68,26 @@ export function DonationCard({
     const renderMedia = () => {
         if (!mediaUrl) return null;
 
+        if (mediaType === "IMAGE") {
+            return (
+                <div className="mt-4 rounded-xl overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_#000]">
+                    <img src={mediaUrl} alt="Donation Media" className="w-full h-auto max-h-[300px] object-cover" />
+                </div>
+            );
+        }
+
         if (mediaType === "VIDEO") {
             const videoId = getYouTubeId(mediaUrl);
             if (!videoId) return null;
+            // Only autoplay if playMedia is true
+            const autoplayParam = playMedia ? "1" : "0";
             return (
                 <div className="mt-4 rounded-xl overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_#000] aspect-video">
                     <iframe
+                        ref={videoRef}
                         width="100%"
                         height="100%"
-                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1`}
+                        src={`https://www.youtube.com/embed/${videoId}?autoplay=${autoplayParam}&controls=0&modestbranding=1&enablejsapi=1`}
                         title="YouTube video player"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
@@ -79,11 +101,11 @@ export function DonationCard({
             return (
                 <div className="mt-4 p-3 bg-accent-yellow/10 rounded-xl border-2 border-accent-yellow">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="material-symbols-outlined text-accent-yellow animate-pulse">graphic_eq</span>
+                        <span className={`material-symbols-outlined text-accent-yellow ${playMedia ? 'animate-pulse' : ''}`}>graphic_eq</span>
                         <span className="text-xs font-bold text-accent-yellow uppercase">Voice Message</span>
                     </div>
-                    {/* Native audio player stylized slightly or just basic for now */}
-                    <audio controls autoPlay className="w-full h-8">
+                    {/* Remove autoPlay attribute, handle via ref */}
+                    <audio ref={audioRef} controls className="w-full h-8">
                         <source src={mediaUrl} />
                         Your browser does not support the audio element.
                     </audio>
@@ -169,8 +191,8 @@ export function DonationCard({
                     </div>
 
                     {/* Message bubble */}
-                    {/* Message bubble - Only show for TEXT type */}
-                    {message && mediaType === "TEXT" && (
+                    {/* Message bubble - Only show for TEXT type or if there is a message */}
+                    {message && (mediaType === "TEXT" || !mediaType) && (
                         <div className="relative mt-1">
                             <div className={cn("absolute -top-2 left-8 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 z-20", isDark ? "border-white" : "border-black")} />
                             <div className={cn("bg-[#2D2452] border-2 rounded-xl p-4 relative z-10", isDark ? "border-white" : "border-black")}>

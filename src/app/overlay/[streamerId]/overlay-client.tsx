@@ -17,6 +17,7 @@ type OverlayMsg = {
     mediaType?: 'TEXT' | 'AUDIO' | 'VIDEO';
     mediaUrl?: string;
     mediaDuration?: number; // in seconds
+    usdValue?: number; // For filtering min amount
 };
 
 type OverlaySettings = {
@@ -46,10 +47,12 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
     const [queue, setQueue] = useState<OverlayMsg[]>([]);
     const [current, setCurrent] = useState<OverlayMsg | null>(null);
     const [visible, setVisible] = useState(false);
+    const [playMedia, setPlayMedia] = useState(false); // Controls when video/audio starts playing
 
     const theme = (settings?.theme as "Vibrant Dark" | "Minimal Light") ?? "Vibrant Dark";
     const showYieldApy = settings?.showYieldApy ?? true;
     const textToSpeech = settings?.textToSpeech ?? false;
+    const minAmountUsd = settings?.minAmountUsd ?? 0;
 
     useEffect(() => {
         // Force transparent background for OBS
@@ -62,25 +65,62 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
     useEffect(() => {
         if (!streamerId) return;
 
-        const socket = new WebSocket(`${WS_BASE_URL}/ws/${streamerId}`);
+        let socket: WebSocket | null = null;
+        let reconnectTimeout: NodeJS.Timeout;
 
-        socket.onmessage = (event) => {
-            try {
-                const msg = JSON.parse(event.data);
-                console.log("Received message:", msg)
-                if (msg.type === "overlay") {
-                    setQueue(prev => [...prev, msg]);
+        const connect = () => {
+            console.log(`[Overlay] Connecting to WS: ${WS_BASE_URL}/ws/${streamerId}`);
+            socket = new WebSocket(`${WS_BASE_URL}/ws/${streamerId}`);
+
+            socket.onopen = () => {
+                console.log("[Overlay] WS Connected");
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+
+                    // Filter donation based on Min Amount USD
+                    // Support both "overlay" and "DONATION" types
+                    if (msg.type === "overlay" || msg.type === "DONATION") {
+                        const donationValue = typeof msg.usdValue === 'number' ? msg.usdValue : parseFloat(msg.usdValue || '0');
+
+                        console.log(`[Overlay] Donation Recv: $${donationValue} (Min: $${minAmountUsd})`, msg);
+
+                        if (donationValue >= minAmountUsd) {
+                            console.log("[Overlay] ✅ Accepted -> Adding to Queue");
+                            setQueue(prev => [...prev, msg]);
+                        } else {
+                            console.warn(`[Overlay] ❌ Skipped: $${donationValue} is below minimum $${minAmountUsd}`);
+                        }
+                    } else {
+                        console.log("[Overlay] Unknown msg type:", msg);
+                    }
+                } catch (e) {
+                    console.error("[Overlay] Invalid JSON:", e);
                 }
-            } catch (e) {
-                console.error("Invalid WS message", e);
-            }
+            };
+
+            socket.onerror = (e) => {
+                console.error("[Overlay] WS Error", e);
+            };
+
+            socket.onclose = () => {
+                console.log("[Overlay] WS Closed. Reconnecting in 3s...");
+                reconnectTimeout = setTimeout(connect, 3000);
+            };
         };
 
-        socket.onerror = (e) => console.error("WS Error", e);
-        socket.onclose = () => console.log("WS Closed");
+        connect();
 
-        return () => socket.close();
-    }, [streamerId]);
+        return () => {
+            if (socket) {
+                socket.onclose = null; // Prevent reconnect loop on unmount
+                socket.close();
+            }
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        };
+    }, [streamerId, minAmountUsd]);
 
     const playAudiosSequentially = async (sounds: string[]) => {
         for (const sound of sounds) {
@@ -122,35 +162,42 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
             const next = queue[0];
             setCurrent(next);
             setQueue(prev => prev.slice(1));
+            setPlayMedia(false); // Reset media playback state
 
             const runSequence = async () => {
                 setVisible(true);
                 const startTime = Date.now();
 
-                // 1. Play Sounds (alert sounds)
+                // 1. Play Sounds (alert sounds + server-side TTS)
+                // If backend sends sounds, we assume it contains the necessary audio (SFX + TTS)
                 if (next.sounds && next.sounds.length > 0) {
                     await playAudiosSequentially(next.sounds);
+                } else if (textToSpeech && next.message && next.mediaType === 'TEXT') {
+                    // Fallback: Browser TTS if no server sounds provided
+                    await speakMessage(next.message);
                 }
 
-                // 2. TTS (only if not playing audio media, to avoid clash?)
-                // Or TTS runs in parallel or before media? Usually before or parallel.
-                // Let's run TTS first if no audio media.
-                if (textToSpeech && next.message && next.mediaType !== 'AUDIO') {
-                    speakMessage(next.message); // don't await to let media auto-play?
-                    // actually safer to await if we want to hear it clearly
-                    // await speakMessage(next.message);
-                }
+                // 2. Start Video/Audio Content (after sounds finish)
+                setPlayMedia(true);
 
                 // 3. Wait for duration
                 const durationSec = calculateDuration(next);
                 const elapsedMs = Date.now() - startTime;
-                const remainingMs = (durationSec * 1000) - elapsedMs;
+
+                let remainingMs = 0;
+                if (next.mediaType === 'VIDEO' || next.mediaType === 'AUDIO') {
+                    // For media, we wait the FULL media duration starting NOW + small buffer for loading
+                    remainingMs = ((next.mediaDuration || 10) * 1000) + 1000;
+                } else {
+                    remainingMs = (durationSec * 1000) - elapsedMs;
+                }
 
                 if (remainingMs > 0) {
                     await new Promise(r => setTimeout(r, remainingMs));
                 }
 
                 setVisible(false);
+                setPlayMedia(false);
                 setTimeout(() => setCurrent(null), 1000);
             };
 
@@ -159,11 +206,11 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
     }, [queue, current, textToSpeech]);
 
     if (!visible || !current) return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"></div>
+        <div suppressHydrationWarning className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"></div>
     );
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-display pointer-events-none">
+        <div suppressHydrationWarning className="fixed inset-0 z-50 flex items-center justify-center p-4 font-display pointer-events-none">
             <div className="pointer-events-auto">
                 <DonationCard
                     donorName={current.donorName}
@@ -176,6 +223,7 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
                     tokenLogo={current.tokenLogo}
                     mediaType={current.mediaType}
                     mediaUrl={current.mediaUrl}
+                    playMedia={playMedia}
                 />
             </div>
         </div>
