@@ -117,28 +117,21 @@ export async function sendTestAlert(type: "TEXT" | "AUDIO" | "VIDEO" = "TEXT") {
         mediaDuration = 10;
     }
 
-    // Construct a mock donation message
-    const message = {
-        type: "overlay",
-        amount: "50000",
-        donorAddress: "0x123...abc",
-        donorName: "Satoshi_Naka",
-        message: messageText,
-        sounds: [],
-        streamerName: sessionRecord.user.displayName,
-        tokenSymbol: "IDRXkb",
-        tokenLogo: "https://s2.coinmarketcap.com/static/img/coins/128x128/26732.png",
-        txHash: "0xmockhash",
+    // Use the backend test endpoint which handles TTS generation and overlay payload construction
+    const payload = {
+        streamerId,
         mediaType: type,
+        message: messageText,
         mediaUrl,
-        mediaDuration,
+        mediaDuration
     };
 
     try {
-        await fetch("http://localhost:8080/broadcast", {
+        // Change from /broadcast to /overlay/test per user request
+        await fetch("http://localhost:8080/overlay/test", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ streamerId, message }),
+            body: JSON.stringify(payload),
         });
         return { success: true };
     } catch (error) {
