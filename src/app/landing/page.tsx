@@ -7,6 +7,7 @@ import { LandingFaq } from "@/components/features/landing/landing-faq";
 import { LandingFooter } from "@/components/features/landing/landing-footer";
 import { LandingCallout } from "@/components/features/landing/landing-callout";
 import { LandingAutoFeatures } from "@/components/features/landing/landing-auto-features";
+import { LandingTokenFlow } from "@/components/features/landing/landing-token-flow";
 import { LandingVideo } from "@/components/features/landing/landing-video";
 import { prisma } from "@/lib/prisma";
 
@@ -16,11 +17,12 @@ export default async function LandingPage() {
   });
 
   return (
-    <main className="bg-gradient-to-b from-rose-100 via-rose-50 to-white text-slate-900">
+    <main className="bg-[#0f0919] text-white min-h-screen">
       <LandingHero />
       <LandingBenefits />
       <LandingHowItWorks />
       <LandingAutoFeatures />
+      <LandingTokenFlow />
       {landingVideo?.value ? (
         <LandingVideo videoUrl={landingVideo.value} sectionId={LANDING_GUIDES_SECTION_ID} />
       ) : null}

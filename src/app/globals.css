@@ -412,12 +412,14 @@ body {
 .animate-enter-glitch {
   animation: enter-glitch 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+
 /* Flow Diagram Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -429,6 +431,7 @@ body {
     opacity: 0;
     transform: translateX(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -440,6 +443,7 @@ body {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -483,4 +487,128 @@ body {
 
 .delay-1000 {
   animation-delay: 1s;
+}
+
+/* Landing Page Token Flow Animations */
+@keyframes token-travel-1 {
+  0% {
+    transform: translate(0, -50%);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  45% {
+    transform: translate(300%, -50%);
+    opacity: 1;
+  }
+
+  50% {
+    transform: translate(300%, -50%) scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translate(300%, -50%) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes token-travel-2 {
+  0% {
+    opacity: 0;
+  }
+
+  50% {
+    transform: translate(0, -50%) scale(0);
+    opacity: 0;
+  }
+
+  55% {
+    transform: translate(0, -50%) scale(1);
+    opacity: 1;
+  }
+
+  90% {
+    transform: translate(300%, -50%);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(300%, -50%);
+    opacity: 0;
+  }
+}
+
+.animate-token-travel-1 {
+  animation: token-travel-1 3s infinite ease-in-out;
+}
+
+.animate-token-travel-2 {
+  animation: token-travel-2 3s infinite ease-in-out;
+}
+
+/* Auto Yield Animations */
+@keyframes yield-deposit {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(250%, 0);
+    opacity: 1;
+  }
+
+  60% {
+    transform: translate(250%, 0) scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translate(250%, 0) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes yield-float {
+  0% {
+    transform: translateY(0px) scale(0.8);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+    transform: translateY(0px) scale(0.8);
+  }
+
+  50% {
+    transform: translateY(-30px) scale(1.1);
+    opacity: 1;
+  }
+
+  80% {
+    transform: translateY(-40px) scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(-40px) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-yield-deposit {
+  animation: yield-deposit 4s infinite ease-in-out;
+}
+
+.animate-yield-float {
+  animation: yield-float 3s infinite ease-in-out;
 }

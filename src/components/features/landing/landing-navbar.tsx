@@ -72,27 +72,24 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-40 border-b border-rose-200/70 backdrop-blur"
-      style={{ backgroundColor: `${brandPalette.cream}CC` }}
+      className="sticky top-0 z-40 border-b border-white/10 bg-[#0f0919]/80 backdrop-blur-md transition-all"
     >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-4">
           <Link href="/" className="inline-flex items-center gap-2" aria-label="Kubi Home">
-            <Image src="/assets/brand/logo2.png" alt="Kubi" width={100} height={100} />
+            <Image src="/assets/brand/logo2.png" alt="Kubi" width={90} height={90} className="w-auto h-8 md:h-10" />
           </Link>
           <AccentPill className="hidden sm:inline-flex">
-            <span className="flex items-center gap-1 text-rose-500">
-              Beta
-            </span>
+            Beta
           </AccentPill>
         </div>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
+        <nav className="hidden items-center gap-8 text-sm font-bold text-slate-400 md:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="transition hover:text-slate-900"
+              className="transition hover:text-[var(--color-accent-cyan)]"
               onClick={handleNavItemClick(link.href)}
             >
               {link.label}
@@ -101,21 +98,18 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          {/* <Badge className="rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
-            Role · {roleLabel}
-          </Badge> */}
           <button
             type="button"
             onClick={onLaunch}
             disabled={disabled}
-            className="inline-flex h-11 items-center rounded-full border border-rose-200 px-5 text-base font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex h-10 items-center rounded-lg border-2 border-[#7C3AED] px-6 text-sm font-bold text-[#7C3AED] transition-all hover:bg-[#7C3AED] hover:text-white shadow-[2px_2px_0px_0px_#7C3AED] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]"
           >
             {ctaLabel}
           </button>
         </div>
 
         <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white/80 text-sm font-medium text-rose-500 transition hover:bg-rose-100 hover:text-rose-600 md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-xl font-bold text-white transition hover:bg-white/10 md:hidden"
           type="button"
           onClick={() => setMobileOpen((previous) => !previous)}
           aria-expanded={mobileOpen}
@@ -126,29 +120,32 @@ export function LandingNavbar({ roleLabel }: LandingNavbarProps) {
 
       <div
         className={cn(
-          "border-t border-rose-200/70 transition-all duration-200 md:hidden",
+          "border-t border-white/10 bg-[#0f0919] transition-all duration-200 md:hidden",
           mobileOpen
             ? "max-h-[calc(100vh-var(--landing-nav-height,0px))] overflow-y-auto opacity-100"
             : "max-h-0 overflow-hidden opacity-0",
         )}
-        style={{ backgroundColor: `${brandPalette.cream}F2` }}
       >
-        <div className="flex flex-col gap-4 px-6 py-6 text-sm text-slate-700">
-          <Badge className="w-max rounded-full border border-rose-200 bg-white/80 px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-rose-500">
-            Role · {roleLabel}
-          </Badge>
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-base font-medium"
-              onClick={handleNavItemClick(link.href)}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <div className="flex flex-col gap-6 px-6 py-8 text-sm text-slate-300">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#F778BA]">Role: {roleLabel}</span>
+          </div>
+
+          <nav className="flex flex-col gap-4">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-lg font-bold hover:text-white"
+                onClick={handleNavItemClick(link.href)}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
           <BrandButton
-            className="h-12 w-full justify-center text-base"
+            className="h-12 w-full justify-center text-base mt-2"
             type="button"
             disabled={disabled}
             onClick={() => {
