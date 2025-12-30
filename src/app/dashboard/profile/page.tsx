@@ -21,6 +21,7 @@ import type { TokenDto } from "@/services/tokens/token-service";
 import { setPrimaryToken, setStreamerWhitelist } from "@/services/contracts/settings";
 import { getStreamerYield, removeStreamerYieldContract, setStreamerYieldContract } from "@/services/contracts/yield";
 import { AutoYieldBadge } from "@/components/ui/auto-yield-badge";
+import { PrimaryTokenFlow, WhitelistFlow, YieldFlow } from "@/components/ui/flow-diagrams";
 
 type FormState = {
   username: string;
@@ -379,6 +380,7 @@ type PaymentSettingsFormProps = {
 function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: PaymentSettingsFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [helpDialog, setHelpDialog] = useState<"primary" | "whitelist" | "yield" | null>(null);
 
   const [primaryTokenId, setPrimaryTokenId] = useState<string | "" | null>(settings?.primaryTokenId ?? null);
   // Autoswap permanently enabled for now
@@ -565,11 +567,14 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Label htmlFor="primaryToken">Primary token (auto-swap)</Label>
-          <span
-            title="Auto Yield lets you subscribe per whitelisted token. Donations in non-whitelisted tokens auto-swap to your primary token. If a token is subscribed, its whitelist toggle is locked."
+          <button
+            type="button"
+            onClick={() => setHelpDialog("primary")}
+            className="text-slate-400 hover:text-accent-cyan transition-colors"
+            title="Click for more info"
           >
-            <CircleHelp className="h-4 w-4 text-slate-400" />
-          </span>
+            <CircleHelp className="h-4 w-4 cursor-pointer" />
+          </button>
         </div>
         <button
           id="primaryToken"
@@ -693,7 +698,17 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
       {/* Autoswap toggle hidden for now (always true) */}
 
       <div className="space-y-2">
-        <Label>Token whitelist (no auto-swap)</Label>
+        <div className="flex items-center gap-2">
+          <Label>Token whitelist (no auto-swap)</Label>
+          <button
+            type="button"
+            onClick={() => setHelpDialog("whitelist")}
+            className="text-slate-400 hover:text-accent-cyan transition-colors"
+            title="Click for more info"
+          >
+            <CircleHelp className="h-4 w-4 cursor-pointer" />
+          </button>
+        </div>
         <div className="flex flex-wrap gap-2">
           {tokens.length === 0 && (
             <p className="text-sm text-slate-500">No tokens available.</p>
@@ -726,7 +741,17 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
       {/* Auto Yield by Token */}
       <div className="mt-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-[var(--color-accent-cyan)]">Auto Yield by Token</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-[var(--color-accent-cyan)]">Auto Yield by Token</h3>
+            <button
+              type="button"
+              onClick={() => setHelpDialog("yield")}
+              className="text-slate-400 hover:text-accent-cyan transition-colors"
+              title="Click for more info"
+            >
+              <CircleHelp className="h-4 w-4 cursor-pointer" />
+            </button>
+          </div>
           <p className="text-xs text-slate-400">Subscribe one protocol per token</p>
         </div>
         <AutoYieldByTokenSection
@@ -744,6 +769,104 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
       </Button> */}
 
       {error && <p className="text-center text-xs font-medium text-[var(--color-primary)]">{error}</p>}
+
+      {/* Help Dialogs */}
+      <Dialog open={helpDialog === "primary"} onOpenChange={(open) => !open && setHelpDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleHelp className="h-5 w-5 text-accent-cyan" />
+              Primary Token (Auto-Swap)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-slate-300">
+            <p className="font-semibold text-white">What is this?</p>
+            <p>Your primary token is the main cryptocurrency you want to receive. All donations will be automatically converted to this token.</p>
+
+            {/* Animated Flow Diagram */}
+            <PrimaryTokenFlow />
+
+            <p className="font-semibold text-white mt-4">How does it work?</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>When someone donates in a different token, it will automatically swap to your primary token</li>
+              <li>This happens instantly during the donation process</li>
+              <li>Tokens in your whitelist below won't be swapped</li>
+            </ul>
+
+            <p className="font-semibold text-white mt-4">Example:</p>
+            <p className="bg-surface-dark p-3 rounded-lg border border-border-dark">
+              If your primary token is <span className="text-accent-cyan font-bold">USDC</span> and someone donates <span className="text-accent-yellow font-bold">ETH</span>, the ETH will be automatically swapped to USDC before reaching your wallet.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={helpDialog === "whitelist"} onOpenChange={(open) => !open && setHelpDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleHelp className="h-5 w-5 text-accent-cyan" />
+              Token Whitelist (No Auto-Swap)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-slate-300">
+            <p className="font-semibold text-white">What is this?</p>
+            <p>The whitelist lets you accept certain tokens directly without auto-swapping them to your primary token.</p>
+
+            <WhitelistFlow />
+
+            <p className="font-semibold text-white mt-4">Why use it?</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Hold multiple cryptocurrencies for diversification</li>
+              <li>Avoid swap fees for tokens you want to keep</li>
+              <li>Accept stablecoins like USDC or USDT directly</li>
+            </ul>
+
+            <p className="font-semibold text-white mt-4">Example:</p>
+            <p className="bg-surface-dark p-3 rounded-lg border border-border-dark">
+              If you whitelist <span className="text-accent-cyan font-bold">USDC</span>, <span className="text-accent-yellow font-bold">ETH</span>, and <span className="text-accent-purple font-bold">USDT</span>, donations in these tokens will go directly to your wallet without being swapped.
+            </p>
+
+            <p className="text-xs text-slate-400 mt-4 italic">
+              💡 Tip: Whitelisted tokens with active Auto Yield subscriptions cannot be removed until you unsubscribe.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={helpDialog === "yield"} onOpenChange={(open) => !open && setHelpDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleHelp className="h-5 w-5 text-accent-cyan" />
+              Auto Yield by Token
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-slate-300">
+            <p className="font-semibold text-white">What is this?</p>
+            <p>Auto Yield allows you to earn passive income on your whitelisted tokens by subscribing to DeFi yield protocols.</p>
+
+            <YieldFlow />
+
+            <p className="font-semibold text-white mt-4">How does it work?</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Each whitelisted token can subscribe to one yield protocol</li>
+              <li>Protocols are sorted by APR (highest first)</li>
+              <li>Your donations automatically start earning yield</li>
+              <li>Rewards compound over time</li>
+            </ul>
+
+            <p className="font-semibold text-white mt-4">Example:</p>
+            <p className="bg-surface-dark p-3 rounded-lg border border-border-dark">
+              If you subscribe <span className="text-accent-cyan font-bold">USDC</span> to a protocol offering <span className="text-green-400 font-bold">8.5% APR</span>, every USDC donation you receive will automatically earn that yield rate.
+            </p>
+
+            <p className="text-xs text-slate-400 mt-4 italic">
+              ⚠️ Note: Once subscribed, the token cannot be removed from your whitelist until you unsubscribe from the yield protocol.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

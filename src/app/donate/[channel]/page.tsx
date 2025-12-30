@@ -498,14 +498,14 @@ export default function DonatePage() {
           </div>
         </div>
       )}
-      <main className="flex min-h-screen flex-col items-center bg-[var(--color-background-dark)] pattern-dots px-6 py-20 text-white relative overflow-hidden">
+      <main className="flex min-h-screen flex-col items-center bg-[var(--color-background-dark)] pattern-dots px-4 sm:px-6 py-12 sm:py-20 text-white relative overflow-hidden">
         <div className="absolute top-10 right-20 w-32 h-32 bg-[var(--color-primary)]/20 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-20 left-20 w-48 h-48 bg-[#6B46C1]/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="w-full max-w-xl space-y-6 relative z-10">
+        <div className="w-full max-w-xl space-y-4 sm:space-y-6 relative z-10">
           <Card>
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-accent-cyan)] to-[var(--color-secondary)]"></div>
             <CardHeader className="text-center">
-              <CardTitle className="text-3xl font-black text-white bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-accent-cyan)] bg-clip-text text-transparent">
+              <CardTitle className="text-2xl sm:text-3xl font-black text-white bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-accent-cyan)] bg-clip-text text-transparent">
                 Support {displayName || "Your Favourite Streamer"}
               </CardTitle>
               <CardDescription className="text-sm text-slate-400">

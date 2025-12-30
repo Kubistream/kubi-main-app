@@ -44,30 +44,6 @@ export function NewDashboardSidebar() {
                     <span className="font-bold font-display">Dashboard</span>
                 </Link>
 
-                <Link
-                    href="/dashboard/create-link"
-                    prefetch={true}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all group ${isActive("/dashboard/create-link")
-                        ? "bg-primary text-white shadow-lg shadow-primary/25 transform hover:scale-[1.02]"
-                        : "hover:bg-white/5 text-gray-400 hover:text-white hover:pl-5"
-                        }`}
-                >
-                    <span className={`material-symbols-outlined ${isActive("/dashboard/create-link") ? "icon-filled" : ""}`}>link</span>
-                    <span className="font-medium font-display">Create Link</span>
-                </Link>
-
-                <Link
-                    href="/dashboard/profile"
-                    prefetch={true}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${isActive("/dashboard/profile")
-                        ? "bg-primary text-white shadow-lg shadow-primary/25"
-                        : "hover:bg-white/5 text-gray-400 hover:text-white hover:pl-5"
-                        }`}
-                >
-                    <span className="material-symbols-outlined">person</span>
-                    <span className="font-medium font-display">Profile</span>
-                </Link>
-
                 {/* Overlay Link */}
                 <Link
                     href="/dashboard/overlay"
@@ -115,6 +91,18 @@ export function NewDashboardSidebar() {
                 >
                     <span className="material-symbols-outlined">school</span>
                     <span className="font-medium font-display">Tutorial</span>
+                </Link>
+
+                <Link
+                    href="/dashboard/profile"
+                    prefetch={true}
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${isActive("/dashboard/profile")
+                        ? "bg-primary text-white shadow-lg shadow-primary/25"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white hover:pl-5"
+                        }`}
+                >
+                    <span className="material-symbols-outlined">person</span>
+                    <span className="font-medium font-display">Profile</span>
                 </Link>
             </nav>
 

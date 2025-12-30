@@ -335,8 +335,8 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                 </div>
 
                 {/* Canvas Area */}
-                <div className="flex-1 flex items-center justify-center p-8 relative">
-                    <div className="w-full max-w-[1000px] aspect-video relative rounded-2xl overflow-hidden shadow-2xl border-4 border-[#2D2452] bg-[#130c29] group">
+                <div className="flex-1 flex items-center justify-center p-4 relative">
+                    <div className="w-full max-w-[1200px] aspect-video relative rounded-2xl overflow-hidden shadow-2xl border-4 border-[#2D2452] bg-[#130c29] group">
                         <div
                             className="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-20 transition-opacity duration-500 grayscale"
                             style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBC9ged884LBe76ItH2wAn2WXRchL2ZAEChTm_-kvrKfh3dYfSNrPjdVZpMKp954urzGNZO-GL3Wz2YPblhTs5HC3abNQ8Ph0HEJOT2Evz4AtE-h8acpT-cKswVhO21aFpyCEjbr-QkOOX8VWF3HpjL4R2B00Sdgls9CwT5lRx8LmWAthE0whckLyUi30H7tpf9uG9HsQxVhzdeq8H5GtVSgaLk6uqHgcQQnwqF6KXYwCPHYFTBR_TEKORh56Ecc0E2ELulv8aVLatT")' }}

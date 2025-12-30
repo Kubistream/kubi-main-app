@@ -266,103 +266,91 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             <thead>
               <tr className="text-left text-xs uppercase tracking-widest text-slate-500 font-display font-bold">
                 <th className="py-3 px-4">Tx hash</th>
-                <th className="py-3 px-3">Block</th>
                 <th className="py-3 px-3">From</th>
                 <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3">In</th>
-                <th className="py-3 px-3">Out</th>
+                <th className="py-3 px-3">Donor Sent</th>
+                <th className="py-3 px-3">Received</th>
                 <th className="py-3 px-3">Fee</th>
                 <th className="py-3 px-3">Time</th>
-                <th className="py-3 px-3">Media Type</th>
-                <th className="py-3 px-3">Content</th>
+                <th className="py-3 px-3">Message</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-dark)]/50 text-sm">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="py-10 text-center text-sm text-slate-500">
                     No transactions found for the selected filters.
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <>
-                    <tr key={row.id} className="align-middle hover:bg-white/5 transition-colors border-b border-[var(--color-border-dark)]/50 last:border-0">
-                      <td className="py-4 px-4 font-mono">
-                        <Link
-                          href={`${BASESCAN_TX_URL}${row.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
-                        >
-                          <span>{shortenHash(row.txHash)}</span>
-                          <span className="material-symbols-outlined text-sm">open_in_new</span>
-                        </Link>
-                      </td>
-                      <td className="py-4 px-3 font-medium text-white">
-                        {row.donorName ? (
-                          <div className="flex flex-col">
-                            <span className="text-white font-bold">{row.donorName}</span>
-                            {row.donorWallet && (
-                              <span className="text-xs text-slate-500 font-mono">{shortenHash(row.donorWallet)}</span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="font-mono text-slate-300">
-                            {row.donorWallet ? shortenHash(row.donorWallet) : "Anonymous"}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-4 px-3">
-                        <StatusBadge status={row.status} />
-                      </td>
-                      <td className="py-4 px-3 align-top">
-                        <TokenAmountCell amountRaw={row.amountInRaw} token={row.tokenIn} />
-                      </td>
-                      <td className="py-4 px-3 align-top">
-                        <TokenAmountCell amountRaw={row.amountOutRaw} token={row.tokenOut} />
-                      </td>
-                      <td className="py-4 px-3 font-mono text-slate-400">
-                        {formatDonationAmount(row.feeRaw, row.tokenIn.decimals)}
-                      </td>
-                      <td className="py-4 px-3">
-                        <time
-                          className="text-sm text-slate-400"
-                          dateTime={row.createdAt}
-                          title={formatAbsolute(row.createdAt)}
-                        >
-                          {formatRelativeTime(row.createdAt)}
-                        </time>
-                      </td>
-                      <td className="py-4 px-3">
-                        {row.mediaType || "-"}
-                      </td>
-                      <td className="py-4 px-3">
-                        {row.mediaType === "TEXT" && row.message ? (
-                          <span className="truncate max-w-xs inline-block">{row.message}</span>
-                        ) : row.mediaType === "AUDIO" && row.mediaUrl ? (
-                          <audio controls src={row.mediaUrl} className="max-w-[180px]" />
-                        ) : row.mediaType === "VIDEO" && row.mediaUrl ? (
-                          <video controls src={row.mediaUrl} className="max-w-[180px]" />
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                    </tr>
-                    {(row.mediaType === "TEXT" && row.message) || (row.mediaType === "AUDIO" && row.mediaUrl) || (row.mediaType === "VIDEO" && row.mediaUrl) ? (
-                      <tr>
-                        <td colSpan={10} className="py-2 px-4 bg-surface-dark/70 text-slate-200 text-sm">
-                          {row.mediaType === "TEXT" && row.message ? (
-                            <span className="break-words whitespace-pre-line block">{row.message}</span>
-                          ) : row.mediaType === "AUDIO" && row.mediaUrl ? (
-                            <audio controls src={row.mediaUrl} className="w-full max-w-lg" />
-                          ) : row.mediaType === "VIDEO" && row.mediaUrl ? (
-                            <video controls src={row.mediaUrl} className="w-full max-w-lg" />
-                          ) : null}
-                        </td>
-                      </tr>
-                    ) : null}
-                  </>
+                  <tr key={row.id} className="align-middle hover:bg-white/5 transition-colors border-b border-[var(--color-border-dark)]/50 last:border-0">
+                    <td className="py-4 px-4 font-mono">
+                      <Link
+                        href={`${BASESCAN_TX_URL}${row.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
+                      >
+                        <span>{shortenHash(row.txHash)}</span>
+                        <span className="material-symbols-outlined text-sm">open_in_new</span>
+                      </Link>
+                    </td>
+                    <td className="py-4 px-3 font-medium text-white">
+                      {row.donorName ? (
+                        <div className="flex flex-col">
+                          <span className="text-white font-bold">{row.donorName}</span>
+                          {row.donorWallet && (
+                            <span className="text-xs text-slate-500 font-mono">{shortenHash(row.donorWallet)}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-mono text-slate-300">
+                          {row.donorWallet ? shortenHash(row.donorWallet) : "Anonymous"}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-3">
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td className="py-4 px-3 align-top">
+                      <TokenAmountCell amountRaw={row.amountInRaw} token={row.tokenIn} />
+                    </td>
+                    <td className="py-4 px-3 align-top">
+                      <TokenAmountCell amountRaw={row.amountOutRaw} token={row.tokenOut} />
+                    </td>
+                    <td className="py-4 px-3 font-mono text-slate-400">
+                      {formatDonationAmount(row.feeRaw, row.tokenIn.decimals)}
+                    </td>
+                    <td className="py-4 px-3">
+                      <time
+                        className="text-sm text-slate-400"
+                        dateTime={row.createdAt}
+                        title={formatAbsolute(row.createdAt)}
+                      >
+                        {formatRelativeTime(row.createdAt)}
+                      </time>
+                    </td>
+                    <td className="py-4 px-3">
+                      {row.mediaType === "TEXT" && row.message ? (
+                        <span className="truncate max-w-[200px] inline-block" title={row.message}>
+                          {row.message}
+                        </span>
+                      ) : row.mediaType === "AUDIO" && row.mediaUrl ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Audio</span>
+                          <audio controls src={row.mediaUrl} className="h-8 w-32" />
+                        </div>
+                      ) : row.mediaType === "VIDEO" && row.mediaUrl ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Video</span>
+                          <video controls src={row.mediaUrl} className="h-20 w-32 rounded bg-black object-cover" />
+                        </div>
+                      ) : (
+                        <span className="text-slate-600">-</span>
+                      )}
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>

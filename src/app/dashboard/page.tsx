@@ -86,17 +86,17 @@ export default function DashboardPage() {
     const growthPercent = earningsData?.growthPercent ?? 0;
 
     return (
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-6 sm:gap-8 lg:gap-10">
             {/* Stats Section */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 {/* Total Value Donated */}
-                <div className="bg-surface-card border border-border-dark rounded-3xl p-8 relative overflow-hidden group hover:border-primary/50 transition-all duration-300 shadow-xl">
+                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-primary/80 transition-all duration-300 shadow-xl">
                     <div className="absolute -right-6 -top-6 p-6 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12">
                         <span className="material-symbols-outlined text-9xl text-secondary">volunteer_activism</span>
                     </div>
                     <div className="flex flex-col gap-6 relative z-10 h-full justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-3 bg-secondary rounded-xl text-black shadow-lg shadow-secondary/20">
+                            <div className="p-3 bg-secondary rounded-xl text-black shadow-lg shadow-secondary/20 border-2 border-black">
                                 <span className="material-symbols-outlined">payments</span>
                             </div>
                             <p className="text-gray-300 font-bold font-display tracking-wide uppercase text-xs">Total Donated</p>
@@ -125,13 +125,13 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Current Yield APY */}
-                <div className="bg-surface-card border border-border-dark rounded-3xl p-8 relative overflow-hidden group hover:border-accent-purple/50 transition-all duration-300 shadow-xl">
+                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-accent-purple/80 transition-all duration-300 shadow-xl">
                     <div className="absolute -right-6 -top-6 p-6 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12">
                         <span className="material-symbols-outlined text-9xl text-accent-purple">trending_up</span>
                     </div>
                     <div className="flex flex-col gap-6 relative z-10 h-full justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-3 bg-accent-purple rounded-xl text-black shadow-lg shadow-accent-purple/20">
+                            <div className="p-3 bg-accent-purple rounded-xl text-black shadow-lg shadow-accent-purple/20 border-2 border-black">
                                 <span className="material-symbols-outlined">percent</span>
                             </div>
                             <p className="text-gray-300 font-bold font-display tracking-wide uppercase text-xs">Current Yield APY</p>
@@ -147,13 +147,13 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Active OBS Widgets */}
-                <div className="bg-surface-card border border-border-dark rounded-3xl p-8 relative overflow-hidden group hover:border-accent-cyan/50 transition-all duration-300 shadow-xl">
+                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-accent-cyan/80 transition-all duration-300 shadow-xl">
                     <div className="absolute -right-6 -top-6 p-6 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12">
                         <span className="material-symbols-outlined text-9xl text-accent-cyan">broadcast_on_personal</span>
                     </div>
                     <div className="flex flex-col gap-6 relative z-10 h-full justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-3 bg-accent-cyan rounded-xl text-black shadow-lg shadow-accent-cyan/20">
+                            <div className="p-3 bg-accent-cyan rounded-xl text-black shadow-lg shadow-accent-cyan/20 border-2 border-black">
                                 <span className="material-symbols-outlined">dvr</span>
                             </div>
                             <p className="text-gray-300 font-bold font-display tracking-wide uppercase text-xs">Active OBS Widgets</p>
@@ -173,13 +173,13 @@ export default function DashboardPage() {
                 </div>
             </section>
 
-            {/* Charts and Wallets Section */}
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Charts Section */}
+            <section>
                 {/* Real-time Yield Earnings Chart */}
-                <div className="lg:col-span-2 bg-surface-card border border-border-dark rounded-3xl p-8 shadow-xl">
+                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 shadow-xl">
                     <div className="flex justify-between items-start mb-8">
                         <div>
-                            <h3 className="text-2xl font-bold text-white font-display">Real-time Earnings</h3>
+                            <h3 className="text-xl sm:text-2xl font-bold text-white font-display">Real-time Earnings</h3>
                             <p className="text-sm text-gray-400 mt-1">Your donation earnings over time</p>
                         </div>
                         <div className="flex flex-col items-end">
@@ -248,47 +248,11 @@ export default function DashboardPage() {
                         )}
                     </div>
                 </div>
-
-                {/* Connected Wallets */}
-                <div className="flex flex-col gap-8">
-                    <div className="bg-secondary text-black rounded-3xl p-8 flex-1 shadow-lg shadow-secondary/10 relative overflow-hidden">
-                        <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-white/20 rounded-full blur-xl"></div>
-                        <div className="flex justify-between items-center mb-6 relative z-10">
-                            <h3 className="text-xl font-bold font-display tracking-tight">Connected Wallet</h3>
-                        </div>
-                        <div className="flex flex-col gap-3 relative z-10">
-                            {address ? (
-                                <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/60 backdrop-blur-sm border border-white/20 shadow-sm">
-                                    <div className="flex items-center gap-3">
-                                        <div className="size-10 rounded-full bg-orange-100 flex items-center justify-center">
-                                            <span className="material-symbols-outlined text-orange-500 text-lg">wallet</span>
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-black font-display">Wallet</p>
-                                            <p className="text-xs text-gray-600 font-mono">
-                                                {address.slice(0, 6)}...{address.slice(-4)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-lg">
-                                            Connected
-                                        </span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center p-6 rounded-xl bg-white/40 border border-white/20">
-                                    <p className="text-sm text-gray-600">No wallet connected</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
             </section>
 
             {/* Token Breakdown */}
             {earningsData?.tokenBreakdown && earningsData.tokenBreakdown.length > 0 && (
-                <section className="bg-surface-card border border-border-dark rounded-3xl p-8 shadow-xl">
+                <section className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 shadow-xl">
                     <div className="flex justify-between items-center mb-8">
                         <h3 className="text-2xl font-bold text-white font-display">Token Breakdown</h3>
                     </div>

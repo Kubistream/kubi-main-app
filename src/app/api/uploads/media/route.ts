@@ -33,12 +33,9 @@ export async function POST(request: NextRequest) {
 
     const sessionRecord = await resolveAuthenticatedUser(session);
 
-    if (!sessionRecord) {
-        // If user is just connecting wallet but not "signed in" to our backend logic, this might fail.
-        // However, uploadAvatar requires it. Let's assume for now.
-        // If not, we might need a public upload endpoint (risky).
-        return error(sessionResponse, 401, "Not authenticated");
-    }
+    // For the donation page, we facilitate anonymous uploads (connected wallet only, no app session)
+    // So we don't return 401 if session is missing.
+    const userId = sessionRecord?.user?.id ?? `guest-${crypto.randomUUID()}`;
 
     try {
         const form = await request.formData();
@@ -71,7 +68,7 @@ export async function POST(request: NextRequest) {
         else if (type.includes("ogg")) ext = "ogg";
         else if (type.includes("mp4")) ext = "m4a";
 
-        const key = `media/${sessionRecord.user.id}-${Date.now()}.${ext}`;
+        const key = `media/${userId}-${Date.now()}.${ext}`;
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
