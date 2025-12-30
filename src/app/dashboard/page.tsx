@@ -110,8 +110,8 @@ export default function DashboardPage() {
                                 </h3>
                             )}
                             <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg ${growthPercent >= 0
-                                    ? "bg-green-500/10 border border-green-500/20"
-                                    : "bg-red-500/10 border border-red-500/20"
+                                ? "bg-green-500/10 border border-green-500/20"
+                                : "bg-red-500/10 border border-red-500/20"
                                 }`}>
                                 <span className={`material-symbols-outlined text-sm ${growthPercent >= 0 ? "text-green-400" : "text-red-400"}`}>
                                     {growthPercent >= 0 ? "trending_up" : "trending_down"}
@@ -207,8 +207,8 @@ export default function DashboardPage() {
                                 key={tf}
                                 onClick={() => setTimeframe(tf)}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${timeframe === tf
-                                        ? "bg-primary text-white"
-                                        : "bg-surface-dark text-gray-400 hover:text-white hover:bg-white/10"
+                                    ? "bg-primary text-white"
+                                    : "bg-surface-dark text-gray-400 hover:text-white hover:bg-white/10"
                                     }`}
                             >
                                 {tf}
@@ -283,39 +283,6 @@ export default function DashboardPage() {
                             )}
                         </div>
                     </div>
-                </div>
-            </section>
-
-            {/* OBS Preview Section */}
-            <section className="bg-surface-card border border-border-dark rounded-3xl p-8 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-primary via-accent-purple to-secondary"></div>
-                <div className="flex justify-between items-center mb-5">
-                    <div>
-                        <h3 className="text-xl font-bold text-white font-display">OBS Preview</h3>
-                        <p className="text-sm text-gray-400 mt-1">Live donation overlay preview</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
-                        <span className="size-2 rounded-full bg-red-500 animate-pulse"></span>
-                        <span className="text-xs text-red-500 font-bold uppercase tracking-wider">Live</span>
-                    </div>
-                </div>
-                <div className="aspect-video bg-black rounded-2xl relative overflow-hidden flex items-center justify-center border border-white/10 shadow-inner group max-w-3xl">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-black/80 to-black"></div>
-                    <div className="flex flex-col items-center gap-2 animate-bounce z-10">
-                        <div className="text-secondary font-black text-2xl drop-shadow-[0_0_15px_rgba(243,224,59,0.6)] font-display tracking-tight uppercase">
-                            NEW DONATION!
-                        </div>
-                        <div className="text-white font-medium text-sm bg-black/60 px-4 py-2 rounded-lg backdrop-blur-md border border-white/10 shadow-xl">
-                            {user?.profile?.displayName ?? "Streamer"} received a donation
-                        </div>
-                    </div>
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
-                        <button className="bg-white text-black font-bold px-4 py-2 rounded-lg text-sm hover:scale-105 transition-transform">Expand View</button>
-                    </div>
-                </div>
-                <div className="mt-4 flex gap-3 max-w-3xl">
-                    <button className="flex-1 text-xs font-bold bg-surface-dark hover:bg-white/10 border border-border-dark text-white py-3 rounded-xl transition-all font-display uppercase tracking-wide">Test Alert</button>
-                    <button className="flex-1 text-xs font-bold bg-surface-dark hover:bg-white/10 border border-border-dark text-white py-3 rounded-xl transition-all font-display uppercase tracking-wide">Edit Layout</button>
                 </div>
             </section>
 

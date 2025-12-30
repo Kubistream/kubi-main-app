@@ -25,6 +25,10 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
     const [showPreviewDonation, setShowPreviewDonation] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Media preview state
+    const [previewMediaType, setPreviewMediaType] = useState<"TEXT" | "AUDIO" | "VIDEO">("TEXT");
+    const [previewMediaUrl, setPreviewMediaUrl] = useState<string | undefined>(undefined);
+
     // Debounced save
     useEffect(() => {
         const timer = setTimeout(async () => {
@@ -58,19 +62,29 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
         window.speechSynthesis.speak(utterance);
     };
 
-    const triggerTestDonation = async () => {
+    const triggerTestDonation = async (type: "TEXT" | "AUDIO" | "VIDEO" = "TEXT") => {
         // Force animation restart by changing key
         setPreviewKey(prev => prev + 1);
         setShowPreviewDonation(true);
 
+        setPreviewMediaType(type);
+        if (type === "VIDEO") {
+            setPreviewMediaUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        } else if (type === "AUDIO") {
+            // Mock audio file for preview
+            setPreviewMediaUrl("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+        } else {
+            setPreviewMediaUrl(undefined);
+        }
+
         // Trigger TTS locally if enabled (for immediate feedback)
-        if (settings.textToSpeech) {
+        if (settings.textToSpeech && type === "TEXT") {
             speakMessage("Great stream! HODL forever. Can you check out the new L2 chain?");
         }
 
         // Send actual test alert to WebSocket for OBS overlay
         try {
-            await sendTestAlert();
+            await sendTestAlert(type);
         } catch (e) {
             console.error("Failed to trigger WS alert", e);
         }
@@ -84,6 +98,76 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                     <div>
                         <h1 className="text-3xl font-black tracking-tight mb-2 text-slate-900 dark:text-white">Overlay Editor</h1>
                         <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Customize your playful donation alerts.</p>
+                    </div>
+
+                    {/* OBS Overlay Link Card */}
+                    <div className="flex flex-col gap-3 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2D2452] bg-slate-50 dark:bg-[#130c29]">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 rounded-lg bg-accent-cyan/10 border border-accent-cyan/20">
+                                    <Video className="h-4 w-4 text-accent-cyan" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">OBS Overlay Link</p>
+                                    <p className="text-xs text-slate-400">Add to OBS Browser Source</p>
+                                </div>
+                            </div>
+                        </div>
+                        {settings.obsUrl ? (
+                            <div className="flex gap-2">
+                                <input
+                                    readOnly
+                                    value={settings.obsUrl}
+                                    className="flex-1 bg-white dark:bg-[#0B061D] border border-slate-200 dark:border-[#2D2452] rounded-lg px-3 py-2 text-xs font-mono text-slate-600 dark:text-slate-300"
+                                />
+                                <button
+                                    onClick={handleCopyUrl}
+                                    className="px-3 py-2 bg-accent-cyan hover:bg-accent-cyan/80 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                                >
+                                    <Copy size={14} />
+                                    Copy
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-slate-400 italic">No overlay URL generated yet</p>
+                        )}
+                    </div>
+
+                    {/* QR Code Overlay Link (for OBS) */}
+                    <div className="flex flex-col gap-3 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2D2452] bg-slate-50 dark:bg-[#130c29]">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 rounded-lg bg-accent-purple/10 border border-accent-purple/20">
+                                    <span className="material-symbols-outlined text-[16px] text-accent-purple">qr_code_2</span>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">QR Code Overlay</p>
+                                    <p className="text-xs text-slate-400">Display QR in stream</p>
+                                </div>
+                            </div>
+                        </div>
+                        {settings.streamerId ? (
+                            <div className="flex gap-2">
+                                <input
+                                    readOnly
+                                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/overlay/qr/${settings.streamerId}`}
+                                    className="flex-1 bg-white dark:bg-[#0B061D] border border-slate-200 dark:border-[#2D2452] rounded-lg px-3 py-2 text-xs font-mono text-slate-600 dark:text-slate-300"
+                                />
+                                <button
+                                    onClick={() => {
+                                        const qrOverlayUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/overlay/qr/${settings.streamerId}`;
+                                        navigator.clipboard.writeText(qrOverlayUrl);
+                                        alert("QR Overlay link copied!");
+                                    }}
+                                    className="px-3 py-2 bg-accent-purple hover:bg-accent-purple/80 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                                >
+                                    <Copy size={14} />
+                                    Copy
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-slate-400 italic">No QR overlay available</p>
+                        )}
                     </div>
 
                     {/* Visual Theme */}
@@ -204,14 +288,30 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                         </div>
                     </div>
 
-                    <div className="mt-auto pt-6 border-t border-slate-200 dark:border-[#2D2452]">
+                    <div className="mt-auto pt-6 border-t border-slate-200 dark:border-[#2D2452] space-y-2">
                         <button
-                            onClick={triggerTestDonation}
-                            className="w-full bg-surface-dark hover:bg-slate-900 text-white border-2 border-transparent hover:border-accent-pink/50 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-900/20"
+                            onClick={() => triggerTestDonation("TEXT")}
+                            className="w-full bg-surface-dark hover:bg-slate-900 text-white border-2 border-transparent hover:border-accent-pink/50 font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-900/20"
                         >
                             <FlaskConical size={20} />
-                            Send Test Donation
+                            Send Test Message
                         </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => triggerTestDonation("VIDEO")}
+                                className="flex-1 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white border-2 border-transparent hover:border-accent-pink/50 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all"
+                            >
+                                <Video size={18} />
+                                Test Video
+                            </button>
+                            <button
+                                onClick={() => triggerTestDonation("AUDIO")}
+                                className="flex-1 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white border-2 border-transparent hover:border-accent-pink/50 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">mic</span>
+                                Test Audio
+                            </button>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -251,7 +351,9 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                                     amount="50000"
                                     tokenSymbol="IDRXkb"
                                     tokenLogo="https://s2.coinmarketcap.com/static/img/coins/128x128/26732.png"
-                                    message="Great stream! HODL forever. Can you check out the new L2 chain?"
+                                    message={previewMediaType === "TEXT" ? "Great stream! HODL forever. Can you check out the new L2 chain?" : undefined}
+                                    mediaType={previewMediaType}
+                                    mediaUrl={previewMediaUrl}
                                     theme={settings.theme as any}
                                     animationPreset={settings.animationPreset}
                                     showYieldApy={settings.showYieldApy}
@@ -259,41 +361,69 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                             )}
                         </div>
 
+                        {/* QR Code Preview */}
+                        <div className="absolute bottom-12 right-12 z-20">
+                            <div className="w-[300px] relative scale-75 origin-bottom-right">
+                                {/* Floating accent circle */}
+                                <div
+                                    className="absolute -right-4 -top-6 w-16 h-16 bg-accent-yellow rounded-full z-0 animate-bounce"
+                                    style={{ animationDuration: "3s" }}
+                                />
+
+                                {/* Black shadow layer */}
+                                <div className="absolute -left-2 -bottom-2 w-full h-full bg-black rounded-2xl z-0" />
+
+                                {/* Main card - Theme responsive */}
+                                <div className={cn(
+                                    "relative rounded-2xl p-4 border-2 z-10 flex flex-col gap-3 shadow-[0_0_0_4px_#000,8px_8px_0_0_rgba(247,120,186,1)]",
+                                    settings.theme === "Minimal Light" ? "bg-white border-black" : "bg-[#181033] border-white"
+                                )}>
+                                    {/* Header */}
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn(
+                                                "bg-accent-cyan w-10 h-10 flex items-center justify-center rounded-lg border-2 shadow-[2px_2px_0px_0px_#000]",
+                                                settings.theme === "Minimal Light" ? "border-black" : "border-white"
+                                            )}>
+                                                <span className="material-symbols-outlined text-xl text-black font-black">qr_code_2</span>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] font-black tracking-wider uppercase text-accent-pink mb-0.5">
+                                                    Support
+                                                </div>
+                                                <h3 className={cn(
+                                                    "text-lg font-black leading-none",
+                                                    settings.theme === "Minimal Light" ? "text-black" : "text-white"
+                                                )}>
+                                                    Scan to Donate
+                                                </h3>
+                                            </div>
+                                        </div>
+
+                                        {/* Live Badge */}
+                                        <div className="bg-red-500 text-white border-2 border-black rounded-lg px-1.5 py-0.5 flex items-center gap-1 shadow-[2px_2px_0px_0px_#000] transform -rotate-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                            <span className="text-[9px] font-black uppercase">Live</span>
+                                        </div>
+                                    </div>
+
+                                    {/* QR Code Container */}
+                                    <div className="bg-white rounded-xl p-3 border-2 border-black relative overflow-hidden flex items-center justify-center">
+                                        <div className="absolute top-0 right-0 w-16 h-full bg-accent-yellow/20 skew-x-12 transform translate-x-6" />
+                                        {settings.donateUrl && (
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(settings.donateUrl)}&color=000000&bgcolor=ffffff&margin=10`}
+                                                alt="QR Code"
+                                                className="w-40 h-40 relative z-10"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="absolute bottom-4 right-4 text-white/30 text-xs font-mono font-bold pointer-events-none uppercase tracking-widest">
                             Preview Mode
-                        </div>
-                    </div>
-                </div>
-
-                {/* OBS Link Footer */}
-                <div className="bg-[#181033] border-t border-[#2D2452] p-6 pb-8 z-20">
-                    <div className="max-w-4xl mx-auto flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                            <label className="text-white font-bold text-sm flex items-center gap-2">
-                                <div className="bg-accent-pink p-1 rounded text-black">
-                                    <Link size={16} />
-                                </div>
-                                OBS Browser Source URL
-                            </label>
-                            <span className="text-xs font-bold text-accent-cyan bg-accent-cyan/10 px-2 py-1 rounded">DO NOT SHARE</span>
-                        </div>
-                        <div className="flex gap-3">
-                            <div className="relative flex-1 group">
-                                <input
-                                    className="w-full bg-[#0B061D] text-slate-300 font-mono text-sm border-2 border-[#2D2452] rounded-xl py-3 px-4 focus:ring-0 focus:border-accent-pink outline-none transition-all truncate"
-                                    type="text"
-                                    readOnly
-                                    value={settings.obsUrl || "Loading..."}
-                                />
-                                <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#0B061D] to-transparent pointer-events-none rounded-r-xl"></div>
-                            </div>
-                            <button
-                                onClick={handleCopyUrl}
-                                className="bg-white hover:bg-slate-100 text-black font-black px-6 py-2 rounded-xl border-2 border-transparent hover:border-slate-300 transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap shadow-lg shadow-white/5"
-                            >
-                                <Copy size={20} />
-                                Copy URL
-                            </button>
                         </div>
                     </div>
                 </div>

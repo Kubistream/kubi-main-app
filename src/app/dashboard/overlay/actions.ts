@@ -12,6 +12,7 @@ export type OverlaySettingsData = {
     showYieldApy: boolean;
     textToSpeech: boolean;
     obsUrl?: string;
+    donateUrl?: string;
     streamerName?: string;
     streamerId?: string;
 }
@@ -47,6 +48,9 @@ export async function getOverlaySettings() {
         });
     }
 
+    // Get user ID for donate URL
+    const donateChannel = sessionRecord.user.id;
+
     return {
         theme: settings.theme ?? "Vibrant Dark",
         animationPreset: settings.animationPreset ?? "Slide In Left",
@@ -56,6 +60,7 @@ export async function getOverlaySettings() {
         // @ts-ignore
         textToSpeech: settings.textToSpeech ?? false,
         obsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://cryptostream.io"}/overlay/${streamerId}`,
+        donateUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://cryptostream.io"}/donate/${donateChannel}`,
         streamerName: sessionRecord.user.displayName || sessionRecord.user.username || "Streamer",
         streamerId
     };
@@ -88,7 +93,7 @@ export async function updateOverlaySettings(data: Partial<OverlaySettingsData>) 
     return updated;
 }
 
-export async function sendTestAlert() {
+export async function sendTestAlert(type: "TEXT" | "AUDIO" | "VIDEO" = "TEXT") {
     const session = await getIronSession(await cookies(), sessionOptions);
     const sessionRecord = await resolveAuthenticatedUser(session);
 
@@ -98,18 +103,35 @@ export async function sendTestAlert() {
 
     const streamerId = sessionRecord.user.streamer.id;
 
+    let mediaUrl: string | undefined;
+    let mediaDuration = 0;
+    const messageText = type === "TEXT"
+        ? "Great stream! HODL forever. Can you check out the new L2 chain?"
+        : "";
+
+    if (type === "VIDEO") {
+        mediaUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        mediaDuration = 15;
+    } else if (type === "AUDIO") {
+        mediaUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+        mediaDuration = 10;
+    }
+
     // Construct a mock donation message
     const message = {
         type: "overlay",
         amount: "50000",
         donorAddress: "0x123...abc",
         donorName: "Satoshi_Naka",
-        message: "Great stream! HODL forever. Can you check out the new L2 chain?",
-        sounds: [], // Add sounds if needed
+        message: messageText,
+        sounds: [],
         streamerName: sessionRecord.user.displayName,
         tokenSymbol: "IDRXkb",
         tokenLogo: "https://s2.coinmarketcap.com/static/img/coins/128x128/26732.png",
         txHash: "0xmockhash",
+        mediaType: type,
+        mediaUrl,
+        mediaDuration,
     };
 
     try {

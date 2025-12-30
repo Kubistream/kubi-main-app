@@ -50,6 +50,9 @@ export type DonationParams = {
     streamerId: string;
     channel: string;
     avatarUrl?: string;
+    mediaType?: "TEXT" | "AUDIO" | "VIDEO";
+    mediaUrl?: string;
+    mediaDuration?: number;
 };
 
 export type UseDonationResult = {
@@ -73,7 +76,7 @@ export function useDonation(): UseDonationResult {
     const isPending = isApproving || isDonating;
 
     const donate = useCallback(async (params: DonationParams): Promise<{ success: boolean; txHash?: string; error?: string }> => {
-        const { streamerAddress, amount, token, name, message, streamerId, channel, avatarUrl } = params;
+        const { streamerAddress, amount, token, name, message, streamerId, channel, avatarUrl, mediaType, mediaUrl, mediaDuration } = params;
 
         if (!address) {
             return { success: false, error: "Wallet not connected" };
@@ -227,6 +230,9 @@ export function useDonation(): UseDonationResult {
                         name,
                         streamerId,
                         avatarUrl,
+                        mediaType: mediaType || "TEXT",
+                        mediaUrl,
+                        mediaDuration,
                     }),
                 });
                 console.log("✅ Donation data sent to API");

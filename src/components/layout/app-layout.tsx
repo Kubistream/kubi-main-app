@@ -36,6 +36,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div
+      suppressHydrationWarning
       className={cn(
         "flex min-h-screen flex-col",
         "bg-gradient-to-br from-background-dark to-[#0f141e] text-white",
@@ -56,7 +57,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <span className="text-xl font-bold text-white">Kubi</span>
             </Link>
 
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4" suppressHydrationWarning>
               <span className="hidden flex-wrap items-center justify-between gap-2 rounded-full border border-border-dark bg-surface-dark/50 px-3 py-1 text-xs font-medium uppercase tracking-wide text-gray-300 sm:flex">
                 <span className="text-[0.65rem] font-semibold text-gray-500">Role</span>
                 <span className="text-white">{ROLE_LABEL[role]}</span>

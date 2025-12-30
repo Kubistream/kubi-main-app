@@ -8,6 +8,14 @@ import { HistoryPagination } from "@/components/features/dashboard/history-pagin
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 
+// Fallback if not generated yet
+type MediaType = "TEXT" | "AUDIO" | "VIDEO";
+const MediaType = {
+  TEXT: "TEXT",
+  AUDIO: "AUDIO",
+  VIDEO: "VIDEO"
+} as const;
+
 const BASESCAN_TX_URL = "https://sepolia.basescan.org/tx/";
 const BASESCAN_BLOCK_URL = "https://sepolia.basescan.org/block/";
 const BASESCAN_ADDRESS_URL = "https://sepolia.basescan.org/address/";
@@ -26,11 +34,22 @@ type HistoryPageProps = {
   }>;
 };
 
+
+
+const STATUS_OPTIONS = [{ value: "all", label: "All statuses" }].concat(
+  Object.values(DonationStatus).map((status) => ({
+    value: status,
+    label: status.charAt(0) + status.slice(1).toLowerCase(),
+  })),
+);
+
+// Consolidated HistoryRow type
 type HistoryRow = {
   id: string;
   txHash: string;
   blockNumber: number;
   donorWallet: string | null;
+  donorName?: string | null;
   status: DonationStatus;
   amountInRaw: string | null;
   amountOutRaw: string | null;
@@ -50,14 +69,11 @@ type HistoryRow = {
   };
   feeRaw: string | null;
   createdAt: string;
+  mediaType?: MediaType;
+  message?: string | null;
+  mediaUrl?: string | null;
+  mediaDuration?: number | null;
 };
-
-const STATUS_OPTIONS = [{ value: "all", label: "All statuses" }].concat(
-  Object.values(DonationStatus).map((status) => ({
-    value: status,
-    label: status.charAt(0) + status.slice(1).toLowerCase(),
-  })),
-);
 
 export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   const cookieStore = await cookies();
@@ -161,11 +177,26 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     take: pageSize,
   });
 
+  // Fetch donor names
+  const donorWallets = [...new Set(donations.map((d) => d.donorWallet).filter((w): w is string => !!w))];
+  const donors = await prisma.user.findMany({
+    where: {
+      wallet: { in: donorWallets, mode: "insensitive" },
+    },
+    select: {
+      wallet: true,
+      displayName: true,
+    },
+  });
+
+  const donorMap = new Map(donors.map((d) => [d.wallet.toLowerCase(), d.displayName]));
+
   const rows: HistoryRow[] = donations.map((donation) => ({
     id: donation.id,
     txHash: donation.txHash,
     blockNumber: donation.blockNumber,
     donorWallet: donation.donorWallet,
+    donorName: donation.donorWallet ? donorMap.get(donation.donorWallet.toLowerCase()) : null,
     status: donation.status,
     amountInRaw: donation.amountInRaw
       ? donation.amountInRaw.toFixed(donation.amountInRaw.decimalPlaces())
@@ -191,6 +222,13 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       ? donation.feeRaw.toFixed(donation.feeRaw.decimalPlaces())
       : null,
     createdAt: donation.createdAt.toISOString(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mediaType: (donation as any).mediaType,
+    message: donation.message,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mediaUrl: (donation as any).mediaUrl,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mediaDuration: (donation as any).mediaDuration,
   }));
 
   const tokenFilterOptions = [
@@ -224,7 +262,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         />
 
         <div className="overflow-x-auto rounded-xl border border-[var(--color-border-dark)]">
-          <table className="w-full min-w-[960px] divide-y divide-[var(--color-border-dark)] text-sm">
+          <table className="w-full min-w-[1100px] divide-y divide-[var(--color-border-dark)] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-widest text-slate-500 font-display font-bold">
                 <th className="py-3 px-4">Tx hash</th>
@@ -235,77 +273,96 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                 <th className="py-3 px-3">Out</th>
                 <th className="py-3 px-3">Fee</th>
                 <th className="py-3 px-3">Time</th>
+                <th className="py-3 px-3">Media Type</th>
+                <th className="py-3 px-3">Content</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-dark)]/50 text-sm">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="py-10 text-center text-sm text-slate-500">
                     No transactions found for the selected filters.
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="align-middle hover:bg-white/5 transition-colors">
-                    <td className="py-4 px-4 font-mono">
-                      <Link
-                        href={`${BASESCAN_TX_URL}${row.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
-                      >
-                        <span>{shortenHash(row.txHash)}</span>
-                        <span className="material-symbols-outlined text-sm">open_in_new</span>
-                      </Link>
-                    </td>
-                    <td className="py-4 px-3 font-mono">
-                      <Link
-                        href={`${BASESCAN_BLOCK_URL}${row.blockNumber}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
-                      >
-                        <span>{row.blockNumber}</span>
-                        <span className="material-symbols-outlined text-sm">open_in_new</span>
-                      </Link>
-                    </td>
-                    <td className="py-4 px-3 font-mono text-slate-300">
-                      {row.donorWallet ? (
+                  <>
+                    <tr key={row.id} className="align-middle hover:bg-white/5 transition-colors border-b border-[var(--color-border-dark)]/50 last:border-0">
+                      <td className="py-4 px-4 font-mono">
                         <Link
-                          href={`${BASESCAN_ADDRESS_URL}${row.donorWallet}`}
+                          href={`${BASESCAN_TX_URL}${row.txHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
                         >
-                          <span>{shortenHash(row.donorWallet)}</span>
+                          <span>{shortenHash(row.txHash)}</span>
                           <span className="material-symbols-outlined text-sm">open_in_new</span>
                         </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="py-4 px-3">
-                      <StatusBadge status={row.status} />
-                    </td>
-                    <td className="py-4 px-3 align-top">
-                      <TokenAmountCell amountRaw={row.amountInRaw} token={row.tokenIn} />
-                    </td>
-                    <td className="py-4 px-3 align-top">
-                      <TokenAmountCell amountRaw={row.amountOutRaw} token={row.tokenOut} />
-                    </td>
-                    <td className="py-4 px-3 font-mono text-slate-400">
-                      {formatDonationAmount(row.feeRaw, row.tokenIn.decimals)}
-                    </td>
-                    <td className="py-4 px-3">
-                      <time
-                        className="text-sm text-slate-400"
-                        dateTime={row.createdAt}
-                        title={formatAbsolute(row.createdAt)}
-                      >
-                        {formatRelativeTime(row.createdAt)}
-                      </time>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="py-4 px-3 font-medium text-white">
+                        {row.donorName ? (
+                          <div className="flex flex-col">
+                            <span className="text-white font-bold">{row.donorName}</span>
+                            {row.donorWallet && (
+                              <span className="text-xs text-slate-500 font-mono">{shortenHash(row.donorWallet)}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="font-mono text-slate-300">
+                            {row.donorWallet ? shortenHash(row.donorWallet) : "Anonymous"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-3">
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td className="py-4 px-3 align-top">
+                        <TokenAmountCell amountRaw={row.amountInRaw} token={row.tokenIn} />
+                      </td>
+                      <td className="py-4 px-3 align-top">
+                        <TokenAmountCell amountRaw={row.amountOutRaw} token={row.tokenOut} />
+                      </td>
+                      <td className="py-4 px-3 font-mono text-slate-400">
+                        {formatDonationAmount(row.feeRaw, row.tokenIn.decimals)}
+                      </td>
+                      <td className="py-4 px-3">
+                        <time
+                          className="text-sm text-slate-400"
+                          dateTime={row.createdAt}
+                          title={formatAbsolute(row.createdAt)}
+                        >
+                          {formatRelativeTime(row.createdAt)}
+                        </time>
+                      </td>
+                      <td className="py-4 px-3">
+                        {row.mediaType || "-"}
+                      </td>
+                      <td className="py-4 px-3">
+                        {row.mediaType === "TEXT" && row.message ? (
+                          <span className="truncate max-w-xs inline-block">{row.message}</span>
+                        ) : row.mediaType === "AUDIO" && row.mediaUrl ? (
+                          <audio controls src={row.mediaUrl} className="max-w-[180px]" />
+                        ) : row.mediaType === "VIDEO" && row.mediaUrl ? (
+                          <video controls src={row.mediaUrl} className="max-w-[180px]" />
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                    {(row.mediaType === "TEXT" && row.message) || (row.mediaType === "AUDIO" && row.mediaUrl) || (row.mediaType === "VIDEO" && row.mediaUrl) ? (
+                      <tr>
+                        <td colSpan={10} className="py-2 px-4 bg-surface-dark/70 text-slate-200 text-sm">
+                          {row.mediaType === "TEXT" && row.message ? (
+                            <span className="break-words whitespace-pre-line block">{row.message}</span>
+                          ) : row.mediaType === "AUDIO" && row.mediaUrl ? (
+                            <audio controls src={row.mediaUrl} className="w-full max-w-lg" />
+                          ) : row.mediaType === "VIDEO" && row.mediaUrl ? (
+                            <video controls src={row.mediaUrl} className="w-full max-w-lg" />
+                          ) : null}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </>
                 ))
               )}
             </tbody>

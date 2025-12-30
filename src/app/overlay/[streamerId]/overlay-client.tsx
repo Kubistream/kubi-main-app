@@ -14,12 +14,15 @@ type OverlayMsg = {
     tokenSymbol: string;
     tokenLogo?: string;
     txHash: string;
+    mediaType?: 'TEXT' | 'AUDIO' | 'VIDEO';
+    mediaUrl?: string;
+    mediaDuration?: number; // in seconds
 };
 
 type OverlaySettings = {
     theme: string | null;
     animationPreset: string | null;
-    displayDuration: number; // we set default in actions if possible, or here
+    displayDuration: number;
     showYieldApy: boolean;
     textToSpeech: boolean;
     minAmountUsd: number;
@@ -44,13 +47,9 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
     const [current, setCurrent] = useState<OverlayMsg | null>(null);
     const [visible, setVisible] = useState(false);
 
-    // Defaults
-    const displayDuration = settings?.displayDuration ?? 8;
     const theme = (settings?.theme as "Vibrant Dark" | "Minimal Light") ?? "Vibrant Dark";
     const showYieldApy = settings?.showYieldApy ?? true;
     const textToSpeech = settings?.textToSpeech ?? false;
-    const minAmountUsd = settings?.minAmountUsd ?? 0;
-
 
     useEffect(() => {
         // Force transparent background for OBS
@@ -69,10 +68,6 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
             try {
                 const msg = JSON.parse(event.data);
                 console.log("Received message:", msg)
-
-                // Filter by min amount if applicable (msg usually has raw amount, we might need value in USD)
-                // For now, assuming backend filters or we accept all since msg format is simple
-
                 if (msg.type === "overlay") {
                     setQueue(prev => [...prev, msg]);
                 }
@@ -87,22 +82,17 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
         return () => socket.close();
     }, [streamerId]);
 
-    // helper untuk memutar semua audio secara berurutan
     const playAudiosSequentially = async (sounds: string[]) => {
         for (const sound of sounds) {
             await new Promise<void>((resolve) => {
                 const audio = new Audio(sound);
                 audio.onended = () => resolve();
-                audio.onerror = () => resolve(); // Skip if error
-                audio.play().catch(() => {
-                    console.log("Autoplay blocked, skip this audio");
-                    resolve();
-                });
+                audio.onerror = () => resolve();
+                audio.play().catch(() => resolve());
             });
         }
     };
 
-    // TTS Helper
     const speakMessage = (text: string) => {
         if (!textToSpeech) return Promise.resolve();
         return new Promise<void>((resolve) => {
@@ -117,10 +107,13 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
         });
     };
 
-    // Dynamic Duration Calculation
-    const calculateDuration = (msg: string | undefined) => {
-        const baseDuration = 5; // minimum 5 seconds
-        const charDuration = (msg?.length || 0) * 0.1; // 100ms per character
+    const calculateDuration = (msg: OverlayMsg) => {
+        if (msg.mediaType === 'VIDEO' || msg.mediaType === 'AUDIO') {
+            // Use media duration + minimal buffer, or default 10s if missing
+            return (msg.mediaDuration || 10) + 2;
+        }
+        const baseDuration = 5;
+        const charDuration = (msg.message?.length || 0) * 0.1;
         return Math.max(baseDuration, baseDuration + charDuration);
     };
 
@@ -130,33 +123,35 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
             setCurrent(next);
             setQueue(prev => prev.slice(1));
 
-            // Start processing immediately
             const runSequence = async () => {
                 setVisible(true);
                 const startTime = Date.now();
 
-                // 1. Play Sounds
+                // 1. Play Sounds (alert sounds)
                 if (next.sounds && next.sounds.length > 0) {
                     await playAudiosSequentially(next.sounds);
                 }
 
-                // 2. TTS
-                if (textToSpeech && next.message) {
-                    await speakMessage(next.message);
+                // 2. TTS (only if not playing audio media, to avoid clash?)
+                // Or TTS runs in parallel or before media? Usually before or parallel.
+                // Let's run TTS first if no audio media.
+                if (textToSpeech && next.message && next.mediaType !== 'AUDIO') {
+                    speakMessage(next.message); // don't await to let media auto-play?
+                    // actually safer to await if we want to hear it clearly
+                    // await speakMessage(next.message);
                 }
 
-                // 3. Ensure minimum display time based on message length
-                const minDurationSec = calculateDuration(next.message);
+                // 3. Wait for duration
+                const durationSec = calculateDuration(next);
                 const elapsedMs = Date.now() - startTime;
-                const remainingMs = (minDurationSec * 1000) - elapsedMs;
+                const remainingMs = (durationSec * 1000) - elapsedMs;
 
                 if (remainingMs > 0) {
                     await new Promise(r => setTimeout(r, remainingMs));
                 }
 
-                // 4. Hide and cleanup
                 setVisible(false);
-                setTimeout(() => setCurrent(null), 1000); // Wait for exit animation
+                setTimeout(() => setCurrent(null), 1000);
             };
 
             runSequence();
@@ -164,8 +159,7 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
     }, [queue, current, textToSpeech]);
 
     if (!visible || !current) return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-        </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"></div>
     );
 
     return (
@@ -180,6 +174,8 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
                     animationPreset={settings?.animationPreset ?? undefined}
                     showYieldApy={showYieldApy}
                     tokenLogo={current.tokenLogo}
+                    mediaType={current.mediaType}
+                    mediaUrl={current.mediaUrl}
                 />
             </div>
         </div>

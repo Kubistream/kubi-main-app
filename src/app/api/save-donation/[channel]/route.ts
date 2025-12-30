@@ -25,6 +25,9 @@ export async function POST(
       streamerId,
       name,
       avatarUrl,
+      mediaType = "TEXT",
+      mediaUrl,
+      mediaDuration = 0,
     } = body;
 
     const { session, sessionResponse } = await getAuthSession(req);
@@ -234,6 +237,9 @@ export async function POST(
         chainId,
         timestamp,
         status: DonationStatus.CONFIRMED,
+        mediaType,
+        mediaUrl,
+        mediaDuration,
       },
     });
 
@@ -250,6 +256,9 @@ export async function POST(
         tokenSymbol: tokenInRecord.symbol,
         tokenLogo: tokenInRecord.logoURI, // Pass the logo from DB
         txHash: txHash,
+        mediaType,
+        mediaUrl,
+        mediaDuration,
       };
 
       await fetch("http://localhost:8080/broadcast", {

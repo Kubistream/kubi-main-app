@@ -55,7 +55,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Outfit:wght@300..900&display=swap" rel="stylesheet" />
       </head>
       <body
-        suppressHydrationWarning={true}
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} ${modak.variable} ${inter.variable} ${spaceGrotesk.variable} bg-slate-950 text-slate-100 antialiased`}
       >
         <Web3Provider>

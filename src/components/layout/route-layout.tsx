@@ -20,7 +20,7 @@ export default function RouteLayout({ children }: Props) {
 
   // Default site experience with AppLayout and site styles.
   return (
-    <div className="bg-background-dark text-white min-h-dvh antialiased font-display">
+    <div className="bg-background-dark text-white min-h-dvh antialiased font-display" suppressHydrationWarning>
       <AppLayout>{children}</AppLayout>
     </div>
   );

@@ -117,6 +117,9 @@ model Donation {
   chainId       Int
   timestamp     DateTime
   message       String?       @db.Text
+  mediaType     MediaType     @default(TEXT)
+  mediaUrl      String?
+  mediaDuration Int?          @default(0)
   status        DonationStatus @default(CONFIRMED)
   createdAt     DateTime       @default(now())
 
@@ -126,6 +129,12 @@ model Donation {
   @@index([tokenInId])
   @@index([tokenOutId])
   @@index([streamerId, timestamp])
+}
+
+enum MediaType {
+  TEXT
+  AUDIO
+  VIDEO
 }
 
 model Token {
@@ -319,6 +328,9 @@ model QueueOverlay {
   txHash        String
   timestamp     DateTime
   message       String?       @db.Text
+  mediaType     MediaType     @default(TEXT)
+  mediaUrl      String?
+  mediaDuration Int?          @default(0)
   status        OverlayStatus @default(PENDING)
 
   @@index([linkId])

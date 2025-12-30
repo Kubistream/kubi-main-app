@@ -12,6 +12,15 @@ export type DonationCardProps = {
     theme?: "Vibrant Dark" | "Minimal Light";
     animationPreset?: string;
     showYieldApy?: boolean;
+    mediaType?: "TEXT" | "AUDIO" | "VIDEO";
+    mediaUrl?: string;
+};
+
+export const getYouTubeId = (url: string) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
 };
 
 export function DonationCard({
@@ -24,6 +33,8 @@ export function DonationCard({
     theme = "Vibrant Dark",
     animationPreset = "Slide In Left",
     showYieldApy = true,
+    mediaType,
+    mediaUrl,
 }: DonationCardProps) {
     const isDark = theme === "Vibrant Dark";
 
@@ -41,6 +52,46 @@ export function DonationCard({
             default:
                 return "animate-enter-slide-left";
         }
+    };
+
+    const renderMedia = () => {
+        if (!mediaUrl) return null;
+
+        if (mediaType === "VIDEO") {
+            const videoId = getYouTubeId(mediaUrl);
+            if (!videoId) return null;
+            return (
+                <div className="mt-4 rounded-xl overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_#000] aspect-video">
+                    <iframe
+                        width="100%"
+                        height="100%"
+                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1`}
+                        title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full"
+                    ></iframe>
+                </div>
+            );
+        }
+
+        if (mediaType === "AUDIO") {
+            return (
+                <div className="mt-4 p-3 bg-accent-yellow/10 rounded-xl border-2 border-accent-yellow">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="material-symbols-outlined text-accent-yellow animate-pulse">graphic_eq</span>
+                        <span className="text-xs font-bold text-accent-yellow uppercase">Voice Message</span>
+                    </div>
+                    {/* Native audio player stylized slightly or just basic for now */}
+                    <audio controls autoPlay className="w-full h-8">
+                        <source src={mediaUrl} />
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+            );
+        }
+
+        return null;
     };
 
     const renderTokenIcon = () => {
@@ -118,7 +169,8 @@ export function DonationCard({
                     </div>
 
                     {/* Message bubble */}
-                    {message && (
+                    {/* Message bubble - Only show for TEXT type */}
+                    {message && mediaType === "TEXT" && (
                         <div className="relative mt-1">
                             <div className={cn("absolute -top-2 left-8 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 z-20", isDark ? "border-white" : "border-black")} />
                             <div className={cn("bg-[#2D2452] border-2 rounded-xl p-4 relative z-10", isDark ? "border-white" : "border-black")}>
@@ -128,6 +180,9 @@ export function DonationCard({
                             </div>
                         </div>
                     )}
+
+                    {/* Media Player */}
+                    {renderMedia()}
                 </div>
             </div>
         </div>
