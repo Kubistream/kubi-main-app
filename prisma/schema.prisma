@@ -194,6 +194,8 @@ model OverlaySettings {
   animationPreset   String?
   showLeaderboard   Boolean  @default(true)
   minAmountUsd      Float    @default(0)
+  minAudioAmountUsd Float    @default(0)
+  minVideoAmountUsd Float    @default(0)
   showYieldApy      Boolean  @default(true)
   textToSpeech      Boolean  @default(false)
   authSecret        String?

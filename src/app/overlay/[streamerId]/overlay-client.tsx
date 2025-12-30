@@ -27,6 +27,8 @@ type OverlaySettings = {
     showYieldApy: boolean;
     textToSpeech: boolean;
     minAmountUsd: number;
+    minAudioAmountUsd: number;
+    minVideoAmountUsd: number;
 };
 
 const normalizeWsBaseUrl = (url: string) => {
@@ -53,6 +55,8 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
     const showYieldApy = settings?.showYieldApy ?? true;
     const textToSpeech = settings?.textToSpeech ?? false;
     const minAmountUsd = settings?.minAmountUsd ?? 0;
+    const minAudioAmountUsd = settings?.minAudioAmountUsd ?? 0;
+    const minVideoAmountUsd = settings?.minVideoAmountUsd ?? 0;
 
     useEffect(() => {
         // Force transparent background for OBS
@@ -84,12 +88,28 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
                     // Support both "overlay" and "DONATION" types
                     if (msg.type === "overlay" || msg.type === "DONATION") {
                         const donationValue = typeof msg.usdValue === 'number' ? msg.usdValue : parseFloat(msg.usdValue || '0');
+                        let processedMsg = { ...msg };
 
-                        console.log(`[Overlay] Donation Recv: $${donationValue} (Min: $${minAmountUsd})`, msg);
+                        // Check Media Thresholds
+                        // If VIDEO but value < minVideo -> Downgrade to TEXT
+                        if (processedMsg.mediaType === 'VIDEO' && donationValue < minVideoAmountUsd) {
+                            console.log(`[Overlay] ⚠️ Video donation ($${donationValue}) < Min Video ($${minVideoAmountUsd}). Downgrading to TEXT.`);
+                            processedMsg.mediaType = 'TEXT';
+                            processedMsg.mediaUrl = undefined;
+                        }
+
+                        // If AUDIO but value < minAudio -> Downgrade to TEXT
+                        if (processedMsg.mediaType === 'AUDIO' && donationValue < minAudioAmountUsd) {
+                            console.log(`[Overlay] ⚠️ Audio donation ($${donationValue}) < Min Audio ($${minAudioAmountUsd}). Downgrading to TEXT.`);
+                            processedMsg.mediaType = 'TEXT';
+                            processedMsg.mediaUrl = undefined;
+                        }
+
+                        console.log(`[Overlay] Donation Recv: $${donationValue} (Min: $${minAmountUsd})`, processedMsg);
 
                         if (donationValue >= minAmountUsd) {
                             console.log("[Overlay] ✅ Accepted -> Adding to Queue");
-                            setQueue(prev => [...prev, msg]);
+                            setQueue(prev => [...prev, processedMsg]);
                         } else {
                             console.warn(`[Overlay] ❌ Skipped: $${donationValue} is below minimum $${minAmountUsd}`);
                         }
@@ -120,7 +140,7 @@ export default function OverlayClient({ settings, streamerId }: { settings: Over
             }
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
         };
-    }, [streamerId, minAmountUsd]);
+    }, [streamerId, minAmountUsd, minAudioAmountUsd, minVideoAmountUsd]);
 
     const playAudiosSequentially = async (sounds: string[]) => {
         for (const sound of sounds) {

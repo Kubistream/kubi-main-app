@@ -23,7 +23,14 @@ export async function GET(
           },
         },
         primaryTokenId: true,
-        createdAt: true
+        createdAt: true,
+        overlaySettings: {
+          select: {
+            minAmountUsd: true,
+            minAudioAmountUsd: true,
+            minVideoAmountUsd: true,
+          }
+        }
       },
     });
 

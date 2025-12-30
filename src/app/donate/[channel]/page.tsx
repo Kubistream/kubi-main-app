@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useDonation, useTokenBalances, type TokenInfo } from "@/hooks/use-donation";
 import { getYouTubeId } from "@/components/overlay/donation-card";
 import { cn } from "@/lib/utils";
+import { TOKEN_PRICES_USD } from "@/constants/token-prices";
 
 // ERC20 ABI disediakan via helper getErc20Contract
 
@@ -35,6 +36,12 @@ export default function DonatePage() {
   const [streamerAddress, setStreamerAddress] = useState<string>("");
   const [streamerId, setStreamerId] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string>("");
+  const [overlaySettings, setOverlaySettings] = useState<{
+    minAmountUsd: number;
+    minAudioAmountUsd: number;
+    minVideoAmountUsd: number;
+  } | null>(null);
+
   useEffect(() => {
     if (!channel) return;
     const fetchStreamer = async () => {
@@ -50,11 +57,13 @@ export default function DonatePage() {
         setStreamerAddress(data.user.wallet || "");
         setStreamerId(data.id || "");
         setAvatarUrl(data.user.avatarUrl || "");
+        setOverlaySettings(data.overlaySettings || null);
       } catch {
         setDisplayName(channel);
         setStreamerAddress("");
         setStreamerId("");
         setAvatarUrl("");
+        setOverlaySettings(null);
       }
     };
     fetchStreamer();
@@ -598,53 +607,56 @@ export default function DonatePage() {
                     type="text"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Amount</Label>
-                  <div className="flex">
-                    <Input
-                      required
-                      value={amount}
-                      onChange={(e) => {
-                        const withoutSeparators = e.target.value.replace(/,/g, "");
-                        let normalized = withoutSeparators.replace(/[^0-9.]/g, "");
-                        normalized = normalized.replace(/\.(?=.*\.)/g, "");
-                        normalized = clampDecimals(normalized);
-                        if (normalized === "" || normalized === ".") {
-                          setRawAmount("");
-                          setAmount("");
-                          return;
-                        }
-                        setRawAmount(normalized);
-                        const num = parseFloat(normalized);
-                        if (!Number.isNaN(num)) {
-                          setAmount(num.toLocaleString(undefined, { maximumFractionDigits: 4 }));
-                        } else {
-                          setAmount(normalized);
-                        }
-                      }}
-                      placeholder="0.05"
-                      inputMode="decimal"
-                      type="text"
-                      className="rounded-r-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setIsTokenModalOpen(true)}
-                      className="flex items-center gap-2 rounded-r-xl border-2 border-l-0 border-[var(--color-border-dark)] bg-[var(--color-surface-card)] px-3 text-sm font-bold text-white hover:bg-[var(--color-border-dark)] transition-colors"
-                    >
-                      <img src={selectedToken.logoURI} alt={selectedToken.symbol} className="h-5 w-5 rounded-full" />
-                      {selectedToken.symbol}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-slate-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <Label>Amount</Label>
+                    <div className="flex">
+                      <Input
+                        required
+                        value={amount}
+                        onChange={(e) => {
+                          const withoutSeparators = e.target.value.replace(/,/g, "");
+                          let normalized = withoutSeparators.replace(/[^0-9.]/g, "");
+                          normalized = normalized.replace(/\.(?=.*\.)/g, "");
+                          normalized = clampDecimals(normalized);
+                          if (normalized === "" || normalized === ".") {
+                            setRawAmount("");
+                            setAmount("");
+                            return;
+                          }
+                          setRawAmount(normalized);
+                          const num = parseFloat(normalized);
+                          if (!Number.isNaN(num)) {
+                            setAmount(num.toLocaleString(undefined, { maximumFractionDigits: 4 }));
+                          } else {
+                            setAmount(normalized);
+                          }
+                        }}
+                        placeholder="0.05"
+                        inputMode="decimal"
+                        type="text"
+                        className="rounded-r-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsTokenModalOpen(true)}
+                        className="flex items-center gap-2 rounded-r-xl border-2 border-l-0 border-[var(--color-border-dark)] bg-[var(--color-surface-card)] px-3 text-sm font-bold text-white hover:bg-[var(--color-border-dark)] transition-colors"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
+                        <img src={selectedToken.logoURI} alt={selectedToken.symbol} className="h-5 w-5 rounded-full" />
+                        {selectedToken.symbol}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-slate-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+
                   </div>
                   {/* Saldo token terpilih */}
                   <p className="text-xs text-slate-400">
@@ -690,6 +702,60 @@ export default function DonatePage() {
                   <p className="text-xs text-slate-400">
                     We&apos;ll autoswap to the creator&apos;s preferred token.
                   </p>
+
+                  {/* Overlay Requirement Alert */}
+                  {overlaySettings && (
+                    (() => {
+                      const minReq = mediaType === 'VIDEO'
+                        ? (overlaySettings.minVideoAmountUsd || 0)
+                        : mediaType === 'AUDIO'
+                          ? (overlaySettings.minAudioAmountUsd || 0)
+                          : (overlaySettings.minAmountUsd || 0);
+
+                      const isStable = ["USDC", "USDT", "DAI", "BUSD"].some(s => selectedToken.symbol.toUpperCase().includes(s));
+                      // Get price from map or default to 1 for stables, else 0 if unknown
+                      let tokenPrice = isStable ? 1 : 0;
+                      if (!isStable && selectedToken.address) {
+                        tokenPrice = TOKEN_PRICES_USD[selectedToken.address.toLowerCase()] || 0;
+                      }
+
+                      const amountVal = parseFloat(rawAmount || "0");
+                      const estimatedUsd = amountVal * tokenPrice;
+
+                      // Only show warning if we have a valid price (tokenPrice > 0) AND amount is > 0 AND estimatedUsd < minReq
+                      const isLow = tokenPrice > 0 && amountVal > 0 && estimatedUsd < minReq;
+
+                      return (
+                        <div className={cn(
+                          "text-xs px-3 py-2 rounded-lg border",
+                          isLow
+                            ? "bg-red-900/20 border-red-500/50 text-red-200"
+                            : "bg-blue-900/20 border-blue-500/30 text-blue-200"
+                        )}>
+                          <div className="flex items-start gap-2">
+                            <span className="material-symbols-outlined text-[16px] mt-0.5">info</span>
+                            <div>
+                              <p className="font-bold">
+                                Overlay Minimum: ${minReq} USD
+                                {mediaType !== 'TEXT' && " for " + mediaType.toLowerCase()}
+                              </p>
+                              {isLow ? (
+                                <p className="font-bold mt-1 text-red-400">
+                                  ⚠️ Low amount (~${estimatedUsd.toFixed(2)}). Won't trigger overlay.
+                                </p>
+                              ) : (
+                                <p className="opacity-80">
+                                  {tokenPrice > 0 ? (
+                                    <span>~${estimatedUsd > 0 ? estimatedUsd.toFixed(2) : "0.00"} USD value.</span>
+                                  ) : "Ensure value exceeds minimum."}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()
+                  )}
                 </div>
 
                 <div className="space-y-4">

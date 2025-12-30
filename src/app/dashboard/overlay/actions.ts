@@ -9,6 +9,8 @@ export type OverlaySettingsData = {
     theme: string;
     animationPreset: string;
     minAmountUsd: number;
+    minAudioAmountUsd: number;
+    minVideoAmountUsd: number;
     showYieldApy: boolean;
     textToSpeech: boolean;
     obsUrl?: string;
@@ -40,6 +42,8 @@ export async function getOverlaySettings() {
                 animationPreset: "Slide In Left",
                 showLeaderboard: true,
                 minAmountUsd: 5,
+                minAudioAmountUsd: 10,
+                minVideoAmountUsd: 20,
                 // @ts-ignore
                 showYieldApy: true,
                 // @ts-ignore
@@ -55,6 +59,8 @@ export async function getOverlaySettings() {
         theme: settings.theme ?? "Vibrant Dark",
         animationPreset: settings.animationPreset ?? "Slide In Left",
         minAmountUsd: settings.minAmountUsd,
+        minAudioAmountUsd: settings.minAudioAmountUsd,
+        minVideoAmountUsd: settings.minVideoAmountUsd,
         // @ts-ignore
         showYieldApy: settings.showYieldApy ?? true,
         // @ts-ignore
@@ -83,6 +89,8 @@ export async function updateOverlaySettings(data: Partial<OverlaySettingsData>) 
             theme: data.theme,
             animationPreset: data.animationPreset,
             minAmountUsd: data.minAmountUsd,
+            minAudioAmountUsd: data.minAudioAmountUsd,
+            minVideoAmountUsd: data.minVideoAmountUsd,
             // @ts-ignore
             showYieldApy: data.showYieldApy,
             // @ts-ignore

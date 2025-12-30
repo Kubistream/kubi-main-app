@@ -16,6 +16,8 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
             theme: "Vibrant Dark",
             animationPreset: "Slide In Left",
             minAmountUsd: 5,
+            minAudioAmountUsd: 10,
+            minVideoAmountUsd: 20,
             showYieldApy: true,
             textToSpeech: false,
         }
@@ -252,6 +254,33 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                                     value={settings.minAmountUsd}
                                     onChange={(e) => setSettings(s => ({ ...s, minAmountUsd: parseFloat(e.target.value) }))}
                                 />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Min Audio (USD)</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-3 text-slate-400 text-sm font-bold">$</span>
+                                    <input
+                                        className="w-full bg-slate-50 dark:bg-[#130c29] border-2 border-slate-200 dark:border-[#2D2452] rounded-xl py-3 pl-8 pr-4 text-sm font-bold focus:ring-0 focus:border-accent-pink outline-none transition-colors"
+                                        type="number"
+                                        value={settings.minAudioAmountUsd}
+                                        onChange={(e) => setSettings(s => ({ ...s, minAudioAmountUsd: parseFloat(e.target.value) }))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-200">Min Video (USD)</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-3 text-slate-400 text-sm font-bold">$</span>
+                                    <input
+                                        className="w-full bg-slate-50 dark:bg-[#130c29] border-2 border-slate-200 dark:border-[#2D2452] rounded-xl py-3 pl-8 pr-4 text-sm font-bold focus:ring-0 focus:border-accent-pink outline-none transition-colors"
+                                        type="number"
+                                        value={settings.minVideoAmountUsd}
+                                        onChange={(e) => setSettings(s => ({ ...s, minVideoAmountUsd: parseFloat(e.target.value) }))}
+                                    />
+                                </div>
                             </div>
                         </div>
 
