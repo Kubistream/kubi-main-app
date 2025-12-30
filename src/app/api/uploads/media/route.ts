@@ -88,6 +88,6 @@ export async function POST(request: NextRequest) {
         return applySessionCookies(sessionResponse, response);
     } catch (e) {
         console.error("Media upload failed", e);
-        return error(sessionResponse, 500, "Failed to upload media");
+        return error(sessionResponse, 500, `Failed to upload media: ${(e as Error).message}`);
     }
 }

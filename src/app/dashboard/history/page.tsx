@@ -5,6 +5,7 @@ import { formatTokenAmount as formatDisplayTokenAmount } from "@/lib/format/toke
 
 import { HistoryFilters } from "@/components/features/dashboard/history-filters";
 import { HistoryPagination } from "@/components/features/dashboard/history-pagination";
+import { HistoryRowAction } from "@/components/features/dashboard/history-row-action";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 
@@ -273,12 +274,13 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                 <th className="py-3 px-3">Fee</th>
                 <th className="py-3 px-3">Time</th>
                 <th className="py-3 px-3">Message</th>
+                <th className="py-3 px-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border-dark)]/50 text-sm">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={9} className="py-10 text-center text-sm text-slate-500">
                     No transactions found for the selected filters.
                   </td>
                 </tr>
@@ -333,22 +335,25 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                     </td>
                     <td className="py-4 px-3">
                       {row.mediaType === "TEXT" && row.message ? (
-                        <span className="truncate max-w-[200px] inline-block" title={row.message}>
+                        <span className="truncate max-w-[200px] inline-block text-slate-300" title={row.message}>
                           {row.message}
                         </span>
-                      ) : row.mediaType === "AUDIO" && row.mediaUrl ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Audio</span>
-                          <audio controls src={row.mediaUrl} className="h-8 w-32" />
+                      ) : row.mediaType === "AUDIO" ? (
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-bold uppercase tracking-wide">
+                          <span className="material-symbols-outlined text-sm">mic</span>
+                          Audio
                         </div>
-                      ) : row.mediaType === "VIDEO" && row.mediaUrl ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Video</span>
-                          <video controls src={row.mediaUrl} className="h-20 w-32 rounded bg-black object-cover" />
+                      ) : row.mediaType === "VIDEO" ? (
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-500 text-xs font-bold uppercase tracking-wide">
+                          <span className="material-symbols-outlined text-sm">movie</span>
+                          Video
                         </div>
                       ) : (
                         <span className="text-slate-600">-</span>
                       )}
+                    </td>
+                    <td className="py-4 px-3 text-right">
+                      <HistoryRowAction row={row} />
                     </td>
                   </tr>
                 ))
