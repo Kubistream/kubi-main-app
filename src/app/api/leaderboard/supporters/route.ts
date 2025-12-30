@@ -108,10 +108,10 @@ export async function GET(request: NextRequest) {
       status: "CONFIRMED",
       ...(rangeStart
         ? {
-            timestamp: {
-              gte: rangeStart,
-            },
-          }
+          timestamp: {
+            gte: rangeStart,
+          },
+        }
         : null),
     },
     select: {
@@ -130,6 +130,11 @@ export async function GET(request: NextRequest) {
         },
       },
     },
+    orderBy: {
+      timestamp: "desc",
+    },
+    // Limit to prevent performance issues with large datasets
+    take: 10000,
   });
 
   const supportersMap = new Map<
@@ -207,9 +212,9 @@ export async function GET(request: NextRequest) {
   const userRecords =
     walletLookup.size > 0
       ? await prisma.user.findMany({
-          where: { wallet: { in: Array.from(walletLookup.values()) } },
-          select: { wallet: true, displayName: true },
-        })
+        where: { wallet: { in: Array.from(walletLookup.values()) } },
+        select: { wallet: true, displayName: true },
+      })
       : [];
 
   const displayNameByWallet = new Map<string, string | null>();
@@ -270,6 +275,9 @@ export async function GET(request: NextRequest) {
       generatedAt: new Date().toISOString(),
     },
   });
+
+  // Cache the response for 30 seconds to reduce database load
+  response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
 
   return applySessionCookies(sessionResponse, response);
 }

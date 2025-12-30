@@ -4,24 +4,27 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type ButtonVariant = "default" | "secondary" | "outline" | "ghost";
+type ButtonVariant = "default" | "secondary" | "outline" | "ghost" | "cyan";
 type ButtonSize = "default" | "sm" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
   default:
-    "bg-rose-500 text-white shadow-sm shadow-rose-500/30 transition hover:bg-rose-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500",
+    "bg-secondary text-black shadow-[0_0_20px_rgba(243,224,59,0.3)] hover:bg-[#ffe100] hover:shadow-[0_0_30px_rgba(243,224,59,0.5)] hover:-translate-y-0.5 active:translate-y-0 transition-all",
   secondary:
-    "bg-indigo-100 text-indigo-950 shadow-sm shadow-indigo-200/60 transition hover:bg-indigo-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400",
+    "bg-primary text-white shadow-[0_0_20px_rgba(98,58,214,0.3)] hover:bg-[#7048E8] hover:shadow-[0_0_30px_rgba(98,58,214,0.5)] hover:-translate-y-0.5 active:translate-y-0 transition-all",
   outline:
-    "border border-rose-200 bg-white text-rose-600 shadow-sm transition hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300",
-  ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+    "border border-border-dark bg-surface-dark text-gray-300 hover:bg-white/10 hover:text-white transition-all",
+  ghost:
+    "text-gray-400 hover:bg-white/5 hover:text-white transition-colors",
+  cyan:
+    "bg-accent-cyan text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 hover:shadow-[0_0_30px_rgba(34,211,238,0.5)] hover:-translate-y-0.5 active:translate-y-0 transition-all",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: "h-11 rounded-full px-6 text-sm font-medium",
-  sm: "h-9 rounded-full px-4 text-sm",
-  lg: "h-12 rounded-full px-7 text-base font-semibold",
-  icon: "h-10 w-10 rounded-full",
+  default: "h-11 rounded-xl px-6 text-sm font-bold",
+  sm: "h-9 rounded-xl px-4 text-sm font-bold",
+  lg: "h-12 rounded-xl px-8 text-base font-bold",
+  icon: "h-10 w-10 rounded-xl",
 };
 
 export interface ButtonProps

@@ -81,16 +81,16 @@ export function HistoryFilters({ statusOptions, tokenOptions, resetPath }: Histo
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-[0.65rem] uppercase tracking-[0.3em] text-slate-400">Status</span>
+          <span className="text-[0.65rem] uppercase tracking-[0.3em] text-gray-500">Status</span>
           <select
             id="status"
             name="status"
             value={status}
             onChange={(event) => handleStatusChange(event.target.value)}
-            className="h-10 rounded-full border border-slate-200 bg-white px-4 pr-8 text-sm font-semibold text-slate-700 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="h-10 rounded-xl border border-border-dark bg-surface-dark px-4 pr-8 text-sm font-semibold text-white shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={option.value} value={option.value} className="bg-surface-dark text-white">
                 {option.label}
               </option>
             ))}
@@ -98,16 +98,16 @@ export function HistoryFilters({ statusOptions, tokenOptions, resetPath }: Histo
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-[0.65rem] uppercase tracking-[0.3em] text-slate-400">Token</span>
+          <span className="text-[0.65rem] uppercase tracking-[0.3em] text-gray-500">Token</span>
           <select
             id="token"
             name="token"
             value={token}
             onChange={(event) => handleTokenChange(event.target.value)}
-            className="h-10 rounded-full border border-slate-200 bg-white px-4 pr-8 text-sm font-semibold text-slate-700 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+            className="h-10 rounded-xl border border-border-dark bg-surface-dark px-4 pr-8 text-sm font-semibold text-white shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {tokenOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={option.value} value={option.value} className="bg-surface-dark text-white">
                 {option.label}
               </option>
             ))}
@@ -121,7 +121,7 @@ export function HistoryFilters({ statusOptions, tokenOptions, resetPath }: Histo
           variant="outline"
           onClick={handleReset}
           disabled={isPending}
-          className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-5 py-2 text-sm font-semibold text-sky-600 shadow-sm transition hover:bg-sky-50 disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-xl border border-border-dark bg-surface-dark px-5 py-2 text-sm font-semibold text-gray-300 shadow-sm transition hover:bg-white/10 hover:text-white disabled:opacity-60"
         >
           Reset filters
         </Button>

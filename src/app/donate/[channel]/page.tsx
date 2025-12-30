@@ -3,22 +3,17 @@
 import { ChangeEventHandler, FormEvent, useEffect, useRef, useState } from "react";
 import { Loader2, PartyPopper, UserRound } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { BrowserProvider, Contract, formatEther, formatUnits, JsonRpcProvider } from "ethers";
-import { parseUnits, parseEther, getAddress } from "ethers";
-// Kontrak & helper modular
-import { getDonationContractAddress } from "@/services/contracts/donation";
-import { getErc20Contract } from "@/services/contracts/erc20";
-import { getDonationContractReadOnly } from "@/services/contracts/factory";
+import { useAccount } from "wagmi";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { useWallet } from "@/hooks/use-wallet";
 import { SelectTokenModal } from "@/components/ui/select-token-modal";
 import { uploadAvatar } from "@/services/uploads/avatar-service";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useDonation, useTokenBalances, type TokenInfo } from "@/hooks/use-donation";
 
 // ERC20 ABI disediakan via helper getErc20Contract
 
@@ -61,7 +56,8 @@ export default function DonatePage() {
     };
     fetchStreamer();
   }, [channel, router]);
-  const { isConnected, address } = useWallet();
+  const { isConnected, address } = useAccount();
+  const { donate, isPending: isDonationPending, isApproving } = useDonation();
   const [donorAvatarUrl, setDonorAvatarUrl] = useState<string>("");
   const [donorAvatarPreview, setDonorAvatarPreview] = useState<string>("");
   const [selectedDonorFile, setSelectedDonorFile] = useState<File | null>(null);
@@ -114,7 +110,6 @@ export default function DonatePage() {
     isNative: true,
   });
   const [tokens, setTokens] = useState<{ symbol: string; logoURI: string; address?: string; isNative?: boolean }[]>([]);
-  const [balances, setBalances] = useState<{ [address: string]: string }>({});
   const decimalsCacheRef = useRef<Record<string, number>>({});
 
   // helper function to format amount input
@@ -223,142 +218,13 @@ export default function DonatePage() {
     fetchTokens();
   }, [channel]);
 
-  // Fetch balances for tokens when tokens or address change
+  // Gunakan hook untuk fetch balances
+  const { balances, isLoading: isBalancesLoading, fetchBalances } = useTokenBalances(tokens);
+
+  // Trigger fetch balances saat tokens berubah atau wallet connect
   useEffect(() => {
-    if (tokens.length === 0) {
-      console.log("🚫 fetchBalances skipped: tokens empty");
-      return;
-    }
-
-    const fetchBalances = async () => {
-      try {
-        console.log(
-          "🔥 useEffect triggered, tokens:",
-          tokens.length,
-          "address:",
-          address,
-          "isConnected:",
-          isConnected
-        );
-
-        let provider;
-        let chainId;
-        try {
-          if (typeof window !== "undefined" && (window as any).ethereum) {
-            console.log("🦊 Using BrowserProvider");
-            provider = new BrowserProvider((window as any).ethereum, "any");
-            chainId = await provider.send("eth_chainId", []);
-            if (parseInt(chainId, 16) !== 84532) {
-              console.warn(
-                `⚠️ Connected chainId ${parseInt(chainId, 16)} is not Base Sepolia (84532). Using fallback provider.`
-              );
-              provider = new JsonRpcProvider(
-                "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa"
-              );
-              chainId = "0x14798"; // 84532 in hex
-            }
-          } else {
-            console.log("🌐 Using fallback JsonRpcProvider");
-            provider = new JsonRpcProvider(
-              "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa"
-            );
-            chainId = "0x14798"; // 84532 in hex
-          }
-        } catch (provErr) {
-          console.error("💥 Error initializing provider:", provErr);
-          setBalances({});
-          return;
-        }
-
-        if (!provider) {
-          console.error("❌ Provider not initialized");
-          setBalances({});
-          return;
-        }
-        console.log("✅ Provider initialized:", provider);
-        // --- Inisialisasi kontrak donasi untuk cek koneksi RPC
-        try {
-          const donationContract = getDonationContractReadOnly();
-          console.log("🎯 Donation contract connected:", donationContract.target);
-        } catch (contractErr) {
-          console.error("💥 Error initializing donation contract:", contractErr);
-        }
-
-        const network = await provider.getNetwork();
-        console.log("🧠 Connected network:", network, "chainId:", chainId);
-
-        if (typeof window !== "undefined" && (window as any).ethereum) {
-          (window as any).ethereum.on("chainChanged", () => {
-            window.location.reload();
-          });
-        }
-
-        if (!isConnected || !address) {
-          console.warn("⚠️ Wallet not connected, skipping balance fetch");
-          setBalances({});
-          return;
-        }
-
-        console.log("⏳ Fetching balances for address:", address);
-        console.log("🔁 Fetching token balances concurrently for", tokens.length, "tokens");
-
-        const balancePromises = tokens.map(async (token) => {
-          try {
-            if (token.isNative) {
-              const balance = await provider.getBalance(address);
-              const formatted = formatEther(balance);
-              console.log(`✅ Native balance: ${formatted}`);
-              return ["native", formatted] as const;
-            }
-
-            if (!token.address) {
-              console.warn("⚠️ Token without address skipped:", token);
-              return null;
-            }
-
-            const tokenAddress = token.address.toLowerCase();
-            const code = await provider.getCode(tokenAddress);
-            if (code === "0x") {
-              console.warn(`⚠️ ${tokenAddress} is not a contract`);
-              return null;
-            }
-
-            const contract = getErc20Contract(tokenAddress, provider);
-
-            let decimals = decimalsCacheRef.current[tokenAddress];
-            if (typeof decimals !== "number") {
-              decimals = await withTimeout(contract.decimals(), 8000).catch(() => 18);
-              decimalsCacheRef.current[tokenAddress] = decimals;
-            }
-
-            const balanceRaw = await withTimeout(contract.balanceOf(address), 8000).catch(() => 0n);
-            const balance = formatUnits(balanceRaw, decimals);
-            console.log(`✅ ${token.symbol} balance:`, balance);
-            return [tokenAddress, balance] as const;
-          } catch (err) {
-            console.error(`❌ Error fetching ${token.symbol}:`, err);
-            return null;
-          }
-        });
-
-        const settled = await Promise.all(balancePromises);
-        const newBalances: { [address: string]: string } = {};
-        for (const result of settled) {
-          if (!result) continue;
-          const [key, value] = result;
-          newBalances[key] = value;
-        }
-
-        console.log("🏁 Finished fetching all balances:", newBalances);
-        setBalances(newBalances);
-      } catch (error) {
-        console.error("💥 fetchBalances failed:", error);
-        setBalances({});
-      }
-    };
-
     fetchBalances();
-  }, [isConnected, address, tokens]);
+  }, [fetchBalances]);
 
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
 
@@ -376,159 +242,55 @@ export default function DonatePage() {
       alert("Streamer profile not loaded. Please refresh and try again.");
       return;
     }
+
+    setSubmitted(true);
+
     try {
-      setSubmitted(true);
-      // 1. Init provider & signer
-      const provider = new BrowserProvider(window.ethereum as any);
-      const signer = await provider.getSigner();
-      // 2. Prepare contract
-      const contract = new Contract(getDonationContractAddress(), [
-        "function donate(address addressSupporter, address tokenIn, uint256 amount, address streamer, uint256 amountOutMin, uint256 deadline) payable",
-      ], signer);
-      // 3. Ambil amountIn
-      let amountIn;
-      let decimals = 18;
-      let cleanAmount = rawAmount.trim();
-      if (cleanAmount.endsWith(".")) {
-        cleanAmount = cleanAmount.slice(0, -1);
-      }
-      if (!cleanAmount || Number.isNaN(Number(cleanAmount))) {
-        throw new Error("Invalid amount");
-      }
-
-      let erc20: Contract | undefined;
-      if (selectedToken.isNative) {
-        amountIn = parseEther(cleanAmount);
-      } else if (selectedToken.address) {
-        erc20 = getErc20Contract(selectedToken.address, signer);
-        decimals = await erc20.decimals();
-        amountIn = parseUnits(cleanAmount, decimals);
-      } else {
-        throw new Error("Invalid token selection");
-      }
-      // 4. Jika token ERC20, cek allowance dan approve jika kurang
-      if (!selectedToken.isNative && selectedToken.address && erc20) {
-        const spender = getDonationContractAddress();
-        const owner = getAddress(address!);
-        let allowance = await erc20.allowance(owner, spender);
-        console.log("🔎 Current allowance:", allowance.toString(), "Needed:", amountIn.toString());
-        if (allowance < amountIn) {
-          console.log("📝 Approving token for donation contract...");
-          try {
-            // Approve for amountIn, or you can use ethers.MaxUint256 for unlimited
-            const approveTx = await erc20.approve(spender, amountIn);
-            setSubmitted(true); // keep loader
-            console.log("⏳ Waiting for approve tx:", approveTx.hash);
-            await approveTx.wait();
-            console.log("✅ Approve succeeded");
-
-            await approveTx.wait();
-
-            // tunggu sampai allowance benar-benar ter-update di node
-            let newAllowance = await erc20.allowance(owner, spender);
-            let retries = 0;
-            while (newAllowance < amountIn && retries < 5) {
-              console.log("⌛ waiting allowance update...");
-              await new Promise(r => setTimeout(r, 1000));
-              newAllowance = await erc20.allowance(owner, spender);
-              retries++;
-            }
-          } catch (approveErr) {
-            setSubmitted(false);
-            console.error("❌ Approve failed:", approveErr);
-            alert("Failed to approve token: " + (approveErr as any)?.message);
-            return;
-          }
-        } else {
-          console.log("✅ Allowance sufficient, skipping approve");
-        }
-      }
-      // 5. Panggil donate()
-      const deadline = Math.floor(Date.now() / 1000) + 60 * 10;
-
-      console.log("⏳ Sending donation...", {
-        donor: getAddress(address!),
-        tokenIn: selectedToken.isNative ? "0x0000000000000000000000000000000000000000" : getAddress(selectedToken.address!),
-        streamer: getAddress(streamerAddress),
-        amountIn: amountIn.toString(),
-      });
-
-      const tx = await contract.donate(
-        getAddress(address!), // donor
-        selectedToken.isNative ? "0x0000000000000000000000000000000000000000" : getAddress(selectedToken.address!),
-        amountIn,
-        getAddress(streamerAddress),
-        0,
-        deadline,
-        selectedToken.isNative ? { value: amountIn } : {}
-      );
-      console.log("🚀 Donate tx sent:", tx.hash);
-
-      await tx.wait();
-      console.log("🎉 Donation confirmed!");
-
-      try {
-        let avatarUrlToSave = donorAvatarUrl;
-        if (selectedDonorFile) {
-          try {
-            avatarUrlToSave = await uploadAvatar(selectedDonorFile);
-          } catch (uploadErr) {
-            console.error("❌ Failed to upload donor avatar:", uploadErr);
-            alert("Donation succeeded but failed to upload your avatar. Please try again.");
-          }
-        }
-
-        // 🧠 SIWE session already active via AuthProvider, no need to sign message again
-        await fetch(`/api/save-donation/${channel}`, {
-          method: "POST",
-          credentials: "include", // ensure SIWE session cookie is sent
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            txHash: tx.hash,
-            message,
-            name,
-            streamerId,
-            avatarUrl: avatarUrlToSave,
-          }),
-        });
-        console.log("✅ Donation data sent to API");
-        if (selectedDonorFile && avatarUrlToSave) {
-          setDonorAvatarUrl(avatarUrlToSave);
-          setSelectedDonorFile(null);
-          if (donorAvatarPreview) URL.revokeObjectURL(donorAvatarPreview);
-          setDonorAvatarPreview("");
-        }
-      } catch (apiErr) {
-        console.error("❌ Failed to send donation data:", apiErr);
-      }
-
-      setBalances((prev) => {
-        const balanceKey = selectedToken.isNative
-          ? "native"
-          : selectedToken.address
-            ? selectedToken.address.toLowerCase()
-            : null;
-        if (!balanceKey) return prev;
-        const currentBalance = prev[balanceKey];
-        if (currentBalance === undefined) return prev;
+      // Upload avatar first if needed
+      let avatarUrlToSave = donorAvatarUrl;
+      if (selectedDonorFile) {
         try {
-          const decimalsForToken = selectedToken.isNative ? 18 : decimals;
-          const currentAmount = parseUnits(currentBalance || "0", decimalsForToken);
-          const updatedAmount = currentAmount > amountIn ? currentAmount - amountIn : 0n;
-          const formatted = formatUnits(updatedAmount, decimalsForToken);
-          return {
-            ...prev,
-            [balanceKey]: formatted,
-          };
-        } catch (balanceErr) {
-          console.error("❌ Failed to update local balance after donation:", balanceErr);
-          return prev;
+          avatarUrlToSave = await uploadAvatar(selectedDonorFile);
+        } catch (uploadErr) {
+          console.error("❌ Failed to upload donor avatar:", uploadErr);
         }
+      }
+
+      // Use the wagmi-based donation hook
+      const result = await donate({
+        streamerAddress,
+        amount: rawAmount,
+        token: {
+          symbol: selectedToken.symbol,
+          logoURI: selectedToken.logoURI,
+          address: selectedToken.address,
+          isNative: selectedToken.isNative,
+        },
+        name,
+        message,
+        streamerId,
+        channel,
+        avatarUrl: avatarUrlToSave,
       });
+
+      if (!result.success) {
+        throw new Error(result.error || "Donation failed");
+      }
+
+      // Update avatar state if uploaded
+      if (selectedDonorFile && avatarUrlToSave) {
+        setDonorAvatarUrl(avatarUrlToSave);
+        setSelectedDonorFile(null);
+        if (donorAvatarPreview) URL.revokeObjectURL(donorAvatarPreview);
+        setDonorAvatarPreview("");
+      }
+
+      // Refresh balances from chain
+      fetchBalances();
 
       const messageTemplate = CELEBRATION_MESSAGES[Math.floor(Math.random() * CELEBRATION_MESSAGES.length)];
       setCelebrationMessage(messageTemplate.replace("{streamer}", displayName || channel));
-      setLastTxHash(tx.hash);
+      setLastTxHash(result.txHash || null);
       setAmount("");
       setRawAmount("");
       setMessage("");
@@ -548,35 +310,37 @@ export default function DonatePage() {
   return (
     <>
       {submitted && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur">
-          <div className="flex flex-col items-center gap-3 rounded-2xl bg-white/95 px-8 py-6 shadow-xl shadow-emerald-200/60">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-              <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-background-dark)]/90 backdrop-blur">
+          <div className="flex flex-col items-center gap-3 rounded-2xl bg-[var(--color-surface-card)] border-2 border-[var(--color-border-dark)] px-8 py-6 shadow-xl">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent-cyan)]/20 border-2 border-[var(--color-accent-cyan)]">
+              <Loader2 className="h-7 w-7 animate-spin text-[var(--color-accent-cyan)]" />
             </span>
             <div className="space-y-1 text-center">
-              <p className="text-sm font-semibold text-slate-900">Processing your donation</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-sm font-bold text-white">Processing your donation</p>
+              <p className="text-xs text-slate-400">
                 We&apos;re locking in your support on Base. This usually takes just a moment.
               </p>
             </div>
           </div>
         </div>
       )}
-      <main className="flex min-h-screen flex-col items-center bg-gradient-to-br from-rose-100 via-white to-rose-50 px-6 py-20 text-slate-900">
-        <div className="w-full max-w-xl space-y-6">
-          <Card className="border-white/70 bg-white/90 text-center shadow-md shadow-rose-200/40">
-            <CardHeader>
-              <CardTitle className="text-3xl font-semibold text-slate-900">
+      <main className="flex min-h-screen flex-col items-center bg-[var(--color-background-dark)] pattern-dots px-6 py-20 text-white relative overflow-hidden">
+        <div className="absolute top-10 right-20 w-32 h-32 bg-[var(--color-primary)]/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-20 left-20 w-48 h-48 bg-[#6B46C1]/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="w-full max-w-xl space-y-6 relative z-10">
+          <Card>
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-accent-cyan)] to-[var(--color-secondary)]"></div>
+            <CardHeader className="text-center">
+              <CardTitle className="text-3xl font-black text-white bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-accent-cyan)] bg-clip-text text-transparent">
                 Support {displayName || "Your Favourite Streamer"}
               </CardTitle>
-              <CardDescription className="text-sm text-slate-600">
+              <CardDescription className="text-sm text-slate-400">
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-3">
               <div
-                className={`grid h-24 w-24 place-items-center overflow-hidden rounded-full ring-2 ${
-                  hasAvatar ? "ring-emerald-200" : "ring-slate-200"
-                }`}
+                className={`grid h-24 w-24 place-items-center overflow-hidden rounded-full border-4 ${hasAvatar ? "border-[var(--color-primary)]" : "border-[var(--color-border-dark)]"
+                  }`}
               >
                 {hasAvatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -586,27 +350,27 @@ export default function DonatePage() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="grid h-full w-full place-items-center bg-emerald-100 text-emerald-700">
+                  <div className="grid h-full w-full place-items-center bg-[var(--color-border-dark)] text-[var(--color-primary)]">
                     <UserRound className="h-12 w-12" />
                   </div>
                 )}
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 {hasAvatar ? "Profile photo set by the creator." : "This creator has not set a profile photo yet."}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-white/70 bg-white/95 shadow-lg shadow-rose-200/30">
+          <Card>
             <CardContent className="space-y-6">
               <div className="flex flex-col items-center gap-3 text-center">
                 {/* <ConnectWalletButton label="Connect to donate" /> */}
                 {isConnected && address && (
-                  <p className="text-xs uppercase tracking-[0.25em] text-rose-400">
+                  <p className="text-xs uppercase tracking-[0.25em] text-[var(--color-primary)] font-bold">
                     Donating from {address.slice(0, 6)}…{address.slice(-4)}
                   </p>
                 )}
                 {!isConnected && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-400">
                     A connection is required to submit your donation.
                   </p>
                 )}
@@ -619,12 +383,11 @@ export default function DonatePage() {
                       <button
                         type="button"
                         onClick={handleDonorAvatarClick}
-                        className="grid h-16 w-16 place-items-center rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                        className="grid h-16 w-16 place-items-center rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                       >
                         <div
-                          className={`grid h-full w-full place-items-center overflow-hidden rounded-full ring-2 ${
-                            hasDonorAvatar ? "ring-emerald-200" : "ring-slate-200"
-                          }`}
+                          className={`grid h-full w-full place-items-center overflow-hidden rounded-full border-2 ${hasDonorAvatar ? "border-[var(--color-primary)]" : "border-[var(--color-border-dark)]"
+                            }`}
                         >
                           {hasDonorAvatar ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -634,7 +397,7 @@ export default function DonatePage() {
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="grid h-full w-full place-items-center bg-emerald-100 text-emerald-700">
+                            <div className="grid h-full w-full place-items-center bg-[var(--color-border-dark)] text-[var(--color-primary)]">
                               <UserRound className="h-8 w-8" />
                             </div>
                           )}
@@ -647,7 +410,7 @@ export default function DonatePage() {
                         onChange={onDonorAvatarSelected}
                         className="hidden"
                       />
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-400">
                         {hasDonorAvatar ? "Tap to change your supporter photo." : "Tap to add a supporter profile photo."}
                       </p>
                     </div>
@@ -693,13 +456,13 @@ export default function DonatePage() {
                     <button
                       type="button"
                       onClick={() => setIsTokenModalOpen(true)}
-                      className="flex items-center gap-2 rounded-r border border-l-0 border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      className="flex items-center gap-2 rounded-r-xl border-2 border-l-0 border-[var(--color-border-dark)] bg-[var(--color-surface-card)] px-3 text-sm font-bold text-white hover:bg-[var(--color-border-dark)] transition-colors"
                     >
                       <img src={selectedToken.logoURI} alt={selectedToken.symbol} className="h-5 w-5 rounded-full" />
                       {selectedToken.symbol}
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
+                        className="h-4 w-4 text-slate-400"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -710,13 +473,13 @@ export default function DonatePage() {
                     </button>
                   </div>
                   {/* Saldo token terpilih */}
-                  <p className="text-xs text-slate-600">
+                  <p className="text-xs text-slate-400">
                     Balance:{" "}
                     {balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] === undefined
                       ? "–"
                       : Number(balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] || 0).toLocaleString(undefined, {
-                          maximumFractionDigits: 4,
-                        })}
+                        maximumFractionDigits: 4,
+                      })}
                   </p>
                   {/* Tombol persentase */}
                   <div className="flex gap-2 mt-2">
@@ -729,11 +492,11 @@ export default function DonatePage() {
                         onClick={() => {
                           const bal = parseFloat(
                             balances[
-                              selectedToken.isNative
-                                ? "native"
-                                : selectedToken.address
-                                  ? selectedToken.address.toLowerCase()
-                                  : ""
+                            selectedToken.isNative
+                              ? "native"
+                              : selectedToken.address
+                                ? selectedToken.address.toLowerCase()
+                                : ""
                             ] || "0"
                           );
                           if (!Number.isNaN(bal)) {
@@ -750,7 +513,7 @@ export default function DonatePage() {
                       </Button>
                     ))}
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-400">
                     We&apos;ll autoswap to the creator&apos;s preferred token.
                   </p>
                 </div>
@@ -774,15 +537,15 @@ export default function DonatePage() {
                     !rawAmount ||
                     parseFloat(rawAmount) <= 0 ||
                     parseFloat(rawAmount) >
-                      parseFloat(
-                        balances[
-                          selectedToken.isNative
-                            ? "native"
-                            : selectedToken.address
-                              ? selectedToken.address.toLowerCase()
-                              : ""
-                        ] || "0"
-                      )
+                    parseFloat(
+                      balances[
+                      selectedToken.isNative
+                        ? "native"
+                        : selectedToken.address
+                          ? selectedToken.address.toLowerCase()
+                          : ""
+                      ] || "0"
+                    )
                   }
                 >
                   {submitted ? (
@@ -795,7 +558,7 @@ export default function DonatePage() {
                   )}
                 </Button>
                 {submitted && (
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--color-accent-cyan)]">
                     Hang tight—your donation is being confirmed on-chain.
                   </p>
                 )}
@@ -822,18 +585,18 @@ export default function DonatePage() {
         />
       </main>
       <Dialog open={showCelebration} onOpenChange={(open) => setShowCelebration(open)}>
-        <DialogContent className="max-w-md rounded-3xl border border-emerald-100 bg-white/95 text-center shadow-2xl shadow-emerald-200/40">
+        <DialogContent className="max-w-md text-center">
           <DialogHeader className="space-y-3">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-              <PartyPopper className="h-8 w-8 text-emerald-600" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-accent-cyan)]/20 border-2 border-[var(--color-accent-cyan)]">
+              <PartyPopper className="h-8 w-8 text-[var(--color-accent-cyan)]" />
             </div>
-            <DialogTitle className="text-2xl font-semibold text-slate-900">Donation complete!</DialogTitle>
-            <DialogDescription className="text-sm text-slate-600">
+            <DialogTitle className="text-2xl font-black text-white">Donation complete!</DialogTitle>
+            <DialogDescription className="text-sm text-slate-300">
               {celebrationMessage || `Your support just made ${(displayName || channel)} smile!`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-400">
               We&apos;ve shared your message with {displayName || channel}. Keep spreading good vibes!
             </p>
             {lastTxHash && (
@@ -841,7 +604,7 @@ export default function DonatePage() {
                 href={`https://sepolia.basescan.org/tx/${lastTxHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                className="inline-flex items-center justify-center rounded-xl border-2 border-[var(--color-accent-cyan)] bg-[var(--color-accent-cyan)]/10 px-4 py-2 text-sm font-bold text-[var(--color-accent-cyan)] transition hover:bg-[var(--color-accent-cyan)]/20"
               >
                 View transaction on BaseScan
               </a>
@@ -854,23 +617,4 @@ export default function DonatePage() {
       </Dialog>
     </>
   );
-}
-
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error("Operation timed out"));
-    }, ms);
-
-    promise
-      .then((value) => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
 }

@@ -1,17 +1,58 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { DashboardNavbar } from "@/components/layout/dashboard/dashboard-navbar";
-import { DashboardSidebar } from "@/components/layout/dashboard/dashboard-sidebar";
-import { DashboardFooter } from "@/components/layout/dashboard/dashboard-footer";
+import { NewDashboardSidebar } from "@/components/layout/dashboard/new-dashboard-sidebar";
+import { NewDashboardHeader } from "@/components/layout/dashboard/new-dashboard-header";
 import { useAuth } from "@/providers/auth-provider";
 import { useAccount } from "wagmi";
 
 interface DashboardShellProps {
   children: ReactNode;
+}
+
+// Navigation Progress Bar Component - Kubi Theme
+function NavigationProgress({ isNavigating }: { isNavigating: boolean }) {
+  const [progress, setProgress] = useState(0);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (isNavigating) {
+      setVisible(true);
+      setProgress(0);
+
+      // Simulate progress
+      const timer1 = setTimeout(() => setProgress(30), 100);
+      const timer2 = setTimeout(() => setProgress(60), 300);
+      const timer3 = setTimeout(() => setProgress(80), 600);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
+    } else {
+      setProgress(100);
+      const hideTimer = setTimeout(() => {
+        setVisible(false);
+        setProgress(0);
+      }, 200);
+      return () => clearTimeout(hideTimer);
+    }
+  }, [isNavigating]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[100] h-1 bg-transparent">
+      <div
+        className="h-full bg-gradient-to-r from-primary via-accent-purple to-secondary transition-all duration-300 ease-out shadow-[0_0_10px_rgba(98,58,214,0.5)]"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
@@ -22,6 +63,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [guardMessage, setGuardMessage] = useState<string | null>("Loading session...");
   const [deferRedirect, setDeferRedirect] = useState(false);
   const [hasPrimaryToken, setHasPrimaryToken] = useState<boolean | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const previousPathRef = useRef(pathname);
+  const primaryTokenCheckedRef = useRef(false); // Cache to avoid repeated API calls
 
   const isDashboardRoute = useMemo(
     () => pathname?.startsWith("/dashboard") ?? false,
@@ -36,18 +80,29 @@ export function DashboardShell({ children }: DashboardShellProps) {
     [pathname],
   );
 
+  // Track navigation between pages
   useEffect(() => {
-    // When navigating within the dashboard, re-verify token readiness on non-profile routes
-    // to avoid stale hasPrimaryToken state after saving settings.
-    if (isDashboardRoute && !isProfileRoute) {
-      setHasPrimaryToken(null);
+    if (previousPathRef.current !== pathname) {
+      setIsNavigating(true);
+      previousPathRef.current = pathname;
+      // Reset navigation state after a short delay
+      const timer = setTimeout(() => setIsNavigating(false), 300);
+      return () => clearTimeout(timer);
     }
-  }, [isDashboardRoute, isProfileRoute, pathname]);
+  }, [pathname]);
+
+  // Don't reset hasPrimaryToken on navigation - keep it cached
+  // Only reset when user changes
+  useEffect(() => {
+    if (!user) {
+      setHasPrimaryToken(null);
+      primaryTokenCheckedRef.current = false;
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isDashboardRoute) {
       setGuardMessage(null);
-      setHasPrimaryToken(null);
       return;
     }
 
@@ -57,8 +112,6 @@ export function DashboardShell({ children }: DashboardShellProps) {
     }
 
     if (status === "unauthenticated" || !user) {
-      // If wallet is connected, give auto-SIWE a brief window to complete
-      // before redirecting back to onboarding to avoid redirect loops.
       if (isConnected && !isSigning && !deferRedirect) {
         setGuardMessage("Establishing session...");
         setDeferRedirect(true);
@@ -82,17 +135,16 @@ export function DashboardShell({ children }: DashboardShellProps) {
       return;
     }
 
-    // Superadmins: force them into Admin routes and skip streamer gating
     if (isAdmin && !isAdminRoute) {
       setGuardMessage("Redirecting to admin...");
       router.replace("/dashboard/admin");
       return;
     }
 
-    // For streamers, ensure both profile and primary token are set
     if (isStreamer) {
-      // If we haven't checked token readiness yet, fetch it
-      if (hasPrimaryToken === null) {
+      // Only check primary token once per session, not on every navigation
+      if (hasPrimaryToken === null && !primaryTokenCheckedRef.current) {
+        primaryTokenCheckedRef.current = true;
         setGuardMessage("Checking your setup...");
         void (async () => {
           try {
@@ -119,6 +171,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
         return;
       }
 
+      // Wait for token check to complete
+      if (hasPrimaryToken === null) {
+        return;
+      }
+
       const needsProfile = !user.profile.isComplete;
       const needsToken = !hasPrimaryToken;
       if ((needsProfile || needsToken) && !isProfileRoute) {
@@ -133,27 +190,35 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   if (guardMessage) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white text-slate-900">
-        <div className="flex flex-col items-center gap-4 text-slate-700">
-          <Loader2 className="h-10 w-10 animate-spin text-slate-900" />
-          <span className="sr-only">{guardMessage}</span>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background-dark to-[#0f141e] pattern-dots-subtle">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-sm font-medium text-gray-400">{guardMessage}</p>
         </div>
       </div>
     );
   }
 
+  const isOverlayEditor = pathname?.startsWith("/dashboard/overlay");
+
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-900">
-      <DashboardSidebar />
-      <div className="flex min-h-screen flex-1 flex-col bg-gradient-to-b from-[#FFF1E4] via-white to-[#FFF7F7]">
-        <DashboardNavbar />
-        <main className="flex-1 overflow-y-auto px-6 py-10 sm:px-10 lg:px-14 xl:px-20">
-          <div className="mx-auto w-full max-w-6xl">
-            {children}
+    <>
+      <NavigationProgress isNavigating={isNavigating} />
+      <div className="flex h-screen w-full bg-gradient-to-br from-background-dark to-[#0f141e] text-white font-body overflow-hidden">
+        <NewDashboardSidebar />
+        <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+          <NewDashboardHeader />
+          <div className={`flex-1 overflow-y-auto ${isOverlayEditor ? "p-0" : "p-10"} pattern-dots-subtle`}>
+            {isOverlayEditor ? (
+              <div className="h-full w-full flex flex-col">{children}</div>
+            ) : (
+              <div className="max-w-7xl mx-auto flex flex-col gap-10">
+                {children}
+              </div>
+            )}
           </div>
         </main>
-        <DashboardFooter />
       </div>
-    </div>
+    </>
   );
 }

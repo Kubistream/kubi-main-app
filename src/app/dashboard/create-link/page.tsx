@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useStreamerProfile } from "@/hooks/use-streamer-profile";
 import { useAuth } from "@/providers/auth-provider";
-import { brandPalette } from "@/constants/theme";
 
 interface FormState {
   slug: string;
@@ -55,21 +54,25 @@ export default function CreateLinkPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-rose-100 via-white to-rose-50 px-6 py-20 text-slate-900">
-      <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[2fr,1fr]">
-        <Card className="border-white/70 bg-white/90 shadow-lg shadow-rose-200/40">
+    <div className="space-y-6">
+      <header className="space-y-3">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-cyan">Create Link</p>
+        <h1 className="text-3xl font-black text-white font-display">Create your shareable link &amp; QR</h1>
+        <p className="max-w-2xl text-sm text-slate-400">
+          Choose a slug for supporters to visit. We&apos;ll generate a donation URL and QR code you can drop into OBS or share anywhere.
+        </p>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-3xl font-semibold text-slate-900">
-              Create your shareable link &amp; QR
-            </CardTitle>
-            <CardDescription className="text-sm text-slate-600">
-              Choose a slug for supporters to visit. We&apos;ll generate a donation URL and QR code you can drop into OBS or share anywhere.
-            </CardDescription>
+            <CardTitle className="text-2xl">Donation settings</CardTitle>
+            <CardDescription>Configure your custom donation link</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {!isConnected && (
-              <div className="flex flex-col items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-center">
-                <p className="text-sm text-slate-600">
+              <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-[#2D2452] bg-[#0B061D] p-6 text-center">
+                <p className="text-sm text-slate-400">
                   {isLoading
                     ? "Checking your creator profile..."
                     : "Connect your wallet from the header to manage creator links."}
@@ -81,7 +84,7 @@ export default function CreateLinkPage() {
               <div className="space-y-2">
                 <Label>Donation slug</Label>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <span className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">
+                  <span className="rounded-xl border-2 border-primary bg-primary/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.3em] text-primary">
                     /donate/
                   </span>
                   <Input
@@ -115,7 +118,7 @@ export default function CreateLinkPage() {
                 Generate link
               </Button>
               {submitted && donationUrl && (
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#06D6A0]">
                   Link generated! Share it with your community.
                 </p>
               )}
@@ -123,33 +126,32 @@ export default function CreateLinkPage() {
           </CardContent>
         </Card>
 
-        <Card className="flex h-full flex-col border-white/70 bg-white/95 text-center shadow-lg shadow-rose-200/30">
+        <Card className="flex h-full flex-col text-center">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-slate-900">QR preview</CardTitle>
-            <CardDescription className="text-sm text-slate-600">
-              Scan or share this code with supporters.
-            </CardDescription>
+            <CardTitle>QR preview</CardTitle>
+            <CardDescription>Scan or share this code with supporters.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col items-center gap-6">
-            <div className="rounded-3xl border border-rose-100 bg-rose-50/80 p-6">
+            <div className="rounded-2xl border-2 border-[#2D2452] bg-[#0B061D] p-6">
               {donationUrl ? (
-                <QRCodeSVG value={donationUrl} size={180} bgColor="transparent" fgColor={brandPalette.pink} />
+                <QRCodeSVG value={donationUrl} size={180} bgColor="transparent" fgColor="#623AD6" />
               ) : (
                 <div className="flex h-[180px] w-[180px] items-center justify-center text-xs text-slate-500">
                   Enter a slug to generate QR
                 </div>
               )}
             </div>
-            <Separator className="my-2" />
+            <Separator className="my-2 bg-[#2D2452]" />
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-rose-300">Share this link</p>
-              <p className="mt-2 break-all text-sm font-medium text-slate-900">
+              <p className="text-xs uppercase tracking-[0.25em] text-primary font-bold">Share this link</p>
+              <p className="mt-2 break-all text-sm font-medium text-white">
                 {donationUrl || "Your link will appear here"}
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
-    </main>
+    </div>
   );
 }
+

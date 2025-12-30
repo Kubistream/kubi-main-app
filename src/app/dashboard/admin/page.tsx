@@ -141,7 +141,7 @@ export default function AdminOverviewPage() {
             protocolImageUrl: protocolImageUrl || undefined,
           }),
         });
-      } catch {}
+      } catch { }
     } catch (err) {
       setYieldError(err instanceof Error ? err.message : "Failed to save yield mapping");
     } finally {
@@ -167,7 +167,7 @@ export default function AdminOverviewPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ feeBps: feeBps as number, feeRecipient: checksummed, txHash: hash }),
         });
-      } catch {}
+      } catch { }
     } catch (err) {
       setFeeError(err instanceof Error ? err.message : "Failed to update fee config");
     } finally {
@@ -207,7 +207,7 @@ export default function AdminOverviewPage() {
             decimals: typeof meta?.decimals === "number" ? meta.decimals : undefined,
           }),
         });
-      } catch {}
+      } catch { }
     } catch (err) {
       setWhitelistError(err instanceof Error ? err.message : "Failed to check whitelist");
     } finally {
@@ -235,7 +235,7 @@ export default function AdminOverviewPage() {
             decimals,
           }),
         });
-      } catch {}
+      } catch { }
     } catch (err) {
       setWhitelistError(err instanceof Error ? err.message : "Failed to update whitelist");
     }
@@ -243,10 +243,10 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Super Admin</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-900">Admin Overview</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
+      <header className="space-y-3">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-pink">Super Admin</p>
+        <h1 className="text-3xl font-black text-white font-display">Admin Overview</h1>
+        <p className="max-w-2xl text-sm text-slate-400">
           Manage global fee configuration and token whitelist. Only visible to superadmins.
         </p>
       </header>
@@ -259,9 +259,9 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <p className="text-sm text-slate-500">Loading...</p>
+              <p className="text-sm text-slate-400">Loading...</p>
             ) : loadError ? (
-              <p className="text-sm text-rose-500">{loadError}</p>
+              <p className="text-sm text-[var(--color-primary)]">{loadError}</p>
             ) : (
               <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -288,11 +288,11 @@ export default function AdminOverviewPage() {
                   </div>
                 </div>
 
-                {feeError && <p className="text-sm text-rose-500">{feeError}</p>}
+                {feeError && <p className="text-sm text-[var(--color-primary)]">{feeError}</p>}
                 {feeTxHash && (
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-400">
                     Updated. View tx: {" "}
-                    <a className="text-rose-600 underline" href={BASESCAN_TX_URL + feeTxHash} target="_blank" rel="noreferrer">
+                    <a className="text-[var(--color-accent-cyan)] underline" href={BASESCAN_TX_URL + feeTxHash} target="_blank" rel="noreferrer">
                       {feeTxHash.slice(0, 8)}...{feeTxHash.slice(-6)}
                     </a>
                   </p>
@@ -332,20 +332,20 @@ export default function AdminOverviewPage() {
               </div>
             </div>
 
-            {whitelistError && <p className="text-sm text-rose-500">{whitelistError}</p>}
+            {whitelistError && <p className="text-sm text-[var(--color-primary)]">{whitelistError}</p>}
 
             {allowed !== null && (
-              <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-4">
-                <p className="text-sm text-slate-700">
+              <div className="rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] p-4">
+                <p className="text-sm text-slate-300">
                   Status: {" "}
-                  <span className={allowed ? "text-green-600" : "text-rose-600"}>
+                  <span className={allowed ? "text-[var(--color-accent-cyan)] font-bold" : "text-[var(--color-primary)] font-bold"}>
                     {allowed ? "Allowed (whitelisted)" : "Blocked (not whitelisted)"}
                   </span>
                 </p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-slate-400">
                   {symbol ? (
                     <>
-                      Token: <span className="font-medium text-slate-900">{symbol}</span>{" "}
+                      Token: <span className="font-bold text-white">{symbol}</span>{" "}
                       {typeof decimals === "number" && <>(decimals: {decimals})</>}
                     </>
                   ) : (
@@ -354,7 +354,7 @@ export default function AdminOverviewPage() {
                 </p>
 
                 <div className="mt-3 flex gap-3">
-                  <Button variant="outline" onClick={() => onSetWhitelist(true)} disabled={allowed === true}>
+                  <Button variant="cyan" onClick={() => onSetWhitelist(true)} disabled={allowed === true}>
                     Allow
                   </Button>
                   <Button variant="outline" onClick={() => onSetWhitelist(false)} disabled={allowed === false}>
@@ -363,9 +363,9 @@ export default function AdminOverviewPage() {
                 </div>
 
                 {whitelistTxHash && (
-                  <p className="mt-3 text-sm text-slate-600">
+                  <p className="mt-3 text-sm text-slate-400">
                     Updated. View tx: {" "}
-                    <a className="text-rose-600 underline" href={BASESCAN_TX_URL + whitelistTxHash} target="_blank" rel="noreferrer">
+                    <a className="text-[var(--color-accent-cyan)] underline" href={BASESCAN_TX_URL + whitelistTxHash} target="_blank" rel="noreferrer">
                       {whitelistTxHash.slice(0, 8)}...{whitelistTxHash.slice(-6)}
                     </a>
                   </p>
@@ -387,16 +387,16 @@ export default function AdminOverviewPage() {
                 <button
                   type="button"
                   onClick={() => setOpenUnderlyingModal(true)}
-                  className="mt-2 flex h-11 w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 text-left text-sm shadow-sm transition hover:border-rose-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+                  className="mt-2 flex h-11 w-full items-center justify-between rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] px-4 text-left text-sm transition hover:border-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                 >
-                  <span className="flex items-center gap-2 text-slate-800">
+                  <span className="flex items-center gap-2 text-white">
                     {underlying?.logoURI && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={underlying.logoURI!} alt={underlying.symbol} className="h-5 w-5 rounded-full" />
                     )}
                     {underlying ? (
                       <>
-                        <span>{underlying.symbol}</span>
+                        <span className="font-medium">{underlying.symbol}</span>
                         <span className="truncate text-xs text-slate-500">{underlying.address.slice(0, 6)}...{underlying.address.slice(-4)}</span>
                       </>
                     ) : (
@@ -405,7 +405,7 @@ export default function AdminOverviewPage() {
                   </span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-slate-500"
+                    className="h-4 w-4 text-slate-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -420,16 +420,16 @@ export default function AdminOverviewPage() {
                 <button
                   type="button"
                   onClick={() => setOpenRepModal(true)}
-                  className="mt-2 flex h-11 w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 text-left text-sm shadow-sm transition hover:border-rose-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+                  className="mt-2 flex h-11 w-full items-center justify-between rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] px-4 text-left text-sm transition hover:border-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                 >
-                  <span className="flex items-center gap-2 text-slate-800">
+                  <span className="flex items-center gap-2 text-white">
                     {representative?.logoURI && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={representative.logoURI!} alt={representative.symbol} className="h-5 w-5 rounded-full" />
                     )}
                     {representative ? (
                       <>
-                        <span>{representative.symbol}</span>
+                        <span className="font-medium">{representative.symbol}</span>
                         <span className="truncate text-xs text-slate-500">{representative.address.slice(0, 6)}...{representative.address.slice(-4)}</span>
                       </>
                     ) : (
@@ -438,7 +438,7 @@ export default function AdminOverviewPage() {
                   </span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-slate-500"
+                    className="h-4 w-4 text-slate-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -509,11 +509,11 @@ export default function AdminOverviewPage() {
               </div>
             </div>
 
-            {yieldError && <p className="text-sm text-rose-500">{yieldError}</p>}
+            {yieldError && <p className="text-sm text-[var(--color-primary)]">{yieldError}</p>}
             {yieldTxHash && (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-400">
                 Updated. View tx: {" "}
-                <a className="text-rose-600 underline" href={BASESCAN_TX_URL + yieldTxHash} target="_blank" rel="noreferrer">
+                <a className="text-[var(--color-accent-cyan)] underline" href={BASESCAN_TX_URL + yieldTxHash} target="_blank" rel="noreferrer">
                   {yieldTxHash.slice(0, 8)}...{yieldTxHash.slice(-6)}
                 </a>
               </p>
@@ -530,7 +530,7 @@ export default function AdminOverviewPage() {
               isOpen={openUnderlyingModal}
               onClose={() => setOpenUnderlyingModal(false)}
               onSelectToken={(t) => setUnderlying(t)}
-            tokens={(underlyingTokens || []).map((t: any) => ({ symbol: t.symbol, name: t.name ?? t.symbol, address: t.address, decimals: t.decimals, logoURI: t.logoURI }))}
+              tokens={(underlyingTokens || []).map((t: any) => ({ symbol: t.symbol, name: t.name ?? t.symbol, address: t.address, decimals: t.decimals, logoURI: t.logoURI }))}
             />
             <SelectTokenModal
               isOpen={openRepModal}

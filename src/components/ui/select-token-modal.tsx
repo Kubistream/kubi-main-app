@@ -78,7 +78,7 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md text-slate-900">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Select Token</DialogTitle>
         </DialogHeader>
@@ -94,7 +94,7 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
           {filtered.map((token) => (
             <div
               key={token.address}
-              className="flex items-center gap-3 p-2 rounded-md hover:bg-rose-100 cursor-pointer transition-colors duration-300"
+              className="flex items-center gap-3 p-3 rounded-xl border border-border-dark bg-surface-dark hover:bg-white/10 hover:border-primary cursor-pointer transition-colors duration-200"
               onClick={() => {
                 onSelectToken(token);
                 onClose();
@@ -103,22 +103,22 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
               <img
                 src={token.logoURI || "/default-token.png"}
                 alt={token.symbol}
-                className="w-8 h-8 rounded-full border border-gray-300 hover:shadow-md transition-shadow duration-300"
+                className="w-8 h-8 rounded-full border border-border-dark"
               />
               <div className="flex flex-col flex-grow">
-                <span className="font-semibold text-base text-gray-900">{token.symbol}</span>
+                <span className="font-bold text-base text-white">{token.symbol}</span>
                 <span
-                  className="text-sm text-gray-700 truncate max-w-[180px]"
+                  className="text-sm text-gray-500 truncate max-w-[180px] font-mono"
                   title={token.address}
                 >
                   {token.address.slice(0, 6)}...{token.address.slice(-4)}
                 </span>
               </div>
-              <span className="text-sm font-mono ml-auto min-w-[60px] text-right text-slate-800 dark:text-slate-900">
-                
-              {localBalances[token.address.toLowerCase()] === undefined
-                ? "–"
-                : Number(localBalances[token.address.toLowerCase()] || 0).toLocaleString(undefined, {
+              <span className="text-sm font-mono ml-auto min-w-[60px] text-right text-accent-cyan font-bold">
+
+                {localBalances[token.address.toLowerCase()] === undefined
+                  ? "–"
+                  : Number(localBalances[token.address.toLowerCase()] || 0).toLocaleString(undefined, {
                     maximumFractionDigits: 4,
                   })}
               </span>
@@ -126,7 +126,7 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
           ))}
 
           {filtered.length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-4">Loading...</p>
+            <p className="text-sm text-gray-500 text-center py-4">Loading...</p>
           )}
         </div>
       </DialogContent>

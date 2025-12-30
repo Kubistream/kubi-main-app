@@ -6,18 +6,25 @@ import { cn } from "@/lib/utils";
 export interface SwitchProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   checked: boolean;
   onCheckedChange?: (checked: boolean) => void;
+  variant?: "cyan" | "yellow" | "purple";
 }
 
 /**
- * A lightweight, accessible toggle switch styled to match this project's UI.
+ * A lightweight, accessible toggle switch styled to match CryptoStream dark theme.
  * Does not rely on Radix; uses a button with role="switch".
  */
 export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
-  ({ className, checked, disabled, onCheckedChange, onClick, ...props }, ref) => {
+  ({ className, checked, disabled, onCheckedChange, onClick, variant = "cyan", ...props }, ref) => {
     const handleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
       if (disabled) return;
       onCheckedChange?.(!checked);
       onClick?.(e);
+    };
+
+    const variantColors = {
+      cyan: "bg-accent-cyan",
+      yellow: "bg-secondary",
+      purple: "bg-primary",
     };
 
     return (
@@ -31,8 +38,8 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         disabled={disabled}
         onClick={handleClick}
         className={cn(
-          "peer inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:opacity-50",
-          checked ? "bg-rose-500" : "bg-slate-200",
+          "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50",
+          checked ? `${variantColors[variant]} border-transparent` : "bg-surface-dark border-border-dark",
           className,
         )}
         {...props}
@@ -41,7 +48,7 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
           aria-hidden
           className={cn(
             "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition",
-            checked ? "translate-x-4" : "translate-x-0.5",
+            checked ? "translate-x-5" : "translate-x-0.5",
           )}
         />
       </button>
@@ -50,4 +57,3 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
 );
 
 Switch.displayName = "Switch";
-

@@ -7,6 +7,19 @@ import {
   walletConnectWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { baseSepolia } from "wagmi/chains";
+import { createStorage } from "wagmi";
+
+// Custom storage that works on both server and client
+const noopStorage = {
+  getItem: () => null,
+  setItem: () => { },
+  removeItem: () => { },
+};
+
+// Use noopStorage on server, localStorage on client
+const storage = createStorage({
+  storage: typeof window !== "undefined" ? window.localStorage : noopStorage,
+});
 
 const FALLBACK_PROJECT_ID = "00000000000000000000000000000000";
 
@@ -28,6 +41,7 @@ export const wagmiConfig = getDefaultConfig({
   projectId,
   chains: supportedChains,
   ssr: true,
+  storage,
   // Wallet auto-connect should be configured with wagmi's createConfig instead of rainbowkit's getDefaultConfig.
   wallets: [
     {

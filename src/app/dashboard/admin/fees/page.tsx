@@ -58,10 +58,10 @@ export default function AdminFeesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Super Admin</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-900">Edit Global Fee</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">Update fee bps and recipient wallet for protocol fees.</p>
+      <header className="space-y-3">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-pink">Super Admin</p>
+        <h1 className="text-3xl font-black text-white font-display">Edit Global Fee</h1>
+        <p className="max-w-2xl text-sm text-slate-400">Update fee bps and recipient wallet for protocol fees.</p>
       </header>
 
       <Card>
@@ -71,7 +71,7 @@ export default function AdminFeesPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <p className="text-sm text-slate-500">Loading...</p>
+            <p className="text-sm text-slate-400">Loading...</p>
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -98,11 +98,11 @@ export default function AdminFeesPage() {
                 </div>
               </div>
 
-              {error && <p className="text-sm text-rose-500">{error}</p>}
+              {error && <p className="text-sm text-[var(--color-primary)]">{error}</p>}
               {txHash && (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-400">
                   Updated. View tx: {" "}
-                  <a className="text-rose-600 underline" href={BASESCAN_TX_URL + txHash} target="_blank" rel="noreferrer">
+                  <a className="text-[var(--color-accent-cyan)] underline" href={BASESCAN_TX_URL + txHash} target="_blank" rel="noreferrer">
                     {txHash.slice(0, 8)}...{txHash.slice(-6)}
                   </a>
                 </p>

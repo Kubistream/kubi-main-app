@@ -198,18 +198,18 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Profile</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-900">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-pink">Profile</p>
+        <h1 className="mt-3 text-3xl font-black text-white font-display">
           {onboarding ? "Finish setting up your creator profile" : "Fine-tune your creator presence"}
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
+        <p className="mt-2 max-w-2xl text-sm text-slate-400">
           {helperText}
         </p>
       </header>
 
-      <Card className="border-white/70 bg-white/95 shadow-xl shadow-rose-200/40">
+      <Card className="border-2 border-[var(--color-border-dark)] bg-surface-dark shadow-fun">
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-slate-900">
+          <CardTitle className="text-2xl font-black text-white font-display">
             Core profile details
           </CardTitle>
           {/* <CardDescription className="text-sm text-slate-600">
@@ -220,9 +220,8 @@ export default function ProfilePage() {
           {/* Avatar section at the top */}
           <div className="mb-6 flex flex-col items-center">
             <div
-              className={`grid h-24 w-24 place-items-center overflow-hidden rounded-full ring-2 ${
-                hasAvatar ? "ring-emerald-200" : "ring-slate-200"
-              }`}
+              className={`grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 ${hasAvatar ? "border-accent-pink" : "border-[var(--color-border-dark)]"
+                }`}
             >
               {hasAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -232,7 +231,7 @@ export default function ProfilePage() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="grid h-full w-full place-items-center bg-emerald-100 text-emerald-700">
+                <div className="grid h-full w-full place-items-center bg-[var(--color-border-dark)] text-accent-pink">
                   <UserRound className="h-12 w-12" />
                 </div>
               )}
@@ -242,7 +241,7 @@ export default function ProfilePage() {
               variant="outline"
               onClick={handleAddPhotoClick}
               disabled={!isConnected || status === "saving"}
-              className="mt-3 border-pink-500 text-pink-600 hover:bg-pink-50"
+              className="mt-3 border-accent-pink text-accent-pink hover:bg-accent-pink/10"
             >
               {hasAvatar ? "Change Profile Picture" : "Add Profile Picture"}
             </Button>
@@ -344,10 +343,10 @@ export default function ProfilePage() {
       </Card>
 
       {/* Payment settings */}
-      <Card className="border-white/70 bg-white/95 shadow-xl shadow-rose-200/40">
+      <Card className="border-2 border-[var(--color-border-dark)] bg-surface-dark shadow-fun">
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-slate-900">Payment settings</CardTitle>
-          <CardDescription className="text-sm text-slate-600">
+          <CardTitle className="text-2xl font-black text-white font-display">Payment settings</CardTitle>
+          <CardDescription className="text-sm text-slate-400">
             Choose your primary token for auto-swap and select tokens to whitelist so they are accepted without swapping.
           </CardDescription>
         </CardHeader>
@@ -577,16 +576,16 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           type="button"
           disabled={isDisabled}
           onClick={() => setPrimaryDialogOpen(true)}
-          className="flex h-11 w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 text-left text-sm shadow-sm transition hover:border-rose-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-between rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] px-4 text-left text-sm shadow-sm transition hover:border-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <span className="flex items-center gap-2 text-slate-800">
+          <span className="flex items-center gap-2 text-white">
             {selectedPrimary?.logoURI && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={selectedPrimary.logoURI!} alt={selectedPrimary.symbol} className="h-5 w-5 rounded-full" />
             )}
             {selectedPrimary ? (
               <>
-                <span>{selectedPrimary.symbol}</span>
+                <span className="font-medium">{selectedPrimary.symbol}</span>
               </>
             ) : (
               <span className="text-slate-500">Select a token…</span>
@@ -594,7 +593,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           </span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 text-slate-500"
+            className="h-4 w-4 text-slate-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -659,23 +658,23 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                       setSaving(false);
                     }
                   }}
-                  className="flex w-full items-center gap-3 rounded-md border border-slate-200 p-2 text-left hover:bg-rose-50"
+                  className="flex w-full items-center gap-3 rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] p-3 text-left hover:bg-[var(--color-border-dark)] hover:border-[var(--color-primary)] transition-colors"
                 >
-                    {t.logoURI && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={t.logoURI} alt={t.symbol} className="h-6 w-6 rounded-full" />
-                    )}
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="font-semibold text-slate-900">{t.symbol}</span>
-                    
-                      {t.name ? (
-                        <span className="truncate text-xs text-slate-500">{t.name}</span>
-                      ) : null}
-                    </div>
+                  {t.logoURI && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.logoURI} alt={t.symbol} className="h-6 w-6 rounded-full" />
+                  )}
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="font-bold text-white">{t.symbol}</span>
+
+                    {t.name ? (
+                      <span className="truncate text-xs text-slate-400">{t.name}</span>
+                    ) : null}
+                  </div>
                   <div className="flex flex-col items-end gap-1">
                     <AutoYieldBadge available={isAutoYieldAvailable(t)} compact />
                     {String(t.id) === String(primaryTokenId ?? "") && (
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-500">Selected</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)]">Selected</span>
                     )}
                   </div>
                 </button>
@@ -689,7 +688,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         <p className="text-xs text-slate-500">Donations are auto-swapped to this token unless the incoming token is whitelisted.</p>
       </div>
 
-      
+
 
       {/* Autoswap toggle hidden for now (always true) */}
 
@@ -727,8 +726,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
       {/* Auto Yield by Token */}
       <div className="mt-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-700">Auto Yield by Token</h3>
-          <p className="text-xs text-slate-500">Subscribe one protocol per token</p>
+          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-[var(--color-accent-cyan)]">Auto Yield by Token</h3>
+          <p className="text-xs text-slate-400">Subscribe one protocol per token</p>
         </div>
         <AutoYieldByTokenSection
           tokens={tokens}
@@ -744,7 +743,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         {saving ? "Saving..." : "Save payment settings"}
       </Button> */}
 
-      {error && <p className="text-center text-xs font-medium text-rose-500">{error}</p>}
+      {error && <p className="text-center text-xs font-medium text-[var(--color-primary)]">{error}</p>}
     </div>
   );
 }
@@ -788,7 +787,7 @@ function AutoYieldByTokenSection({
         const isWhitelisted = whitelist.has(tokenId);
         const isOpen = expanded[tokenId] ?? false;
         return (
-          <div key={tokenId} className="rounded-2xl border border-slate-300 bg-white">
+          <div key={tokenId} className="rounded-2xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-card)]">
             <button
               type="button"
               className="flex w-full items-center justify-between px-4 py-3"
@@ -799,19 +798,19 @@ function AutoYieldByTokenSection({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={t.logoURI} alt={sym} className="h-6 w-6 rounded-full" />
                 ) : null}
-                <span className="text-sm font-semibold text-slate-900">{sym}</span>
+                <span className="text-sm font-bold text-white">{sym}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-700">{minApr.toFixed(2)}%~{maxApr.toFixed(2)}%</span>
+                <span className="text-sm font-medium text-[var(--color-accent-cyan)]">{minApr.toFixed(2)}%~{maxApr.toFixed(2)}%</span>
                 {isOpen ? (
-                  <ChevronUp className="h-4 w-4 text-slate-500" />
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
                 )}
               </span>
             </button>
             {isOpen && (
-              <div className="mx-3 mb-3 rounded-2xl border border-slate-200 bg-slate-50">
+              <div className="mx-3 mb-3 rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)]">
                 {offers.map((p, idx) => {
                   const isBest = idx === 0;
                   const rep = p.representativeToken;
@@ -822,28 +821,28 @@ function AutoYieldByTokenSection({
                   const isActive = active != null && repAddr && active.toLowerCase() === repAddr.toLowerCase();
                   const subscribeDisabled = disabled || (!isWhitelisted && !isActive) || (knownActive && !isActive);
                   return (
-                    <div key={p.id} className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 last:border-none">
+                    <div key={p.id} className="flex items-center justify-between gap-3 border-b border-[var(--color-border-dark)] px-4 py-3 last:border-none">
                       <div className="flex items-center gap-3">
                         {isBest && (
-                          <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-[10px] font-bold text-white ring-2 ring-amber-300">1</span>
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-[var(--color-secondary)] to-[#FB923C] text-[10px] font-bold text-black ring-2 ring-[var(--color-secondary)]/50 border border-black">1</span>
                         )}
                         {icon ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={icon} alt={name} className="h-6 w-6 rounded" />
                         ) : null}
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm font-semibold text-slate-900">{name}</span>
+                          <span className="truncate text-sm font-bold text-white">{name}</span>
                           {!isWhitelisted && !isActive && (
-                            <span className="text-xs text-slate-500">Whitelist to enable</span>
+                            <span className="text-xs text-slate-400">Whitelist to enable</span>
                           )}
                           {!!active && !knownActive && idx === 0 && (
-                            <span className="text-xs text-amber-600">On-chain subscription found (not in list)</span>
+                            <span className="text-xs text-[var(--color-secondary)]">On-chain subscription found (not in list)</span>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-sm font-semibold text-slate-700">
-                          <TrendingUp className="h-4 w-4 text-emerald-600" />
+                        <span className="flex items-center gap-1 text-sm font-bold text-[var(--color-accent-cyan)]">
+                          <TrendingUp className="h-4 w-4 text-[var(--color-accent-cyan)]" />
                           {aprNum.toFixed(2)}%
                         </span>
                         <Button
@@ -864,7 +863,7 @@ function AutoYieldByTokenSection({
         );
       })}
       {shownTokens.length === 0 && (
-        <p className="py-4 text-center text-sm text-slate-500">No auto-yield providers available.</p>
+        <p className="py-4 text-center text-sm text-slate-400">No auto-yield providers available.</p>
       )}
     </div>
   );

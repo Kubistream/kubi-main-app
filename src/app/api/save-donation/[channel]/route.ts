@@ -1,5 +1,5 @@
 import { JsonRpcProvider, ethers } from "ethers";
-import { Prisma } from "@prisma/client";
+import { Prisma, DonationStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -151,7 +151,7 @@ export async function POST(
         },
       },
     });
-        
+
     if (!tokenInRecord || !tokenOutRecord) {
       return NextResponse.json({ error: "Token not found in database" }, { status: 400 });
     }
@@ -233,7 +233,7 @@ export async function POST(
         blockNumber,
         chainId,
         timestamp,
-        status: "PENDING",
+        status: DonationStatus.CONFIRMED,
       },
     });
 

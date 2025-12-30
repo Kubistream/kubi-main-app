@@ -185,6 +185,8 @@ model OverlaySettings {
   animationPreset   String?
   showLeaderboard   Boolean  @default(true)
   minAmountUsd      Float    @default(0)
+  showYieldApy      Boolean  @default(true)
+  textToSpeech      Boolean  @default(false)
   authSecret        String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

@@ -1,6 +1,5 @@
 ﻿import Link from "next/link";
 import { cookies } from "next/headers";
-import { ArrowUpRight } from "lucide-react";
 import { DonationStatus, type Prisma } from "@prisma/client";
 import { formatTokenAmount as formatDisplayTokenAmount } from "@/lib/format/token-amount";
 
@@ -73,15 +72,15 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     return (
       <div className="space-y-6">
         <header>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-400">Transaction history</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">All your payouts in one place</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+          <p className="text-xs font-black uppercase tracking-widest text-accent-cyan">Transaction history</p>
+          <h1 className="mt-3 text-3xl font-black text-white font-display">All your payouts in one place</h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-400">
             Sign in as a streamer to review your latest donations and on-chain settlements.
           </p>
         </header>
 
-        <div className="rounded-3xl border border-white/60 bg-white/95 px-8 py-12 text-center shadow-[0_18px_32px_-26px_rgba(2,6,23,0.35)]">
-          <p className="text-sm text-slate-600">
+        <div className="rounded-2xl border-2 border-[var(--color-border-dark)] bg-surface-dark px-8 py-12 text-center shadow-fun">
+          <p className="text-sm text-slate-400">
             We couldn&apos;t resolve your streamer profile. Please sign in again, or finish onboarding to unlock transaction
             history.
           </p>
@@ -209,36 +208,36 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-400">Transaction history</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-900">All your donations in one place</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-cyan">Transaction history</p>
+        <h1 className="mt-3 text-3xl font-black text-white font-display">All your donations in one place</h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-400">
           Monitor live on-chain donations, confirm settlement details, and jump directly to Base Sepolia for full
           transaction context.
         </p>
       </header>
 
-      <section className="space-y-4 rounded-3xl border border-white/60 bg-white/95 px-6 py-6 shadow-[0_18px_32px_-26px_rgba(2,6,23,0.35)] sm:px-8">
+      <section className="space-y-4 rounded-2xl border-2 border-[var(--color-border-dark)] bg-surface-dark px-6 py-6 shadow-fun sm:px-8">
         <HistoryFilters
           statusOptions={STATUS_OPTIONS}
           tokenOptions={tokenFilterOptions}
           resetPath={RESET_PATH}
         />
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-100/80">
-          <table className="w-full min-w-[960px] divide-y divide-slate-200 text-sm">
+        <div className="overflow-x-auto rounded-xl border border-[var(--color-border-dark)]">
+          <table className="w-full min-w-[960px] divide-y divide-[var(--color-border-dark)] text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-500">
-                <th className="py-3 pr-3">Tx hash</th>
-                <th className="py-3 pr-3">Block</th>
-                <th className="py-3 pr-3">From</th>
-                <th className="py-3 pr-3">Status</th>
-                <th className="py-3 pr-3">In</th>
-                <th className="py-3 pr-3">Out</th>
-                <th className="py-3 pr-3">Fee</th>
-                <th className="py-3 pr-3">Time</th>
+              <tr className="text-left text-xs uppercase tracking-widest text-slate-500 font-display font-bold">
+                <th className="py-3 px-4">Tx hash</th>
+                <th className="py-3 px-3">Block</th>
+                <th className="py-3 px-3">From</th>
+                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3">In</th>
+                <th className="py-3 px-3">Out</th>
+                <th className="py-3 px-3">Fee</th>
+                <th className="py-3 px-3">Time</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody className="divide-y divide-[var(--color-border-dark)]/50 text-sm">
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-10 text-center text-sm text-slate-500">
@@ -247,59 +246,59 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="align-middle">
-                    <td className="py-4 pr-3 font-mono">
+                  <tr key={row.id} className="align-middle hover:bg-white/5 transition-colors">
+                    <td className="py-4 px-4 font-mono">
                       <Link
                         href={`${BASESCAN_TX_URL}${row.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sky-600 transition hover:text-sky-700"
+                        className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
                       >
                         <span>{shortenHash(row.txHash)}</span>
-                        <ArrowUpRight aria-hidden className="h-3 w-3" />
+                        <span className="material-symbols-outlined text-sm">open_in_new</span>
                       </Link>
                     </td>
-                    <td className="py-4 pr-3 font-mono">
+                    <td className="py-4 px-3 font-mono">
                       <Link
                         href={`${BASESCAN_BLOCK_URL}${row.blockNumber}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sky-600 transition hover:text-sky-700"
+                        className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
                       >
                         <span>{row.blockNumber}</span>
-                        <ArrowUpRight aria-hidden className="h-3 w-3" />
+                        <span className="material-symbols-outlined text-sm">open_in_new</span>
                       </Link>
                     </td>
-                    <td className="py-4 pr-3 font-mono text-slate-700">
+                    <td className="py-4 px-3 font-mono text-slate-300">
                       {row.donorWallet ? (
                         <Link
                           href={`${BASESCAN_ADDRESS_URL}${row.donorWallet}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sky-600 transition hover:text-sky-700"
+                          className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
                         >
                           <span>{shortenHash(row.donorWallet)}</span>
-                          <ArrowUpRight aria-hidden className="h-3 w-3" />
+                          <span className="material-symbols-outlined text-sm">open_in_new</span>
                         </Link>
                       ) : (
-                        "â€”"
+                        "—"
                       )}
                     </td>
-                    <td className="py-4 pr-3">
+                    <td className="py-4 px-3">
                       <StatusBadge status={row.status} />
                     </td>
-                    <td className="py-4 pr-3 align-top">
+                    <td className="py-4 px-3 align-top">
                       <TokenAmountCell amountRaw={row.amountInRaw} token={row.tokenIn} />
                     </td>
-                    <td className="py-4 pr-3 align-top">
+                    <td className="py-4 px-3 align-top">
                       <TokenAmountCell amountRaw={row.amountOutRaw} token={row.tokenOut} />
                     </td>
-                    <td className="py-4 pr-3 font-mono text-slate-700">
+                    <td className="py-4 px-3 font-mono text-slate-400">
                       {formatDonationAmount(row.feeRaw, row.tokenIn.decimals)}
                     </td>
-                    <td className="py-4 pr-3">
+                    <td className="py-4 px-3">
                       <time
-                        className="text-sm text-slate-600"
+                        className="text-sm text-slate-400"
                         dateTime={row.createdAt}
                         title={formatAbsolute(row.createdAt)}
                       >
@@ -316,7 +315,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         <div className="flex flex-col gap-3">
           <p className="text-xs text-slate-500">
             {hasDonations
-            ? `Showing ${firstRow}-${lastRow} of ${totalCount} donations | Page ${page} of ${totalPages}`
+              ? `Showing ${firstRow}-${lastRow} of ${totalCount} donations | Page ${page} of ${totalPages}`
               : "No donations to display"}
           </p>
           <HistoryPagination
@@ -337,10 +336,11 @@ function StatusBadge({ status }: { status: DonationStatus }) {
   const meta = getStatusMeta(status);
   return (
     <span
-      className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]"
+      className="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider border"
       style={{
         backgroundColor: meta.background,
         color: meta.foreground,
+        borderColor: meta.border,
       }}
     >
       {meta.label}
@@ -357,27 +357,26 @@ function TokenAmountCell({
 }) {
   const label = token.name ?? token.symbol;
   return (
-    <div className="flex items-center gap-3 text-sm text-slate-700">
+    <div className="flex items-center gap-3 text-sm text-slate-300">
       {token.logoURI ? (
         // eslint-disable-next-line @next/next/no-img-element -- remote token logos may not be whitelisted for next/image
         <img
           src={token.logoURI}
           alt={label}
-          className="h-8 w-8 rounded-full object-cover"
+          className="h-8 w-8 rounded-full object-cover border border-[var(--color-border-dark)]"
           loading="lazy"
         />
       ) : (
-        <div className="grid h-8 w-8 place-items-center rounded-full bg-slate-200 text-[0.75rem] font-semibold text-slate-600">
+        <div className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-border-dark)] text-[0.75rem] font-bold text-white">
           {token.symbol.slice(0, 2).toUpperCase()}
         </div>
       )}
       <div className="flex min-w-0 flex-col">
-        <span className="font-mono text-sm font-semibold text-slate-900">
+        <span className="font-mono text-sm font-bold text-white">
           {formatDonationAmount(amountRaw, token.decimals)}
         </span>
         <span className="truncate text-xs text-slate-500">
           {token.symbol}
-          {/* {token.name ? ` - ${token.name}` : ""} */}
         </span>
       </div>
     </div>
@@ -387,13 +386,13 @@ function TokenAmountCell({
 function getStatusMeta(status: DonationStatus) {
   switch (status) {
     case DonationStatus.CONFIRMED:
-      return { label: "Confirmed", background: "#DCFCE7", foreground: "#047857" };
+      return { label: "Confirmed", background: "rgba(6, 214, 160, 0.1)", foreground: "var(--color-accent-cyan)", border: "rgba(6, 214, 160, 0.3)" };
     case DonationStatus.PENDING:
-      return { label: "Pending", background: "#FEF3C7", foreground: "#92400E" };
+      return { label: "Pending", background: "rgba(255, 209, 102, 0.1)", foreground: "var(--color-secondary)", border: "rgba(255, 209, 102, 0.3)" };
     case DonationStatus.ORPHANED:
-      return { label: "Orphaned", background: "#FEE2E2", foreground: "#B91C1C" };
+      return { label: "Orphaned", background: "rgba(247, 120, 186, 0.1)", foreground: "var(--color-primary)", border: "rgba(247, 120, 186, 0.3)" };
     default:
-      return { label: status, background: "#E2E8F0", foreground: "#475569" };
+      return { label: status, background: "rgba(45, 36, 82, 0.5)", foreground: "#94A3B8", border: "var(--color-border-dark)" };
   }
 }
 
@@ -485,10 +484,3 @@ function pickFirst(value?: string | string[]) {
   if (Array.isArray(value)) return value[0];
   return value ?? undefined;
 }
-
-
-
-
-
-
-

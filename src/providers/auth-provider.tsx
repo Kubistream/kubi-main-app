@@ -226,9 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (status !== "unauthenticated") return;
     if (isSigningRef.current) return;
 
-    // Skip auto sign-in on landing/marketing, but allow it on onboarding
-    // so auto-connect pairs with automatic SIWE.
-    if (pathname === "/" || pathname?.startsWith("/landing")) return;
+    // Skip auto sign-in on landing/marketing and onboarding page
+    // (onboarding has its own flow with progress indicator)
+    if (pathname === "/" || pathname?.startsWith("/landing") || pathname?.startsWith("/onboarding")) return;
 
     // Deduplicate by address to avoid blocking sign-in after address switch.
     const AUTO_KEY = address ? `kubi:siwe:auto:${address.toLowerCase()}` : "kubi:siwe:auto";
