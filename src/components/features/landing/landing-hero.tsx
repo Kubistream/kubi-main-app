@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
+import { Button } from "@/components/ui/button";
 import { BrandButton, AccentPill } from "./brand";
 import { useLaunchApp } from "@/hooks/use-launch-app";
 
@@ -71,16 +72,16 @@ export function LandingHero() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-6">
-            <BrandButton
+            <Button
               size="lg"
               type="button"
               onClick={onLaunch}
               disabled={disabled}
-              className="h-14 px-8 text-lg font-bold bg-[#7C3AED] text-white shadow-[4px_4px_0_0_#5EEAD4] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] border-2 border-white"
+              className="h-14 px-8 text-lg font-bold bg-[#7C3AED] text-white shadow-[4px_4px_0_0_#5EEAD4] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] border-2 border-white rounded-xl transition-all"
               aria-label="Join Kubi Beta"
             >
               Start Streaming
-            </BrandButton>
+            </Button>
 
             <button
               type="button"

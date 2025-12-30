@@ -6,7 +6,7 @@ export function LandingAutoFeatures() {
   return (
     <section className="bg-[#0f0919]">
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 px-6 pb-20 pt-12 md:grid-cols-2">
-        <Card className="flex flex-col border border-white/10 bg-[#181033] shadow-[6px_6px_0_0_#000] rounded-2xl overflow-hidden hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all group">
+        <Card className="flex flex-col hover:border-[#623AD6] transition-all duration-300 group">
           <CardHeader className="flex flex-row items-start gap-5 pb-2">
             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 group-hover:bg-white/10 transition-colors">
               <RefreshCw className="h-8 w-8 text-[#5EEAD4]" />
@@ -28,7 +28,7 @@ export function LandingAutoFeatures() {
           </CardContent>
         </Card>
 
-        <Card className="flex flex-col border border-white/10 bg-[#181033] shadow-[6px_6px_0_0_#000] rounded-2xl overflow-hidden hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all group">
+        <Card className="flex flex-col hover:border-[#623AD6] transition-all duration-300 group">
           <CardHeader className="flex flex-row items-start gap-5 pb-2">
             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 group-hover:bg-white/10 transition-colors">
               <TrendingUp className="h-8 w-8 text-[#FBBF24]" />

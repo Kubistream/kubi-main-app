@@ -58,7 +58,7 @@ export function LandingTokenFlow() {
 
 function AnimatedSwapFlow() {
     return (
-        <Card className="border border-white/10 bg-[#181033] shadow-[8px_8px_0_0_#7C3AED] rounded-3xl overflow-hidden relative h-full animate-fade-in">
+        <Card className="shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:border-[#7C3AED] transition-all duration-300 relative h-full animate-fade-in">
             <CardContent className="p-8 md:p-12 h-full flex flex-col justify-center">
 
                 {/* Connection Lines (Desktop) */}
@@ -142,7 +142,7 @@ function AnimatedSwapFlow() {
 
 function AnimatedYieldFlow() {
     return (
-        <Card className="border border-white/10 bg-[#181033] shadow-[8px_8px_0_0_#06D6A0] rounded-3xl overflow-hidden relative h-full animate-fade-in">
+        <Card className="shadow-[0_0_30px_rgba(6,214,160,0.3)] hover:border-[#06D6A0] transition-all duration-300 relative h-full animate-fade-in">
             <CardContent className="p-8 md:p-12 h-full flex flex-col justify-center">
 
                 <div className="absolute top-[40%] left-[10%] right-[10%] h-1 bg-white/5 hidden md:block -z-0">

@@ -44,7 +44,7 @@ export function LandingHowItWorks() {
 
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {steps.map((step) => (
-            <Card key={step.title} className="border border-white/10 bg-[#181033] shadow-[6px_6px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all hover:shadow-none rounded-2xl overflow-hidden group">
+            <Card key={step.title} className="hover:border-[#623AD6] transition-all duration-300 group">
               <CardHeader className="flex flex-col items-center gap-6 text-center pb-8 pt-10">
                 <div className="relative p-5 bg-white/5 rounded-2xl border border-white/10 group-hover:bg-white/10 transition-colors shadow-[0_0_15px_rgba(255,255,255,0.05)]">
                   <step.icon className="h-14 w-14 text-[#5EEAD4] group-hover:scale-110 transition-transform duration-300" />
