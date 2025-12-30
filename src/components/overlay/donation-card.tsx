@@ -138,7 +138,7 @@ export function DonationCard({
                                 {renderTokenIcon()}
                             </div>
                             <div>
-                                <div className="text-xs font-black tracking-wider uppercase text-accent-pink mb-0.5">
+                                <div className={cn("text-xs font-black tracking-wider uppercase mb-0.5", isDark ? "text-accent-pink" : "text-black")}>
                                     Incoming Donation
                                 </div>
                                 <h3 className={cn("text-2xl font-black leading-none", isDark ? "text-white" : "text-black")}>
