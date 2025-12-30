@@ -237,6 +237,32 @@ export async function POST(
       },
     });
 
+    // 📡 Broadcast to Overlay via WebSocket
+    try {
+      const overlayMessage = {
+        type: "overlay",
+        amount: parseFloat(ethers.formatUnits(amountIn, tokenInRecord.decimals)).toLocaleString('en-US', { maximumFractionDigits: 4 }),
+        donorAddress: donorAddress,
+        donorName: trimmedName || "Anonymous",
+        message: message || "",
+        sounds: [], // Add sounds if configured
+        streamerName: "", // Optional
+        tokenSymbol: tokenInRecord.symbol,
+        tokenLogo: tokenInRecord.logoURI, // Pass the logo from DB
+        txHash: txHash,
+      };
+
+      await fetch("http://localhost:8080/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ streamerId, message: overlayMessage }),
+      });
+      console.log("✅ Overlay alert broadcasted");
+    } catch (wsError) {
+      console.error("❌ Failed to broadcast overlay alert:", wsError);
+      // Don't fail the request, just log error
+    }
+
     console.log("✅ Donation saved successfully with txHash:", donation.txHash);
     return NextResponse.json({ success: true, donation });
   } catch (err: any) {

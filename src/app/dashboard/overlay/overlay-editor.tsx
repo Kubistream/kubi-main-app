@@ -248,8 +248,9 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                                 <DonationCard
                                     key={previewKey}
                                     donorName="Satoshi_Naka"
-                                    amount="0.5"
-                                    tokenSymbol="ETH"
+                                    amount="50000"
+                                    tokenSymbol="IDRXkb"
+                                    tokenLogo="https://s2.coinmarketcap.com/static/img/coins/128x128/26732.png"
                                     message="Great stream! HODL forever. Can you check out the new L2 chain?"
                                     theme={settings.theme as any}
                                     animationPreset={settings.animationPreset}

@@ -101,13 +101,14 @@ export async function sendTestAlert() {
     // Construct a mock donation message
     const message = {
         type: "overlay",
-        amount: "0.5",
+        amount: "50000",
         donorAddress: "0x123...abc",
         donorName: "Satoshi_Naka",
         message: "Great stream! HODL forever. Can you check out the new L2 chain?",
         sounds: [], // Add sounds if needed
         streamerName: sessionRecord.user.displayName,
-        tokenSymbol: "ETH",
+        tokenSymbol: "IDRXkb",
+        tokenLogo: "https://s2.coinmarketcap.com/static/img/coins/128x128/26732.png",
         txHash: "0xmockhash",
     };
 

@@ -37,7 +37,7 @@ export function DonationCard({
                 return "animate-enter-zoom";
             case "Glitch Effect":
                 // Using a bottom slide as proxy for now
-                return "animate-enter-slide-bottom";
+                return "animate-enter-glitch";
             default:
                 return "animate-enter-slide-left";
         }
@@ -72,15 +72,18 @@ export function DonationCard({
                 {/* Main card */}
                 <div
                     className={cn(
-                        "relative rounded-2xl p-6 border-2 border-black z-10 flex flex-col gap-4",
-                        "shadow-[0_0_0_4px_#000,8px_8px_0_0_rgba(247,120,186,1)]", // overlay-card-glow equivalent
-                        isDark ? "bg-[#181033]" : "bg-white"
+                        "relative rounded-2xl p-6 border-2 z-10 flex flex-col gap-4",
+                        isDark ? "bg-[#181033] border-white" : "bg-white border-black",
+                        "shadow-[0_0_0_4px_#000,8px_8px_0_0_rgba(247,120,186,1)]" // overlay-card-glow equivalent
                     )}
                 >
                     {/* Header */}
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="bg-accent-pink w-12 h-12 flex items-center justify-center rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_#000] overflow-hidden">
+                            <div className={cn(
+                                "bg-accent-pink w-12 h-12 flex items-center justify-center rounded-lg border-2 shadow-[2px_2px_0px_0px_#000] overflow-hidden",
+                                isDark ? "border-white" : "border-black"
+                            )}>
                                 {renderTokenIcon()}
                             </div>
                             <div>
@@ -105,7 +108,11 @@ export function DonationCard({
                     <div className="bg-white rounded-xl p-3 border-2 border-black relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-16 h-full bg-accent-yellow/20 skew-x-12 transform translate-x-4" />
                         <div className="flex items-baseline gap-2 relative z-10">
-                            <span className="text-4xl font-black text-black tracking-tight">{amount}</span>
+                            <span className="text-4xl font-black text-black tracking-tight">
+                                {!isNaN(parseFloat(amount)) && !amount.includes(",")
+                                    ? parseFloat(amount).toLocaleString("en-US")
+                                    : amount}
+                            </span>
                             <span className="text-2xl font-black text-slate-500">{tokenSymbol}</span>
                         </div>
                     </div>
@@ -113,8 +120,8 @@ export function DonationCard({
                     {/* Message bubble */}
                     {message && (
                         <div className="relative mt-1">
-                            <div className="absolute -top-2 left-8 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 border-black z-20" />
-                            <div className="bg-[#2D2452] border-2 border-black rounded-xl p-4 relative z-10">
+                            <div className={cn("absolute -top-2 left-8 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 z-20", isDark ? "border-white" : "border-black")} />
+                            <div className={cn("bg-[#2D2452] border-2 rounded-xl p-4 relative z-10", isDark ? "border-white" : "border-black")}>
                                 <p className="text-white text-base font-bold leading-snug">
                                     "{message}"
                                 </p>
