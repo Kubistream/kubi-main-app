@@ -82,6 +82,18 @@ export function NewDashboardSidebar() {
                 </Link>
 
                 <Link
+                    href="/faucet"
+                    prefetch={true}
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${pathname === "/faucet"
+                        ? "bg-primary text-white shadow-lg shadow-primary/25"
+                        : "hover:bg-white/5 text-gray-400 hover:text-white hover:pl-5"
+                        }`}
+                >
+                    <span className="material-symbols-outlined">water_drop</span>
+                    <span className="font-medium font-display">Faucet</span>
+                </Link>
+
+                <Link
                     href="/dashboard/tutorial"
                     prefetch={true}
                     className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${isActive("/dashboard/tutorial")

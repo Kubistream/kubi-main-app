@@ -18,6 +18,7 @@ const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#how", label: "How it works" },
   { href: `#${LANDING_GUIDES_SECTION_ID}`, label: "Guides" },
+  { href: "/faucet", label: "Faucet" },
   { href: "#faq", label: "FAQ" },
 ];
 

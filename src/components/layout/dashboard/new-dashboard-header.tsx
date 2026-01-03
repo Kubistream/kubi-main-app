@@ -13,6 +13,7 @@ export function NewDashboardHeader() {
         if (pathname?.includes("/profile")) return "Profile";
         if (pathname?.includes("/leaderboard")) return "Leaderboard";
         if (pathname?.includes("/tutorial")) return "Tutorial";
+        if (pathname?.includes("/faucet")) return "Faucet";
         if (pathname?.includes("/create-link")) return "Create Link";
         return "Dashboard";
     };

@@ -50,7 +50,7 @@ type HistoryRow = {
   txHash: string;
   blockNumber: number;
   donorWallet: string | null;
-  donorName?: string | null;
+  donorName: string | null;
   status: DonationStatus;
   amountInRaw: string | null;
   amountOutRaw: string | null;
@@ -197,7 +197,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     txHash: donation.txHash,
     blockNumber: donation.blockNumber,
     donorWallet: donation.donorWallet,
-    donorName: donation.donorWallet ? donorMap.get(donation.donorWallet.toLowerCase()) : null,
+    donorName: (donation.donorWallet ? donorMap.get(donation.donorWallet.toLowerCase()) : null) ?? null,
     status: donation.status,
     amountInRaw: donation.amountInRaw
       ? donation.amountInRaw.toFixed(donation.amountInRaw.decimalPlaces())

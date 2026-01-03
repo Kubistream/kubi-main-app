@@ -606,6 +606,12 @@ export default function DonatePage() {
                     placeholder="Enter your name"
                     type="text"
                   />
+                  <div className="flex justify-end">
+                    <a href="/faucet" target="_blank" className="text-xs text-[var(--color-primary)] hover:underline flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">water_drop</span>
+                      Need testnet tokens?
+                    </a>
+                  </div>
                 </div>
                 <div className="space-y-4">
                   <div className="flex flex-col gap-2">

@@ -147,6 +147,8 @@ model Token {
   decimals          Int
   // Flag for auto-yield: marks yield-representative tokens (e.g., vault/yield-bearing tokens)
   isRepresentativeToken Boolean              @default(false)
+  // Soft-delete flag for deprecated tokens (keeps historical data but hides from UI)
+  isDeleted         Boolean                  @default(false)
   createdAt         DateTime                 @default(now())
   donationsIn       Donation[]               @relation("DonationTokenIn")
   donationsOut      Donation[]               @relation("DonationTokenOut")

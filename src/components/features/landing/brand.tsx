@@ -8,6 +8,7 @@ export const brandPalette = {
   pink: "#8B5CF6", // Replaced with Purple
   orange: "#06D6A0", // Replaced with Cyan
   cream: "#0f0919", // Dark bg
+  ink: "#0f172a", // Dark text
 };
 
 interface BeeLogoProps {

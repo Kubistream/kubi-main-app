@@ -1,3 +1,4 @@
+import "@/shims/indexeddb";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Modak, Inter, Space_Grotesk } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";

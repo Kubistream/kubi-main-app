@@ -12,9 +12,10 @@ export default function RouteLayout({ children }: Props) {
   const isOverlay = pathname?.startsWith("/overlay/") ?? false;
   const isOnboarding = pathname?.startsWith("/onboarding") ?? false;
   const isDashboard = pathname?.startsWith("/dashboard") ?? false;
+  const isFaucet = pathname?.startsWith("/faucet") ?? false;
 
   // Overlay and onboarding routes don't use site AppLayout
-  if (isOverlay || isOnboarding || isDashboard) {
+  if (isOverlay || isOnboarding || isDashboard || isFaucet) {
     return <>{children}</>;
   }
 
