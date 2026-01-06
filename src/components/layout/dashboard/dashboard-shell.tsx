@@ -179,7 +179,17 @@ export function DashboardShell({ children }: DashboardShellProps) {
       const needsProfile = !user.profile.isComplete;
       const needsToken = !hasPrimaryToken;
       if ((needsProfile || needsToken) && !isProfileRoute) {
-        setGuardMessage("Redirecting to profile setup...");
+        // Build informative message about what's missing
+        const missingItems = [];
+        if (needsProfile) {
+          missingItems.push("profile information");
+        }
+        if (needsToken) {
+          missingItems.push("primary token");
+        }
+
+        const missingText = missingItems.join(" and ");
+        setGuardMessage(`Please complete your ${missingText} to continue...`);
         router.replace("/dashboard/profile?onboarding=1");
         return;
       }

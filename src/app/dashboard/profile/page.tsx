@@ -210,6 +210,33 @@ export default function ProfilePage() {
         </p>
       </header>
 
+      {/* Onboarding progress indicator */}
+      {onboarding && (
+        <div className="rounded-2xl border-2 border-accent-cyan/30 bg-accent-cyan/5 p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-cyan/20">
+              <span className="text-lg font-bold text-accent-cyan">ℹ️</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="mb-2 text-lg font-bold text-white">Complete your setup</h3>
+              <p className="mb-3 text-sm text-slate-300">
+                Please finish the following steps to unlock your dashboard:
+              </p>
+              <ul className="space-y-2 text-sm">
+                <li className={`flex items-center gap-2 ${!profile?.isComplete ? "text-white" : "text-green-400 line-through opacity-60"}`}>
+                  <span className="font-bold">{!profile?.isComplete ? "○" : "✓"}</span>
+                  <span>Complete your profile information (username, display name, avatar)</span>
+                </li>
+                <li className={`flex items-center gap-2 ${!settings?.primaryTokenId ? "text-white" : "text-green-400 line-through opacity-60"}`}>
+                  <span className="font-bold">{!settings?.primaryTokenId ? "○" : "✓"}</span>
+                  <span>Select your primary token for receiving donations</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Card className="border-2 border-[var(--color-border-dark)] bg-surface-dark shadow-fun">
         <CardHeader>
           <CardTitle className="text-2xl font-black text-white font-display">

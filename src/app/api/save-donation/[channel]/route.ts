@@ -114,21 +114,30 @@ export async function POST(
     const timestamp = new Date(block.timestamp * 1000);
 
     // 🔍 Parse event Donation or DonationBridged
-    const abi = [
+    // NOTE: Event signature MUST match the actual smart contract event
+    // From KubiStreamerDonation.sol line 131-140
+    const donationContractAbi = [
       "event Donation(address indexed donor, address indexed streamer, address indexed tokenIn, uint256 amountIn, uint256 feeAmount, address tokenOut, uint256 amountOutToStreamer, uint256 timestamp)",
-      "event DonationBridged(address indexed donor, address indexed streamer, uint32 indexed destinationChain, address tokenBridged, uint256 amount)"
+      "event DonationBridged(address indexed donor, address indexed streamer, uint32 indexed destinationChain, address tokenBridged, uint256 amount, bytes32 messageId)",
+      "function feeBps() view returns (uint16)"
     ];
-    const iface = new ethers.Interface(abi);
+    const iface = new ethers.Interface(donationContractAbi);
 
     // Get correct contract address for this chain
     const donationAddress = getDonationContractAddress(chainId).toLowerCase();
 
-    // Calculate Topics
+    // Read feeBps from contract to calculate original amount for bridged donations
+    const feeBpsContract = new ethers.Contract(donationAddress, donationContractAbi, provider);
+    const feeBps = await feeBpsContract.feeBps();
+
+    console.log("📊 Contract feeBps:", feeBps.toString(), `(${Number(feeBps) / 100}%)`);
+
+    // Calculate Topics - MUST match the smart contract exactly
     const donationTopic = ethers.id(
       "Donation(address,address,address,uint256,uint256,address,uint256,uint256)"
     );
     const donationBridgedTopic = ethers.id(
-      "DonationBridged(address,address,uint32,address,uint256)"
+      "DonationBridged(address,address,uint32,address,uint256,bytes32)"
     );
 
     // Find ALL logs from this contract address
@@ -191,13 +200,27 @@ export async function POST(
     try {
       if (parsed.name === "DonationBridged") {
         const { donor, streamer, tokenBridged, amount } = parsed.args;
+
+        // For bridged donations, the event emits amount AFTER fee was deducted
+        // We need to reverse calculate to get the original amountIn and fee
+        // Smart contract: amountAfterFee = amountIn - (amountIn * feeBps / 10000)
+        // Reverse: amountIn = (amountAfterFee * 10000) / (10000 - feeBps)
+        const amountAfterFee = amount;
+        const amountInOriginal = (amountAfterFee * BigInt(10000)) / (BigInt(10000) - BigInt(feeBps));
+        const calculatedFee = amountInOriginal - amountAfterFee;
+
         donorAddress = ethers.getAddress(donor);
         streamerAddress = ethers.getAddress(streamer);
         tokenInAddress = ethers.getAddress(tokenBridged);
         tokenOutAddress = ethers.getAddress(tokenBridged); // In bridged, we assume same token or just track it as is
-        amountInVal = amount;
-        amountOutVal = amount;
-        feeVal = BigInt(0);
+        amountInVal = amountInOriginal;  // ← Original amount before fee
+        amountOutVal = amountAfterFee;   // ← Amount after fee (what was bridged)
+        feeVal = calculatedFee;          // ← Calculated fee
+
+        console.log("🌉 Bridged Donation - Reverse Calculation:");
+        console.log("   Amount After Fee (bridged):", amountAfterFee.toString());
+        console.log("   Calculated Original Amount:", amountInOriginal.toString());
+        console.log("   Calculated Fee:", calculatedFee.toString());
       } else {
         const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
         donorAddress = ethers.getAddress(donor);
@@ -317,7 +340,7 @@ export async function POST(
         amountOutUsd: new Prisma.Decimal(amountOutUsd.toFixed(8)),
         amountInIdr: new Prisma.Decimal(amountInIdr.toFixed(2)),
         amountOutIdr: new Prisma.Decimal(amountOutIdr.toFixed(2)),
-        feeRaw: new Prisma.Decimal(feeAmount.toString()),
+        feeRaw: feeVal.toString(),
         logIndex,
         blockNumber,
         chainId,
@@ -347,12 +370,10 @@ export async function POST(
         mediaDuration,
       };
 
-      await fetch("http://localhost:8080/broadcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ streamerId, message: overlayMessage }),
-      });
-      console.log("✅ Overlay alert broadcasted");
+      // Use our WebSocket server for overlay broadcast
+      const { broadcastToStreamer } = await import("@/lib/overlay-ws");
+      broadcastToStreamer(streamerId, overlayMessage);
+      console.log("✅ Overlay alert broadcasted via WebSocket");
     } catch (wsError) {
       console.error("❌ Failed to broadcast overlay alert:", wsError);
       // Don't fail the request, just log error

@@ -37,11 +37,11 @@ export async function POST(req: NextRequest) {
 
         // 📡 Kirim ke WebSocket Server (Local Proxy)
         // Pastikan WS Server berjalan di port 8080 atau sesuaikan URL
-        const wsUrl = process.env.NEXT_PUBLIC_OVERLAY_WS_URL || "http://localhost:8080/broadcast";
+        const wsUrl = process.env.NEXT_PUBLIC_OVERLAY_WS_URL || "http://localhost:3001/broadcast";
 
         // Note: save-donation hardcodes to http://localhost:8080/broadcast. 
         // But for this test endpoint, we target the specific test route on the backend.
-        const broadcastUrl = "http://localhost:8080/overlay/test";
+        const broadcastUrl = "http://localhost:3001/overlay/test";
 
         console.log(`🚀 Sending broadcast to ${broadcastUrl} for streamer ${streamerId}`);
 

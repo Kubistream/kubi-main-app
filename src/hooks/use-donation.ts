@@ -23,8 +23,8 @@ const DONATION_ABI = [
         type: "function",
         stateMutability: "payable",
         inputs: [
+            { name: "addressSupporter", type: "address" },
             { name: "tokenIn", type: "address" },
-            { name: "tokenOut", type: "address" },
             { name: "amount", type: "uint256" },
             { name: "streamer", type: "address" },
             { name: "amountOutMin", type: "uint256" },
@@ -201,17 +201,19 @@ export function useDonation(): UseDonationResult {
 
                 console.log("🔎 Current allowance:", currentAllowance.toString(), "Needed:", amountIn.toString());
 
-                // Approve if needed
+                // Approve if needed - use max allowance to avoid repeated approvals
                 if (currentAllowance < amountIn) {
                     console.log("📝 Approving token for donation contract...");
                     setIsApproving(true);
 
                     try {
+                        // Use max uint256 for unlimited approval to avoid repeated approvals
+                        const maxUint256 = BigInt(2) ** BigInt(256) - BigInt(1);
                         const approveTxHash = await writeContractAsync({
                             address: tokenAddress,
                             abi: erc20Abi,
                             functionName: "approve",
-                            args: [donationContractAddress, amountIn],
+                            args: [donationContractAddress, maxUint256],
                         });
 
                         console.log("⏳ Waiting for approve tx:", approveTxHash);
@@ -220,7 +222,7 @@ export function useDonation(): UseDonationResult {
                         await chainPublicClient.waitForTransactionReceipt({ hash: approveTxHash });
                         console.log("✅ Approve succeeded");
 
-                        // Wait for allowance update with retry
+                        // Wait for allowance update with retry - give more time
                         let newAllowance = await chainPublicClient.readContract({
                             address: tokenAddress,
                             abi: erc20Abi,
@@ -229,9 +231,9 @@ export function useDonation(): UseDonationResult {
                         });
 
                         let retries = 0;
-                        while (newAllowance < amountIn && retries < 5) {
-                            console.log("⌛ waiting allowance update...");
-                            await new Promise(r => setTimeout(r, 1000));
+                        while (newAllowance < amountIn && retries < 10) {
+                            console.log(`⌛ Waiting for allowance update... (attempt ${retries + 1}/10)`);
+                            await new Promise(r => setTimeout(r, 1500)); // Increased delay
                             newAllowance = await chainPublicClient.readContract({
                                 address: tokenAddress,
                                 abi: erc20Abi,
@@ -240,6 +242,13 @@ export function useDonation(): UseDonationResult {
                             });
                             retries++;
                         }
+
+                        // Final check before proceeding
+                        if (newAllowance < amountIn) {
+                            throw new Error(`Allowance update failed. Current: ${newAllowance.toString()}, Needed: ${amountIn.toString()}`);
+                        }
+
+                        console.log("✅ Allowance updated successfully:", newAllowance.toString());
                     } catch (approveErr: any) {
                         setIsApproving(false);
                         console.error("❌ Approve failed:", approveErr);
@@ -261,15 +270,9 @@ export function useDonation(): UseDonationResult {
                 ? ZERO_ADDRESS
                 : (getAddress(token.address!) as `0x${string}`);
 
-            // Default tokenOut to tokenIn if not provided (no swap)
-            const tokenOutAddress = tokenOut
-                ? (getAddress(tokenOut) as `0x${string}`)
-                : tokenInAddress;
-
             console.log("⏳ Sending donation...", {
                 donor: address,
                 tokenIn: tokenInAddress,
-                tokenOut: tokenOutAddress,
                 streamer: streamerAddress,
                 amountIn: amountIn.toString(),
             });
@@ -279,12 +282,12 @@ export function useDonation(): UseDonationResult {
                 abi: DONATION_ABI,
                 functionName: "donate",
                 args: [
-                    tokenInAddress,
-                    tokenOutAddress,
-                    amountIn,
-                    getAddress(streamerAddress) as `0x${string}`,
-                    BigInt(0),
-                    deadline,
+                    address, // addressSupporter (donor)
+                    tokenInAddress, // tokenIn
+                    amountIn, // amount
+                    getAddress(streamerAddress) as `0x${string}`, // streamer
+                    BigInt(0), // amountOutMin
+                    deadline, // deadline
                 ],
                 value: token.isNative ? amountIn : undefined,
             });

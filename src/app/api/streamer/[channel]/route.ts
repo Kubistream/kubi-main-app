@@ -10,7 +10,13 @@ export async function GET(
   try {
 
     const streamer = await prisma.streamer.findFirst({
-      where: { userId: channel },
+      where: {
+        OR: [
+          { id: channel },          // Search by streamer ID
+          { userId: channel },      // Also search by userId for backward compatibility
+          { user: { username: channel } }, // Also search by username
+        ]
+      },
       select: {
         id: true,
         userId: true,

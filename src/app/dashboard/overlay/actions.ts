@@ -136,7 +136,7 @@ export async function sendTestAlert(type: "TEXT" | "AUDIO" | "VIDEO" = "TEXT") {
 
     try {
         // Change from /broadcast to /overlay/test per user request
-        await fetch("http://localhost:8080/overlay/test", {
+        await fetch("http://localhost:3001/overlay/test", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
