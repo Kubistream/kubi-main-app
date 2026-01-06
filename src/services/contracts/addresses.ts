@@ -2,12 +2,12 @@ import { assert } from "./utils";
 
 // Contract addresses per chain
 const DONATION_CONTRACTS: Record<number, string> = {
-  84532: "0x1835913B8fdf0fADeF187EF0e9e68BF499dce93c", // Base Sepolia
-  5003: "0xaE8CA6c5D6b40BB85Ad3E1D5daF19038570AEf31",  // Mantle Sepolia
+  84532: "0x4AB4a2290cB651065D346299425b2D45eEf9D75D", // Base Sepolia
+  5003: "0xDb26Ba8581979dc4E11218735F821Af5171fb737",  // Mantle Sepolia
 };
 
 // Fallback for backwards compatibility
-const FALLBACK_DONATION_ADDRESS = "0x1835913B8fdf0fADeF187EF0e9e68BF499dce93c";
+const FALLBACK_DONATION_ADDRESS = "0x4AB4a2290cB651065D346299425b2D45eEf9D75D";
 
 export function getDonationContractAddress(chainId?: number): string {
   // If chainId provided, look up in the map
