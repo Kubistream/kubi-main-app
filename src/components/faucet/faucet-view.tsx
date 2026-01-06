@@ -8,6 +8,8 @@ import { Token } from "@prisma/client";
 import { ConnectWalletButton } from "@/components/ui/connect-wallet-button";
 import { Loader2, CheckCircle, AlertCircle, Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
+import { useAddToken } from "@/hooks/use-add-token";
+import type { TokenDto } from "@/services/tokens/token-service";
 
 // Chain configurations
 const CHAINS: Record<number, {
@@ -45,6 +47,7 @@ interface FaucetViewProps {
 
 export function FaucetView({ tokens }: FaucetViewProps) {
     const { address } = useAccount();
+    const { addToken } = useAddToken();
     const [recipient, setRecipient] = useState("");
     const [loadingToken, setLoadingToken] = useState<string | null>(null);
     const [activeChain, setActiveChain] = useState<number>(5003); // Default to Mantle
@@ -57,6 +60,18 @@ export function FaucetView({ tokens }: FaucetViewProps) {
     // Cooldown tracking to prevent spam-clicking
     const [cooldownTokens, setCooldownTokens] = useState<Set<string>>(new Set());
     const COOLDOWN_MS = 10000; // 10 seconds cooldown after claim
+
+    // Convert Token to TokenDto for useAddToken hook
+    const tokenToDto = (token: Token): TokenDto => ({
+        id: String(token.id),
+        chainId: token.chainId,
+        address: token.address,
+        symbol: token.symbol,
+        name: token.name,
+        decimals: token.decimals,
+        isRepresentativeToken: token.isRepresentativeToken,
+        logoURI: token.logoURI,
+    });
 
     const effectiveAddress = recipient || address;
 
@@ -261,6 +276,12 @@ export function FaucetView({ tokens }: FaucetViewProps) {
                                             <p className="text-sm text-gray-400 font-mono">{token.symbol}</p>
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={() => addToken(tokenToDto(token))}
+                                        className="text-xs text-pink-400 hover:text-pink-300 transition-colors"
+                                    >
+                                        add to wallet
+                                    </button>
                                 </div>
 
                                 <div className="space-y-4">

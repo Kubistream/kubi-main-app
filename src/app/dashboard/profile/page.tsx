@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, ChangeEventHandler, useEffect, useMemo, useRef, useState } from "react";
-import { UserRound, TrendingUp, CircleHelp, ChevronDown, ChevronUp } from "lucide-react";
+import { UserRound, TrendingUp, CircleHelp, ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -743,21 +743,22 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
             const selected = whitelist.has(t.id);
             const tokenLocked = Boolean(subscriptions[t.id ?? ""]);
             return (
-              <Toggle
-                key={t.id}
-                pressed={selected}
-                onPressedChange={(pressed) => handleToggleWhitelist(t.id, pressed)}
-                disabled={tokenLocked || isDisabled}
-                size="sm"
-                title={tokenLocked ? "Unsubscribe to change whitelist" : t.name ?? t.symbol}
-                className="border-slate-300 hover:border-rose-300"
-              >
-                {t.logoURI && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={t.logoURI} alt={t.symbol} className="mr-2 h-4 w-4 rounded-full" />
-                )}
-                {t.symbol}
-              </Toggle>
+              <div key={t.id} className="flex items-center gap-2">
+                <Toggle
+                  pressed={selected}
+                  onPressedChange={(pressed) => handleToggleWhitelist(t.id, pressed)}
+                  disabled={tokenLocked || isDisabled}
+                  size="sm"
+                  title={tokenLocked ? "Unsubscribe to change whitelist" : t.name ?? t.symbol}
+                  className="border-slate-300 hover:border-rose-300"
+                >
+                  {t.logoURI && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.logoURI} alt={t.symbol} className="mr-2 h-4 w-4 rounded-full" />
+                  )}
+                  {t.symbol}
+                </Toggle>
+              </div>
             );
           })}
         </div>
