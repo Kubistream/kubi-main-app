@@ -7,7 +7,7 @@
     "dev": "concurrently \"next dev\" \"tsx watch src/workers/event-listener.ts\"",
     "dev:next": "next dev",
     "dev:listener": "tsx watch src/workers/event-listener.ts",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "concurrently \"next start\" \"tsx src/workers/event-listener.ts\"",
     "start:next": "next start",
     "start:listener": "tsx src/workers/event-listener.ts",
