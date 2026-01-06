@@ -13,6 +13,12 @@ const CHAIN_RPC: Record<number, string> = {
     84532: process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa",
 };
 
+// Block explorer URLs
+const CHAIN_EXPLORER: Record<number, string> = {
+    5003: "https://explorer.sepolia.mantle.xyz/tx/",
+    84532: "https://sepolia.basescan.org/tx/",
+};
+
 // Rate limiting: Track faucet requests per address
 const faucetRequestLog = new Map<string, number[]>();
 const FAUCET_COOLDOWN = 30000; // 30 seconds cooldown per address
@@ -221,6 +227,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: true,
             txHash: tx.hash,
+            explorerUrl: `${CHAIN_EXPLORER[token.chainId]}${tx.hash}`,
             amount: DEFAULT_AMOUNT,
             symbol: token.symbol,
             chainId: token.chainId,
