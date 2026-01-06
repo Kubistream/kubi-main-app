@@ -1,4 +1,30 @@
 services:
+  app:
+    container_name: kubi-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://kubi:kubi@postgres:5432/kubi
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      # S3 / MinIO Config
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=kubi-media
+      - S3_ENDPOINT=http://minio:9000
+      # Add other necessary env vars here or use env_file
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - kubi-network
+
   postgres:
     image: postgres:16-alpine
     container_name: kubi-postgres
@@ -12,12 +38,46 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kubi"]
+      test: [ "CMD-SHELL", "pg_isready -U kubi" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
+    networks:
+      - kubi-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: kubi-minio
+    command: server /data --console-address ":9001"
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    networks:
+      - kubi-network
+
+  # Optional: Create buckets automatically
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c " /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb myminio/kubi-media; /usr/bin/mc anonymous set public myminio/kubi-media; exit 0; "
+    networks:
+      - kubi-network
 
 volumes:
   postgres-data:
     driver: local
+  minio-data:
+    driver: local
+
+networks:
+  kubi-network:
+    driver: bridge

@@ -21,6 +21,9 @@ import type { TokenDto } from "@/services/tokens/token-service";
 import { setPrimaryToken, setStreamerWhitelist } from "@/services/contracts/settings";
 import { getStreamerYield, removeStreamerYieldContract, setStreamerYieldContract } from "@/services/contracts/yield";
 import { AutoYieldBadge } from "@/components/ui/auto-yield-badge";
+import { PrimaryTokenFlow, WhitelistFlow, YieldFlow } from "@/components/ui/flow-diagrams";
+import { useConfig } from "wagmi";
+import { getWalletClient, switchChain } from "wagmi/actions";
 
 type FormState = {
   username: string;
@@ -198,18 +201,18 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Profile</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-900">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-pink">Profile</p>
+        <h1 className="mt-3 text-3xl font-black text-white font-display">
           {onboarding ? "Finish setting up your creator profile" : "Fine-tune your creator presence"}
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
+        <p className="mt-2 max-w-2xl text-sm text-slate-400">
           {helperText}
         </p>
       </header>
 
-      <Card className="border-white/70 bg-white/95 shadow-xl shadow-rose-200/40">
+      <Card className="border-2 border-[var(--color-border-dark)] bg-surface-dark shadow-fun">
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-slate-900">
+          <CardTitle className="text-2xl font-black text-white font-display">
             Core profile details
           </CardTitle>
           {/* <CardDescription className="text-sm text-slate-600">
@@ -220,9 +223,8 @@ export default function ProfilePage() {
           {/* Avatar section at the top */}
           <div className="mb-6 flex flex-col items-center">
             <div
-              className={`grid h-24 w-24 place-items-center overflow-hidden rounded-full ring-2 ${
-                hasAvatar ? "ring-emerald-200" : "ring-slate-200"
-              }`}
+              className={`grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 ${hasAvatar ? "border-accent-pink" : "border-[var(--color-border-dark)]"
+                }`}
             >
               {hasAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -232,7 +234,7 @@ export default function ProfilePage() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="grid h-full w-full place-items-center bg-emerald-100 text-emerald-700">
+                <div className="grid h-full w-full place-items-center bg-[var(--color-border-dark)] text-accent-pink">
                   <UserRound className="h-12 w-12" />
                 </div>
               )}
@@ -242,7 +244,7 @@ export default function ProfilePage() {
               variant="outline"
               onClick={handleAddPhotoClick}
               disabled={!isConnected || status === "saving"}
-              className="mt-3 border-pink-500 text-pink-600 hover:bg-pink-50"
+              className="mt-3 border-accent-pink text-accent-pink hover:bg-accent-pink/10"
             >
               {hasAvatar ? "Change Profile Picture" : "Add Profile Picture"}
             </Button>
@@ -344,10 +346,10 @@ export default function ProfilePage() {
       </Card>
 
       {/* Payment settings */}
-      <Card className="border-white/70 bg-white/95 shadow-xl shadow-rose-200/40">
+      <Card className="border-2 border-[var(--color-border-dark)] bg-surface-dark shadow-fun">
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-slate-900">Payment settings</CardTitle>
-          <CardDescription className="text-sm text-slate-600">
+          <CardTitle className="text-2xl font-black text-white font-display">Payment settings</CardTitle>
+          <CardDescription className="text-sm text-slate-400">
             Choose your primary token for auto-swap and select tokens to whitelist so they are accepted without swapping.
           </CardDescription>
         </CardHeader>
@@ -355,7 +357,7 @@ export default function ProfilePage() {
           <PaymentSettingsForm
             disabled={!canEditTokens}
             loading={loadingTokens}
-            tokens={tokens.map((t) => ({ ...t, logoURI: t.logoURI ?? undefined }))}
+            tokens={tokens.filter(t => t.chainId === 5003).map((t) => ({ ...t, logoURI: t.logoURI ?? undefined }))}
             settings={settings}
             onSave={async (next) => {
               await saveTokenSettings(next);
@@ -380,6 +382,7 @@ type PaymentSettingsFormProps = {
 function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: PaymentSettingsFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [helpDialog, setHelpDialog] = useState<"primary" | "whitelist" | "yield" | null>(null);
 
   const [primaryTokenId, setPrimaryTokenId] = useState<string | "" | null>(settings?.primaryTokenId ?? null);
   // Autoswap permanently enabled for now
@@ -398,6 +401,9 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     try {
       const streamerAddress = user?.wallet;
       if (!streamerAddress) throw new Error("Streamer wallet not found");
+
+      await ensureMantleNetwork();
+
       const current = subscriptions[tokenId] ?? null;
       if (current && current.toLowerCase() === representativeAddress.toLowerCase()) {
         await removeStreamerYieldContract(streamerAddress, representativeAddress);
@@ -438,6 +444,23 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     };
   }, []);
 
+  const config = useConfig();
+
+  const ensureMantleNetwork = async () => {
+    try {
+      const client = await getWalletClient(config);
+      const chainId = await client.getChainId();
+      if (chainId !== 5003) {
+        await switchChain(config, { chainId: 5003 });
+        // Wait a bit for chain switch
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (e) {
+      console.error("Failed to switch network:", e);
+      throw new Error("Please switch your wallet to Mantle Sepolia network to save settings.");
+    }
+  };
+
   const handleToggleWhitelist = async (tokenId: string, nextPressed: boolean) => {
     if (saving) return;
     setSaving(true);
@@ -448,6 +471,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
       const token = tokens.find((t) => String(t.id) === String(tokenId));
       if (!token) throw new Error("Token not found");
+
+      await ensureMantleNetwork();
 
       await setStreamerWhitelist(streamerAddress, token.address, nextPressed);
 
@@ -566,27 +591,30 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Label htmlFor="primaryToken">Primary token (auto-swap)</Label>
-          <span
-            title="Auto Yield lets you subscribe per whitelisted token. Donations in non-whitelisted tokens auto-swap to your primary token. If a token is subscribed, its whitelist toggle is locked."
+          <button
+            type="button"
+            onClick={() => setHelpDialog("primary")}
+            className="text-slate-400 hover:text-accent-cyan transition-colors"
+            title="Click for more info"
           >
-            <CircleHelp className="h-4 w-4 text-slate-400" />
-          </span>
+            <CircleHelp className="h-4 w-4 cursor-pointer" />
+          </button>
         </div>
         <button
           id="primaryToken"
           type="button"
           disabled={isDisabled}
           onClick={() => setPrimaryDialogOpen(true)}
-          className="flex h-11 w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 text-left text-sm shadow-sm transition hover:border-rose-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-between rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] px-4 text-left text-sm shadow-sm transition hover:border-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <span className="flex items-center gap-2 text-slate-800">
+          <span className="flex items-center gap-2 text-white">
             {selectedPrimary?.logoURI && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={selectedPrimary.logoURI!} alt={selectedPrimary.symbol} className="h-5 w-5 rounded-full" />
             )}
             {selectedPrimary ? (
               <>
-                <span>{selectedPrimary.symbol}</span>
+                <span className="font-medium">{selectedPrimary.symbol}</span>
               </>
             ) : (
               <span className="text-slate-500">Select a token…</span>
@@ -594,7 +622,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           </span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 text-slate-500"
+            className="h-4 w-4 text-slate-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -628,6 +656,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                       const token = tokens.find((x) => String(x.id) === String(t.id));
                       if (!token) throw new Error("Primary token not found");
 
+                      await ensureMantleNetwork();
+
                       // Ensure whitelisted first if not already
                       if (!whitelist.has(t.id)) {
                         await setStreamerWhitelist(streamerAddress, token.address, true);
@@ -659,23 +689,23 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                       setSaving(false);
                     }
                   }}
-                  className="flex w-full items-center gap-3 rounded-md border border-slate-200 p-2 text-left hover:bg-rose-50"
+                  className="flex w-full items-center gap-3 rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] p-3 text-left hover:bg-[var(--color-border-dark)] hover:border-[var(--color-primary)] transition-colors"
                 >
-                    {t.logoURI && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={t.logoURI} alt={t.symbol} className="h-6 w-6 rounded-full" />
-                    )}
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="font-semibold text-slate-900">{t.symbol}</span>
-                    
-                      {t.name ? (
-                        <span className="truncate text-xs text-slate-500">{t.name}</span>
-                      ) : null}
-                    </div>
+                  {t.logoURI && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.logoURI} alt={t.symbol} className="h-6 w-6 rounded-full" />
+                  )}
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="font-bold text-white">{t.symbol}</span>
+
+                    {t.name ? (
+                      <span className="truncate text-xs text-slate-400">{t.name}</span>
+                    ) : null}
+                  </div>
                   <div className="flex flex-col items-end gap-1">
                     <AutoYieldBadge available={isAutoYieldAvailable(t)} compact />
                     {String(t.id) === String(primaryTokenId ?? "") && (
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-rose-500">Selected</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--color-primary)]">Selected</span>
                     )}
                   </div>
                 </button>
@@ -689,12 +719,22 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         <p className="text-xs text-slate-500">Donations are auto-swapped to this token unless the incoming token is whitelisted.</p>
       </div>
 
-      
+
 
       {/* Autoswap toggle hidden for now (always true) */}
 
       <div className="space-y-2">
-        <Label>Token whitelist (no auto-swap)</Label>
+        <div className="flex items-center gap-2">
+          <Label>Token whitelist (no auto-swap)</Label>
+          <button
+            type="button"
+            onClick={() => setHelpDialog("whitelist")}
+            className="text-slate-400 hover:text-accent-cyan transition-colors"
+            title="Click for more info"
+          >
+            <CircleHelp className="h-4 w-4 cursor-pointer" />
+          </button>
+        </div>
         <div className="flex flex-wrap gap-2">
           {tokens.length === 0 && (
             <p className="text-sm text-slate-500">No tokens available.</p>
@@ -727,8 +767,18 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
       {/* Auto Yield by Token */}
       <div className="mt-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-700">Auto Yield by Token</h3>
-          <p className="text-xs text-slate-500">Subscribe one protocol per token</p>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-[var(--color-accent-cyan)]">Auto Yield by Token</h3>
+            <button
+              type="button"
+              onClick={() => setHelpDialog("yield")}
+              className="text-slate-400 hover:text-accent-cyan transition-colors"
+              title="Click for more info"
+            >
+              <CircleHelp className="h-4 w-4 cursor-pointer" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-400">Subscribe one protocol per token</p>
         </div>
         <AutoYieldByTokenSection
           tokens={tokens}
@@ -744,7 +794,105 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         {saving ? "Saving..." : "Save payment settings"}
       </Button> */}
 
-      {error && <p className="text-center text-xs font-medium text-rose-500">{error}</p>}
+      {error && <p className="text-center text-xs font-medium text-[var(--color-primary)]">{error}</p>}
+
+      {/* Help Dialogs */}
+      <Dialog open={helpDialog === "primary"} onOpenChange={(open) => !open && setHelpDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleHelp className="h-5 w-5 text-accent-cyan" />
+              Primary Token (Auto-Swap)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-slate-300">
+            <p className="font-semibold text-white">What is this?</p>
+            <p>Your primary token is the main cryptocurrency you want to receive. All donations will be automatically converted to this token.</p>
+
+            {/* Animated Flow Diagram */}
+            <PrimaryTokenFlow />
+
+            <p className="font-semibold text-white mt-4">How does it work?</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>When someone donates in a different token, it will automatically swap to your primary token</li>
+              <li>This happens instantly during the donation process</li>
+              <li>Tokens in your whitelist below won't be swapped</li>
+            </ul>
+
+            <p className="font-semibold text-white mt-4">Example:</p>
+            <p className="bg-surface-dark p-3 rounded-lg border border-border-dark">
+              If your primary token is <span className="text-accent-cyan font-bold">USDC</span> and someone donates <span className="text-accent-yellow font-bold">ETH</span>, the ETH will be automatically swapped to USDC before reaching your wallet.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={helpDialog === "whitelist"} onOpenChange={(open) => !open && setHelpDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleHelp className="h-5 w-5 text-accent-cyan" />
+              Token Whitelist (No Auto-Swap)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-slate-300">
+            <p className="font-semibold text-white">What is this?</p>
+            <p>The whitelist lets you accept certain tokens directly without auto-swapping them to your primary token.</p>
+
+            <WhitelistFlow />
+
+            <p className="font-semibold text-white mt-4">Why use it?</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Hold multiple cryptocurrencies for diversification</li>
+              <li>Avoid swap fees for tokens you want to keep</li>
+              <li>Accept stablecoins like USDC or USDT directly</li>
+            </ul>
+
+            <p className="font-semibold text-white mt-4">Example:</p>
+            <p className="bg-surface-dark p-3 rounded-lg border border-border-dark">
+              If you whitelist <span className="text-accent-cyan font-bold">USDC</span>, <span className="text-accent-yellow font-bold">ETH</span>, and <span className="text-accent-purple font-bold">USDT</span>, donations in these tokens will go directly to your wallet without being swapped.
+            </p>
+
+            <p className="text-xs text-slate-400 mt-4 italic">
+              💡 Tip: Whitelisted tokens with active Auto Yield subscriptions cannot be removed until you unsubscribe.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={helpDialog === "yield"} onOpenChange={(open) => !open && setHelpDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleHelp className="h-5 w-5 text-accent-cyan" />
+              Auto Yield by Token
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-slate-300">
+            <p className="font-semibold text-white">What is this?</p>
+            <p>Auto Yield allows you to earn passive income on your whitelisted tokens by subscribing to DeFi yield protocols.</p>
+
+            <YieldFlow />
+
+            <p className="font-semibold text-white mt-4">How does it work?</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>Each whitelisted token can subscribe to one yield protocol</li>
+              <li>Protocols are sorted by APR (highest first)</li>
+              <li>Your donations automatically start earning yield</li>
+              <li>Rewards compound over time</li>
+            </ul>
+
+            <p className="font-semibold text-white mt-4">Example:</p>
+            <p className="bg-surface-dark p-3 rounded-lg border border-border-dark">
+              If you subscribe <span className="text-accent-cyan font-bold">USDC</span> to a protocol offering <span className="text-green-400 font-bold">8.5% APR</span>, every USDC donation you receive will automatically earn that yield rate.
+            </p>
+
+            <p className="text-xs text-slate-400 mt-4 italic">
+              ⚠️ Note: Once subscribed, the token cannot be removed from your whitelist until you unsubscribe from the yield protocol.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -788,7 +936,7 @@ function AutoYieldByTokenSection({
         const isWhitelisted = whitelist.has(tokenId);
         const isOpen = expanded[tokenId] ?? false;
         return (
-          <div key={tokenId} className="rounded-2xl border border-slate-300 bg-white">
+          <div key={tokenId} className="rounded-2xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-card)]">
             <button
               type="button"
               className="flex w-full items-center justify-between px-4 py-3"
@@ -799,19 +947,19 @@ function AutoYieldByTokenSection({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={t.logoURI} alt={sym} className="h-6 w-6 rounded-full" />
                 ) : null}
-                <span className="text-sm font-semibold text-slate-900">{sym}</span>
+                <span className="text-sm font-bold text-white">{sym}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-700">{minApr.toFixed(2)}%~{maxApr.toFixed(2)}%</span>
+                <span className="text-sm font-medium text-[var(--color-accent-cyan)]">{minApr.toFixed(2)}%~{maxApr.toFixed(2)}%</span>
                 {isOpen ? (
-                  <ChevronUp className="h-4 w-4 text-slate-500" />
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
                 )}
               </span>
             </button>
             {isOpen && (
-              <div className="mx-3 mb-3 rounded-2xl border border-slate-200 bg-slate-50">
+              <div className="mx-3 mb-3 rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)]">
                 {offers.map((p, idx) => {
                   const isBest = idx === 0;
                   const rep = p.representativeToken;
@@ -822,28 +970,28 @@ function AutoYieldByTokenSection({
                   const isActive = active != null && repAddr && active.toLowerCase() === repAddr.toLowerCase();
                   const subscribeDisabled = disabled || (!isWhitelisted && !isActive) || (knownActive && !isActive);
                   return (
-                    <div key={p.id} className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 last:border-none">
+                    <div key={p.id} className="flex items-center justify-between gap-3 border-b border-[var(--color-border-dark)] px-4 py-3 last:border-none">
                       <div className="flex items-center gap-3">
                         {isBest && (
-                          <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-[10px] font-bold text-white ring-2 ring-amber-300">1</span>
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-br from-[var(--color-secondary)] to-[#FB923C] text-[10px] font-bold text-black ring-2 ring-[var(--color-secondary)]/50 border border-black">1</span>
                         )}
                         {icon ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={icon} alt={name} className="h-6 w-6 rounded" />
                         ) : null}
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm font-semibold text-slate-900">{name}</span>
+                          <span className="truncate text-sm font-bold text-white">{name}</span>
                           {!isWhitelisted && !isActive && (
-                            <span className="text-xs text-slate-500">Whitelist to enable</span>
+                            <span className="text-xs text-slate-400">Whitelist to enable</span>
                           )}
                           {!!active && !knownActive && idx === 0 && (
-                            <span className="text-xs text-amber-600">On-chain subscription found (not in list)</span>
+                            <span className="text-xs text-[var(--color-secondary)]">On-chain subscription found (not in list)</span>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-sm font-semibold text-slate-700">
-                          <TrendingUp className="h-4 w-4 text-emerald-600" />
+                        <span className="flex items-center gap-1 text-sm font-bold text-[var(--color-accent-cyan)]">
+                          <TrendingUp className="h-4 w-4 text-[var(--color-accent-cyan)]" />
                           {aprNum.toFixed(2)}%
                         </span>
                         <Button
@@ -864,7 +1012,7 @@ function AutoYieldByTokenSection({
         );
       })}
       {shownTokens.length === 0 && (
-        <p className="py-4 text-center text-sm text-slate-500">No auto-yield providers available.</p>
+        <p className="py-4 text-center text-sm text-slate-400">No auto-yield providers available.</p>
       )}
     </div>
   );

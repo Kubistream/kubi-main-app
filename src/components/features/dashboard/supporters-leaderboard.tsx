@@ -69,12 +69,12 @@ const tokenAmountFormatter = new Intl.NumberFormat("en-US", {
 
 function getRankBadgeClasses(index: number, isDescending: boolean) {
   const base =
-    "flex items-center justify-center rounded-full font-semibold transition-shadow shadow-sm";
+    "flex items-center justify-center rounded-full font-bold transition-shadow shadow-sm border-2 border-black";
 
   if (!isDescending) {
     return cn(
       base,
-      "h-9 w-9 bg-gradient-to-br from-rose-200 via-white to-rose-100 text-sm text-rose-600 shadow-rose-200/60",
+      "h-9 w-9 bg-[var(--color-border-dark)] text-sm text-white",
     );
   }
 
@@ -82,22 +82,22 @@ function getRankBadgeClasses(index: number, isDescending: boolean) {
     case 0:
       return cn(
         base,
-        "h-12 w-12 border border-amber-200 bg-gradient-to-br from-yellow-200 via-amber-100 to-amber-400 text-base text-amber-900 shadow-lg shadow-amber-300/70",
+        "h-12 w-12 bg-gradient-to-br from-[var(--color-secondary)] to-[#FB923C] text-base text-black shadow-lg",
       );
     case 1:
       return cn(
         base,
-        "h-11 w-11 border border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-300 text-sm text-slate-700 shadow-md shadow-slate-300/60",
+        "h-11 w-11 bg-gradient-to-br from-slate-300 to-slate-400 text-sm text-black shadow-md",
       );
     case 2:
       return cn(
         base,
-        "h-10 w-10 border border-orange-200 bg-gradient-to-br from-orange-200 via-amber-100 to-orange-300 text-sm text-amber-800 shadow-md shadow-orange-200/60",
+        "h-10 w-10 bg-gradient-to-br from-orange-300 to-amber-400 text-sm text-black shadow-md",
       );
     default:
       return cn(
         base,
-        "h-9 w-9 bg-gradient-to-br from-rose-200 via-white to-rose-100 text-sm text-rose-600 shadow-rose-200/60",
+        "h-9 w-9 bg-[var(--color-border-dark)] text-sm text-white",
       );
   }
 }
@@ -196,7 +196,7 @@ export function SupportersLeaderboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-2 rounded-full border border-rose-200 bg-white p-1">
+          <div className="flex gap-2 rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-card)] p-1">
             {CURRENCY_OPTIONS.map((option) => (
               <Button
                 key={option.value}
@@ -215,18 +215,18 @@ export function SupportersLeaderboard() {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-white/70 bg-white/95 shadow-[0_18px_38px_-28px_rgba(45,25,39,0.45)]">
+      <div className="rounded-2xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-card)] shadow-xl">
         {isLoading ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
-            <Loader2 className="h-6 w-6 animate-spin" />
+          <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-400">
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--color-primary)]" />
             <p className="text-sm">Loading supporter rankings{"\u2026"}</p>
           </div>
         ) : error ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 px-8 text-center text-sm text-rose-500">
+          <div className="flex h-64 flex-col items-center justify-center gap-2 px-8 text-center text-sm text-[var(--color-primary)]">
             <p>{error}</p>
           </div>
         ) : supporters.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 px-8 text-center text-sm text-slate-500">
+          <div className="flex h-64 flex-col items-center justify-center gap-2 px-8 text-center text-sm text-slate-400">
             <p>No donations found for the selected range yet.</p>
             <p>Share your link to see your top supporters here.</p>
           </div>
@@ -245,8 +245,8 @@ export function SupportersLeaderboard() {
                 <div
                   key={key}
                   className={cn(
-                    "rounded-2xl border border-rose-100 bg-white/90 shadow-sm transition",
-                    isExpanded ? "shadow-lg shadow-rose-200/60" : "hover:shadow-md hover:shadow-rose-200/40",
+                    "rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] transition",
+                    isExpanded ? "shadow-lg shadow-[var(--color-primary)]/20" : "hover:border-[var(--color-primary)]/50",
                   )}
                 >
                   <button
@@ -257,47 +257,47 @@ export function SupportersLeaderboard() {
                     <div className="flex items-center gap-4">
                       <span className={rankBadgeClasses}>{index + 1}</span>
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">
+                        <p className="text-sm font-bold text-white">
                           {primaryLabel}
                           {supporter.wallet ? (
-                            <span className="ml-2 font-mono text-[11px] text-slate-400">
+                            <span className="ml-2 font-mono text-[11px] text-slate-500">
                               ({supporter.wallet})
                             </span>
                           ) : null}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-400">
                           {supporter.donationCount} donation{supporter.donationCount === 1 ? "" : "s"}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold uppercase tracking-[0.15em] text-slate-400">
+                      <span className="text-sm font-bold uppercase tracking-[0.15em] text-slate-500">
                         {currency}
                       </span>
-                      <span className="text-lg font-semibold text-slate-900">
+                      <span className="text-lg font-bold text-[var(--color-accent-cyan)]">
                         {formatter.format(supporter.totalAmount)}
                       </span>
                       {isExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-rose-400 transition" />
+                        <ChevronUp className="h-5 w-5 text-[var(--color-primary)] transition" />
                       ) : (
-                        <ChevronDown className="h-5 w-5 text-rose-400 transition" />
+                        <ChevronDown className="h-5 w-5 text-[var(--color-primary)] transition" />
                       )}
                     </div>
                   </button>
 
                   {isExpanded && supporter.tokens.length > 0 && (
-                    <div className="border-t border-rose-100 bg-rose-50/40 pb-4 pt-3">
+                    <div className="border-t border-[var(--color-border-dark)] bg-[var(--color-surface-card)]/50 pb-4 pt-3">
                       <ul className="space-y-2 pl-12 pr-5">
                         {supporter.tokens.map((token) => (
                           <li
                             key={`${key}-${token.tokenId ?? token.symbol ?? token.name ?? "token"}`}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-rose-100 bg-white px-4 py-2 text-sm shadow-sm"
+                            className="flex items-center justify-between gap-3 rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] px-4 py-2 text-sm"
                           >
                             <div className="flex items-center gap-3">
                               <TokenEmblem symbol={token.symbol} logoURI={token.logoURI} />
                               <div>
-                                <p className="text-sm font-semibold text-slate-900">
+                                <p className="text-sm font-bold text-white">
                                   {formatTokenName(token)}
                                 </p>
                                 {token.name && token.symbol && token.name !== token.symbol && (
@@ -305,9 +305,9 @@ export function SupportersLeaderboard() {
                                 )}
                               </div>
                             </div>
-                            <div className="whitespace-nowrap text-sm font-semibold text-slate-900">
+                            <div className="whitespace-nowrap text-sm font-bold text-[var(--color-accent-cyan)]">
                               {tokenAmountFormatter.format(token.amount)}{" "}
-                              <span className="text-xs font-medium uppercase text-slate-500">
+                              <span className="text-xs font-medium uppercase text-slate-400">
                                 {token.symbol ?? token.name ?? ""}
                               </span>
                             </div>
@@ -335,7 +335,7 @@ function TokenEmblem({
 }) {
   const initials = (symbol ?? "TOK").slice(0, 3).toUpperCase();
   return (
-    <Avatar className="h-8 w-8 text-xs font-semibold text-rose-500" fallback={initials}>
+    <Avatar className="h-8 w-8 text-xs font-bold text-[var(--color-primary)] bg-[var(--color-border-dark)] border-2 border-[var(--color-border-dark)]" fallback={initials}>
       {logoURI ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={logoURI} alt={symbol ?? initials} className="h-full w-full rounded-full object-cover" />

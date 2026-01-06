@@ -1,5 +1,4 @@
-import Image from "next/image";
-
+import { ShieldCheck, Wallet, RefreshCw, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { brandPalette } from "./brand";
 
@@ -7,59 +6,54 @@ const benefits = [
   {
     title: "Non-Custodial",
     description: "Donations go directly to your wallet. We never hold funds.",
-    image: "/assets/illustrations/secure.png",
+    icon: ShieldCheck,
   },
   {
     title: "Flexible",
     description: "Supporters can use any supported ERC-20 — no lock-in.",
-    image: "/assets/illustrations/flexible.png",
+    icon: Wallet,
   },
   {
     title: "Auto-Swap",
     description: "Donations can auto-convert to your preferred token on-chain.",
-    image: "/assets/illustrations/auto-swap.png",
+    icon: RefreshCw,
   },
   {
     title: "Auto-Yield",
     description: "Earn yield via top Base lending protocols; you keep custody.",
-    image: "/assets/illustrations/auto-yield.png",
+    icon: TrendingUp,
   },
 ];
 
-export function   LandingBenefits() {
+export function LandingBenefits() {
   return (
     <section id="features" className="mx-auto max-w-6xl px-6 pb-20">
       <header className="mb-10 space-y-2 text-center">
-        <h2 className="font-modak modak-readable modak-stroke-warm text-4xl font-extrabold tracking-wider sm:text-5xl md:text-6xl">
-          <span className="bg-gradient-to-b from-[#FF3D86] via-[#FF6D6D] to-[#FFA24C] bg-clip-text text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]">
+        <h2 className="text-4xl font-black tracking-tight sm:text-5xl md:text-6xl text-white">
+          <span className="bg-gradient-to-r from-[#5EEAD4] to-[#A78BFA] bg-clip-text text-transparent">
             Why Kubi?
           </span>
         </h2>
       </header>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {benefits.map((benefit) => (
+        {benefits.map((benefit, i) => (
           <Card
             key={benefit.title}
-            className="flex h-full flex-col border-white/70 bg-white/90 shadow-sm shadow-rose-100/60"
+            className="flex h-full flex-col border border-white/10 bg-[#181033] shadow-[6px_6px_0px_0px_#000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none rounded-2xl overflow-hidden"
           >
-            <CardHeader className="flex flex-col items-center gap-4 text-center">
-              <Image
-                src={benefit.image}
-                alt={benefit.title}
-                width={96}
-                height={96}
-                className="h-16 w-auto"
-              />
+            <CardHeader className="flex flex-col items-center gap-4 text-center pb-2">
+              <div className="rounded-xl bg-white/5 p-4 border border-white/10">
+                <benefit.icon className="h-10 w-10 text-white" />
+              </div>
               <CardTitle
-                className="font-modak modak-readable modak-stroke-pink modak-stroke-strong text-3xl leading-none tracking-wider drop-shadow-[0_2px_1px_rgba(217,30,88,0.25)] sm:text-4xl"
-                style={{ color: brandPalette.pink }}
+                className="text-2xl font-bold tracking-tight text-white"
               >
                 {benefit.title}
               </CardTitle>
             </CardHeader>
-            <CardContent className="mt-auto pt-0">
-              <CardDescription className="text-center text-lg leading-relaxed text-slate-600 sm:text-xl">
+            <CardContent className="mt-auto pt-2 pb-6 px-6">
+              <CardDescription className="text-center text-base leading-relaxed text-slate-400 font-medium">
                 {benefit.description}
               </CardDescription>
             </CardContent>

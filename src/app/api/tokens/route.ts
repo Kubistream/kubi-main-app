@@ -12,14 +12,15 @@ export async function GET(request: NextRequest) {
 
     const tokens = await prisma.token.findMany({
       where: {
+        isDeleted: false, // Always hide soft-deleted tokens
         ...(skipWhitelist
           ? {}
           : {
-              // Include only tokens that have a GlobalTokenWhitelist record with allowed = true
-              globalWhitelist: {
-                is: { allowed: true },
-              },
-            }),
+            // Include only tokens that have a GlobalTokenWhitelist record with allowed = true
+            globalWhitelist: {
+              is: { allowed: true },
+            },
+          }),
         ...(typeof filterRepresentative === "boolean"
           ? { isRepresentativeToken: filterRepresentative }
           : {}),

@@ -11,8 +11,9 @@ export async function getDonationContract(): Promise<Contract> {
 }
 
 export type DonateParams = {
-  supporter: string;
+  supporter: string; // Kept for backward compat in type, but ignored in call
   tokenIn: string;
+  tokenOut?: string;
   amount: bigint;
   streamer: string;
   amountOutMin: bigint;
@@ -20,11 +21,14 @@ export type DonateParams = {
   value?: bigint;
 };
 
-export async function donate({ supporter, tokenIn, amount, streamer, amountOutMin, deadline, value }: DonateParams) {
+export async function donate({ supporter, tokenIn, tokenOut, amount, streamer, amountOutMin, deadline, value }: DonateParams) {
   const contract = await getDonationContract();
+  const tokenInAddr = getAddress(tokenIn);
+  const tokenOutAddr = tokenOut ? getAddress(tokenOut) : tokenInAddr;
+
   const tx = await contract.donate(
-    getAddress(supporter),
-    getAddress(tokenIn),
+    tokenInAddr,
+    tokenOutAddr,
     amount,
     getAddress(streamer),
     amountOutMin,

@@ -35,11 +35,11 @@ export function ConnectWalletButton({ label }: ConnectWalletButtonProps) {
         const connected =
           ready && account && chain && (!authenticationStatus || authenticationStatus === "authenticated");
 
-        const gradientButtonClass =
-          "inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#FFA24C] via-[#FF5F74] to-[#FF3D86] px-5 py-2 text-sm font-semibold text-white shadow-[0_14px_24px_-12px_rgba(255,61,134,0.5)] transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-12px_rgba(255,61,134,0.45)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5F74]";
+        const primaryButtonClass =
+          "inline-flex items-center justify-center rounded-xl bg-secondary px-5 py-2.5 text-sm font-extrabold text-black shadow-[0_0_20px_rgba(243,224,59,0.3)] transition-all duration-150 hover:bg-[#ffe100] hover:shadow-[0_0_30px_rgba(243,224,59,0.5)] hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary";
 
         const secondaryButtonClass =
-          "hidden sm:inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-200/80";
+          "hidden sm:inline-flex items-center gap-2 rounded-xl border border-border-dark bg-surface-dark/50 px-4 py-2 text-sm font-bold text-white transition hover:bg-surface-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
         return (
           <div
@@ -53,13 +53,13 @@ export function ConnectWalletButton({ label }: ConnectWalletButtonProps) {
             })}
           >
             {!connected && (
-              <button type="button" onClick={openConnectModal} className={gradientButtonClass}>
+              <button type="button" onClick={openConnectModal} className={primaryButtonClass}>
                 {computedLabel ?? "Connect wallet"}
               </button>
             )}
 
             {connected && chain?.unsupported && (
-              <button type="button" onClick={openChainModal} className={gradientButtonClass}>
+              <button type="button" onClick={openChainModal} className={primaryButtonClass}>
                 Switch network
               </button>
             )}
@@ -68,7 +68,7 @@ export function ConnectWalletButton({ label }: ConnectWalletButtonProps) {
               <div className="flex items-center gap-2">
                 <button type="button" onClick={openChainModal} className={secondaryButtonClass}>
                   {chain.hasIcon && chain.iconUrl && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/70">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10">
                       <Image
                         alt={chain.name ?? "Chain icon"}
                         src={chain.iconUrl}
@@ -79,10 +79,10 @@ export function ConnectWalletButton({ label }: ConnectWalletButtonProps) {
                       />
                     </span>
                   )}
-                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-rose-400">Network</span>
+                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-accent-cyan">Network</span>
                   <span>{chain.name ?? "Connected"}</span>
                 </button>
-                <button type="button" onClick={openAccountModal} className={gradientButtonClass}>
+                <button type="button" onClick={openAccountModal} className={primaryButtonClass}>
                   {account.displayName}
                 </button>
               </div>

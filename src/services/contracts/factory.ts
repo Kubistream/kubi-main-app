@@ -7,9 +7,10 @@ import { getBrowserProvider, getRpcProvider } from "./provider";
 
 export async function getDonationContractWithSigner(): Promise<Contract> {
   const provider = getBrowserProvider();
-  // const provider = getRpcProvider();
+  const network = await provider.getNetwork();
+  const chainId = Number(network.chainId);
   const signer = await provider.getSigner();
-  return new Contract(getDonationContractAddress(), DonationABI as any, signer);
+  return new Contract(getDonationContractAddress(chainId), DonationABI as any, signer);
 }
 
 export function getDonationContractReadOnly(): Contract {

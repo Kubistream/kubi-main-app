@@ -1,5 +1,5 @@
 import { JsonRpcProvider, ethers } from "ethers";
-import { Prisma } from "@prisma/client";
+import { Prisma, DonationStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -8,6 +8,7 @@ import {
   resolveAuthenticatedUser,
 } from "@/lib/auth/session";
 import { getDonationContractAddress } from "@/services/contracts/addresses";
+import { TOKEN_PRICES_USD } from "@/constants/token-prices";
 
 export async function POST(
   req: NextRequest,
@@ -25,6 +26,10 @@ export async function POST(
       streamerId,
       name,
       avatarUrl,
+      mediaType = "TEXT",
+      mediaUrl,
+      mediaDuration = 0,
+      chainId: bodyChainId,
     } = body;
 
     const { session, sessionResponse } = await getAuthSession(req);
@@ -57,40 +62,109 @@ export async function POST(
       return NextResponse.json({ error: "Transaction already recorded" }, { status: 400 });
     }
 
+    // Determine Chain and RPC
+    const txChainId = Number(bodyChainId || 84532);
+
+    // Use reliable public RPCs to avoid ENOTFOUND from stale/bad Alchemy URLs in env
+    const RPC_URLS: Record<number, string> = {
+      // Force use of official/public RPCs to bypass potential local env issues
+      84532: "https://sepolia.base.org",
+      5003: "https://rpc.ankr.com/mantle_sepolia",
+    };
+
+    let rpcUrl = RPC_URLS[txChainId];
+
+    // Fallback logic (optional, but we prefer the hardcoded ones above for stability)
+    if (!rpcUrl) {
+      if (txChainId === 84532) rpcUrl = "https://base-sepolia.drpc.org";
+      if (txChainId === 5003) rpcUrl = "https://mantle-sepolia.drpc.org";
+    }
+
+    if (!rpcUrl) {
+      return NextResponse.json({ error: `Unsupported chain ID: ${txChainId}` }, { status: 400 });
+    }
+
     // 🔗 Verifikasi transaksi di chain
-    const provider = new JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://base-sepolia.drpc.org");
+    const provider = new JsonRpcProvider(rpcUrl);
     const tx = await provider.getTransaction(txHash);
     const receipt = await provider.getTransactionReceipt(txHash);
+
     if (!receipt || receipt.status !== 1) {
       return NextResponse.json({ error: "Invalid or failed transaction" }, { status: 400 });
     }
-    const block = await provider.getBlock(receipt.blockNumber);
+    // Retry fetching the block a few times to handle RPC latency
+    let block = await provider.getBlock(receipt.blockNumber);
+    let attempts = 0;
+    while (!block && attempts < 3) {
+      console.log(`⚠️ Block ${receipt.blockNumber} not found, retrying... (${attempts + 1}/3)`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      block = await provider.getBlock(receipt.blockNumber);
+      attempts++;
+    }
+
     if (!block) {
-      return NextResponse.json({ error: "Block not found" }, { status: 400 });
+      return NextResponse.json({ error: "Block not found after retries" }, { status: 400 });
     }
 
     const blockNumber = receipt.blockNumber;
-    const chainId = Number((await provider.getNetwork()).chainId);
+    // const chainId = Number((await provider.getNetwork()).chainId); // Use parsed chainID
+    const chainId = txChainId;
+
     const logIndex = 0;
     const timestamp = new Date(block.timestamp * 1000);
 
-    // 🔍 Parse event Donation
+    // 🔍 Parse event Donation or DonationBridged
     const abi = [
-      "event Donation(address indexed donor, address indexed streamer, address indexed tokenIn, uint256 amountIn, uint256 feeAmount, address tokenOut, uint256 amountOutToStreamer, uint256 timestamp)"
+      "event Donation(address indexed donor, address indexed streamer, address indexed tokenIn, uint256 amountIn, uint256 feeAmount, address tokenOut, uint256 amountOutToStreamer, uint256 timestamp)",
+      "event DonationBridged(address indexed donor, address indexed streamer, uint32 indexed destinationChain, address tokenBridged, uint256 amount)"
     ];
     const iface = new ethers.Interface(abi);
-    const donationAddress = getDonationContractAddress().toLowerCase();
+
+    // Get correct contract address for this chain
+    const donationAddress = getDonationContractAddress(chainId).toLowerCase();
+
+    // Calculate Topics
     const donationTopic = ethers.id(
       "Donation(address,address,address,uint256,uint256,address,uint256,uint256)"
     );
-    const donationLog = receipt.logs.find(
-      (log) =>
-        log.address.toLowerCase() === donationAddress &&
-        log.topics[0] === donationTopic
+    const donationBridgedTopic = ethers.id(
+      "DonationBridged(address,address,uint32,address,uint256)"
+    );
+
+    // Find ALL logs from this contract address
+    const logsFromContract = receipt.logs.filter(
+      (log) => log.address.toLowerCase() === donationAddress
+    );
+
+    if (logsFromContract.length === 0) {
+      console.error("❌ No logs found from contract address:", donationAddress);
+      return NextResponse.json({
+        error: "Donation log not found (no log from contract)",
+        details: {
+          expectedAddress: donationAddress,
+          foundLogs: receipt.logs.map(l => l.address)
+        }
+      }, { status: 400 });
+    }
+
+    // Try to find one with matching topic (either Donation or DonationBridged)
+    const donationLog = logsFromContract.find(l =>
+      l.topics[0] === donationTopic || l.topics[0] === donationBridgedTopic
     );
 
     if (!donationLog) {
-      return NextResponse.json({ error: "Donation log not found" }, { status: 400 });
+      console.error("❌ Donation log topic mismatch");
+      console.error("   Expected:", donationTopic, "OR", donationBridgedTopic);
+      console.error("   Found Topics:", logsFromContract.map(l => l.topics[0]));
+
+      return NextResponse.json({
+        error: "Donation log found but topic mismatch",
+        details: {
+          expectedTopics: [donationTopic, donationBridgedTopic],
+          foundTopics: logsFromContract.map(l => l.topics[0]),
+          foundLogs: logsFromContract.map(l => l.address)
+        }
+      }, { status: 400 });
     }
 
     let parsed: ethers.LogDescription | null = null;
@@ -98,34 +172,64 @@ export async function POST(
       parsed = iface.parseLog(donationLog);
     } catch (parseError) {
       console.error("Failed to parse donation log", parseError);
-      return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid donation log (parse failed)" }, { status: 400 });
     }
 
     if (!parsed) {
       return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
     }
 
-    const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
-
+    // Extract args based on event type
     let donorAddress: string;
     let streamerAddress: string;
     let tokenInAddress: string;
     let tokenOutAddress: string;
+    let amountInVal: bigint;
+    let amountOutVal: bigint;
+    let feeVal: bigint;
 
     try {
-      donorAddress = ethers.getAddress(donor as string);
-      streamerAddress = ethers.getAddress(streamer as string);
-      tokenInAddress = ethers.getAddress(tokenIn as string);
-      tokenOutAddress = ethers.getAddress(tokenOut as string);
+      if (parsed.name === "DonationBridged") {
+        const { donor, streamer, tokenBridged, amount } = parsed.args;
+        donorAddress = ethers.getAddress(donor);
+        streamerAddress = ethers.getAddress(streamer);
+        tokenInAddress = ethers.getAddress(tokenBridged);
+        tokenOutAddress = ethers.getAddress(tokenBridged); // In bridged, we assume same token or just track it as is
+        amountInVal = amount;
+        amountOutVal = amount;
+        feeVal = BigInt(0);
+      } else {
+        const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
+        donorAddress = ethers.getAddress(donor);
+        streamerAddress = ethers.getAddress(streamer);
+        tokenInAddress = ethers.getAddress(tokenIn);
+        tokenOutAddress = ethers.getAddress(tokenOut);
+        amountInVal = amountIn;
+        amountOutVal = amountOutToStreamer;
+        feeVal = feeAmount;
+      }
     } catch {
-      return NextResponse.json({ error: "Malformed donation event addresses" }, { status: 400 });
+      return NextResponse.json({ error: "Malformed donation event addresses/args" }, { status: 400 });
     }
 
+    // Variables for downstream logic (mapped to what was there before)
+    const amountIn = amountInVal;
+    const feeAmount = feeVal;
+    const amountOutToStreamer = amountOutVal;
+
     if (donorAddress !== donorWallet) {
-      return NextResponse.json({ error: "Donor address does not match session wallet" }, { status: 400 });
+      // Allow slight mismatch if user signed in with checksummed vs lower, but ethers.getAddress should handle it.
+      // If donorWallet is from session and donorAddress is from chain, they must match.
+      console.warn(`⚠️ Wallet mismatch: Session(${donorWallet}) vs Chain(${donorAddress})`);
+      return NextResponse.json({
+        error: "Donor address does not match session wallet",
+        sessionVal: donorWallet,
+        chainVal: donorAddress
+      }, { status: 400 });
     }
 
     console.log("✅ Transaction verified on chain:", txHash);
+    console.log("   Event Type:", parsed.name);
     console.log("   Donor:", donorAddress);
     console.log("   Streamer:", streamerAddress);
     console.log("   Token In:", tokenInAddress);
@@ -151,29 +255,14 @@ export async function POST(
         },
       },
     });
-        
+
     if (!tokenInRecord || !tokenOutRecord) {
       return NextResponse.json({ error: "Token not found in database" }, { status: 400 });
     }
 
-    // 💰 Mapping harga USD dummy per token
-    const tokenPricesUsd: Record<string, number> = {
-      "0x57b78b98b9dd06e06de145b83aedf6f04e4c5500": 2400, // WETHkb
-      "0x1fe9a4e25caa2a22fc0b61010fdb0db462fb5b29": 1,    // USDCkb
-      "0x5e1e8043381f3a21a1a64f46073daf7e74fedc1e": 1,    // USDTkb
-      "0x06c1e044d5beb614faa6128001f519e6c693a044": 0.000067, // IDRXkb
-      "0x80d27901053b1cd4adca21897558385a793e0092": 0.1,  // ASTERkb
-      "0x455360debc0b144e38065234a860d4556c5d6445": 1.2,  // MANTAkb
-      "0x2f79e1034c83947b52765a04c62a817f4a73341b": 65000, // Bitcoinkb
-      "0x7392e9e58f202da3877776c41683ac457dfd4cd7": 2400, // ETHkb
-      "0x3328022076881220148d5818d125edbf1e8fa450": 0.05, // PENGUkb
-      "0x7a8ad6e64ee7298d5ab2a4617cc9bc121abd6a5d": 0.4,  // LUNAkb
-      "0x22d5b0261adea67737ace9570704fbdd1a4eecba": 1200,  // BNBkb
-    };
-
     // 💵 Hitung nilai USD dan IDR
-    const priceInUsd = tokenPricesUsd[tokenInAddress.toLowerCase()] || 0;
-    const priceOutUsd = tokenPricesUsd[tokenOutAddress.toLowerCase()] || 0;
+    const priceInUsd = TOKEN_PRICES_USD[tokenInAddress.toLowerCase()] || 0;
+    const priceOutUsd = TOKEN_PRICES_USD[tokenOutAddress.toLowerCase()] || 0;
     const amountInFloat = parseFloat(ethers.formatUnits(amountIn, 18));
     const amountOutFloat = parseFloat(ethers.formatUnits(amountOutToStreamer, 18));
     const amountInUsd = amountInFloat * priceInUsd;
@@ -233,9 +322,41 @@ export async function POST(
         blockNumber,
         chainId,
         timestamp,
-        status: "PENDING",
+        status: DonationStatus.CONFIRMED,
+        mediaType,
+        mediaUrl,
+        mediaDuration,
       },
     });
+
+    // 📡 Broadcast to Overlay via WebSocket
+    try {
+      const overlayMessage = {
+        type: "overlay",
+        amount: parseFloat(ethers.formatUnits(amountIn, tokenInRecord.decimals)).toLocaleString('en-US', { maximumFractionDigits: 4 }),
+        donorAddress: donorAddress,
+        donorName: trimmedName || "Anonymous",
+        message: message || "",
+        sounds: [], // Add sounds if configured
+        streamerName: "", // Optional
+        tokenSymbol: tokenInRecord.symbol,
+        tokenLogo: tokenInRecord.logoURI, // Pass the logo from DB
+        txHash: txHash,
+        mediaType,
+        mediaUrl,
+        mediaDuration,
+      };
+
+      await fetch("http://localhost:8080/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ streamerId, message: overlayMessage }),
+      });
+      console.log("✅ Overlay alert broadcasted");
+    } catch (wsError) {
+      console.error("❌ Failed to broadcast overlay alert:", wsError);
+      // Don't fail the request, just log error
+    }
 
     console.log("✅ Donation saved successfully with txHash:", donation.txHash);
     return NextResponse.json({ success: true, donation });

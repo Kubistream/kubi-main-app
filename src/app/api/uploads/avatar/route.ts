@@ -24,9 +24,8 @@ export async function POST(request: NextRequest) {
   const { session, sessionResponse } = await getAuthSession(request);
   const sessionRecord = await resolveAuthenticatedUser(session);
 
-  if (!sessionRecord) {
-    return error(sessionResponse, 401, "Not authenticated");
-  }
+  // Allow anonymous uploads for donors
+  const userId = sessionRecord?.user?.id ?? `guest-${crypto.randomUUID()}`;
 
   try {
     const form = await request.formData();
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ext = type === "image/png" ? "png" : "jpg";
-    const key = `avatars/${sessionRecord.user.id}-${Date.now()}.${ext}`;
+    const key = `avatars/${userId}-${Date.now()}.${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);

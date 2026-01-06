@@ -13,20 +13,19 @@ export default async function DashboardTutorialPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Tutorial</h1>
-        <p className="text-sm text-slate-600">
+      <header className="space-y-3">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-cyan">Tutorial</p>
+        <h1 className="text-3xl font-black text-white font-display">Learn the basics</h1>
+        <p className="max-w-2xl text-sm text-slate-400">
           Learn how to get the most out of the Kubi dashboard with this step-by-step walkthrough.
+          Follow this short guide to set up your profile, connect overlays, and start receiving donations.
         </p>
-        <p className="text-sm text-slate-600">
-           Follow this short guide to set up your profile, connect overlays, and start receiving donations.
-        </p>
-      </div>
+      </header>
 
-      <Card className="border border-rose-100/80 bg-white/95 shadow-lg shadow-rose-100/60">
+      <Card>
         <CardContent>
           {embedUrl ? (
-            <div className="aspect-video overflow-hidden rounded-xl border border-rose-100/70">
+            <div className="aspect-video overflow-hidden rounded-xl border-2 border-[#2D2452]">
               <iframe
                 className="h-full w-full"
                 src={embedUrl}
@@ -36,7 +35,7 @@ export default async function DashboardTutorialPage() {
               />
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-rose-200 bg-rose-50/60 p-8 text-center text-slate-600">
+            <div className="rounded-xl border-2 border-dashed border-[#2D2452] bg-[#0B061D] p-8 text-center text-slate-400">
               The tutorial video is not available yet. Please check back soon.
             </div>
           )}
@@ -45,3 +44,4 @@ export default async function DashboardTutorialPage() {
     </div>
   );
 }
+

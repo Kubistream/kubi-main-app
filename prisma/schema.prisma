@@ -117,6 +117,9 @@ model Donation {
   chainId       Int
   timestamp     DateTime
   message       String?       @db.Text
+  mediaType     MediaType     @default(TEXT)
+  mediaUrl      String?
+  mediaDuration Int?          @default(0)
   status        DonationStatus @default(CONFIRMED)
   createdAt     DateTime       @default(now())
 
@@ -126,6 +129,12 @@ model Donation {
   @@index([tokenInId])
   @@index([tokenOutId])
   @@index([streamerId, timestamp])
+}
+
+enum MediaType {
+  TEXT
+  AUDIO
+  VIDEO
 }
 
 model Token {
@@ -138,6 +147,8 @@ model Token {
   decimals          Int
   // Flag for auto-yield: marks yield-representative tokens (e.g., vault/yield-bearing tokens)
   isRepresentativeToken Boolean              @default(false)
+  // Soft-delete flag for deprecated tokens (keeps historical data but hides from UI)
+  isDeleted         Boolean                  @default(false)
   createdAt         DateTime                 @default(now())
   donationsIn       Donation[]               @relation("DonationTokenIn")
   donationsOut      Donation[]               @relation("DonationTokenOut")
@@ -185,6 +196,10 @@ model OverlaySettings {
   animationPreset   String?
   showLeaderboard   Boolean  @default(true)
   minAmountUsd      Float    @default(0)
+  minAudioAmountUsd Float    @default(0)
+  minVideoAmountUsd Float    @default(0)
+  showYieldApy      Boolean  @default(true)
+  textToSpeech      Boolean  @default(false)
   authSecret        String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -317,6 +332,9 @@ model QueueOverlay {
   txHash        String
   timestamp     DateTime
   message       String?       @db.Text
+  mediaType     MediaType     @default(TEXT)
+  mediaUrl      String?
+  mediaDuration Int?          @default(0)
   status        OverlayStatus @default(PENDING)
 
   @@index([linkId])

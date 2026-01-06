@@ -54,7 +54,7 @@ export default function AdminWhitelistPage() {
             decimals: typeof meta?.decimals === "number" ? meta.decimals : undefined,
           }),
         });
-      } catch {}
+      } catch { }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to check whitelist");
     } finally {
@@ -82,7 +82,7 @@ export default function AdminWhitelistPage() {
             decimals,
           }),
         });
-      } catch {}
+      } catch { }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update whitelist");
     }
@@ -90,10 +90,10 @@ export default function AdminWhitelistPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Super Admin</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-900">Global Token Whitelist</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">Check and update whitelist status for any ERC‑20 token.</p>
+      <header className="space-y-3">
+        <p className="text-xs font-black uppercase tracking-widest text-accent-pink">Super Admin</p>
+        <h1 className="text-3xl font-black text-white font-display">Global Token Whitelist</h1>
+        <p className="max-w-2xl text-sm text-slate-400">Check and update whitelist status for any ERC‑20 token.</p>
       </header>
 
       <Card>
@@ -120,20 +120,20 @@ export default function AdminWhitelistPage() {
             </div>
           </div>
 
-          {error && <p className="text-sm text-rose-500">{error}</p>}
+          {error && <p className="text-sm text-[var(--color-primary)]">{error}</p>}
 
           {allowed !== null && (
-            <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-4">
-              <p className="text-sm text-slate-700">
+            <div className="rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] p-4">
+              <p className="text-sm text-slate-300">
                 Status: {" "}
-                <span className={allowed ? "text-green-600" : "text-rose-600"}>
+                <span className={allowed ? "text-[var(--color-accent-cyan)] font-bold" : "text-[var(--color-primary)] font-bold"}>
                   {allowed ? "Allowed (whitelisted)" : "Blocked (not whitelisted)"}
                 </span>
               </p>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-slate-400">
                 {symbol ? (
                   <>
-                    Token: <span className="font-medium text-slate-900">{symbol}</span>{" "}
+                    Token: <span className="font-bold text-white">{symbol}</span>{" "}
                     {typeof decimals === "number" && <>(decimals: {decimals})</>}
                   </>
                 ) : (
@@ -142,7 +142,7 @@ export default function AdminWhitelistPage() {
               </p>
 
               <div className="mt-3 flex gap-3">
-                <Button variant="outline" onClick={() => onSet(true)} disabled={allowed === true}>
+                <Button variant="cyan" onClick={() => onSet(true)} disabled={allowed === true}>
                   Allow
                 </Button>
                 <Button variant="outline" onClick={() => onSet(false)} disabled={allowed === false}>
@@ -151,9 +151,9 @@ export default function AdminWhitelistPage() {
               </div>
 
               {txHash && (
-                <p className="mt-3 text-sm text-slate-600">
+                <p className="mt-3 text-sm text-slate-400">
                   Updated. View tx: {" "}
-                  <a className="text-rose-600 underline" href={BASESCAN_TX_URL + txHash} target="_blank" rel="noreferrer">
+                  <a className="text-[var(--color-accent-cyan)] underline" href={BASESCAN_TX_URL + txHash} target="_blank" rel="noreferrer">
                     {txHash.slice(0, 8)}...{txHash.slice(-6)}
                   </a>
                 </p>

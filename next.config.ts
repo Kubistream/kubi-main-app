@@ -31,6 +31,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true, // ⛔ skip linting saat build
   },
+  output: "standalone",
   // New placement for Turbopack in Next 15+
   turbopack: {
     resolveAlias: alias,

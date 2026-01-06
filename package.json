@@ -12,7 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "ws": "node src/server/websocket.ts"
+    "seed:tokens": "npx tsx scripts/seed-tokens.ts",
+    "seed:yield-tokens": "npx tsx scripts/seed-yield-tokens.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.911.0",
@@ -30,8 +31,7 @@
     "react-dom": "19.1.0",
     "siwe": "^3.0.0",
     "viem": "^2.37.13",
-    "wagmi": "^2.17.5",
-    "ws": "^8.18.3"
+    "wagmi": "^2.17.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
