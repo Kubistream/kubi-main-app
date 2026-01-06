@@ -52,7 +52,7 @@ function formatTokenAmount(amount: bigint, decimals: number): string {
 /**
  * Handle Donation event
  */
-async function handleDonationEvent(log: Log, chainId: number) {
+async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
   const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer, timestamp } = log.args;
   const { transactionHash, logIndex, blockNumber } = log;
 
@@ -152,7 +152,7 @@ async function handleDonationEvent(log: Log, chainId: number) {
 /**
  * Handle DonationBridged event
  */
-async function handleDonationBridgedEvent(log: Log, chainId: number) {
+async function handleDonationBridgedEvent(log: Log & { args: any }, chainId: number) {
   const { donor, streamer, destinationChain, tokenBridged, amount, messageId } = log.args;
   const { transactionHash, logIndex, blockNumber } = log;
 
@@ -217,7 +217,7 @@ async function handleDonationBridgedEvent(log: Log, chainId: number) {
 /**
  * Handle BridgedDonationReceived event
  */
-async function handleBridgedDonationReceivedEvent(log: Log, chainId: number) {
+async function handleBridgedDonationReceivedEvent(log: Log & { args: any }, chainId: number) {
   const { originChain, donor, streamer, token, amount, messageId } = log.args;
   const { transactionHash, logIndex, blockNumber } = log;
 

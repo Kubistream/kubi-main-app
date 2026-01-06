@@ -33,7 +33,9 @@ export function useAddToken(): UseAddTokenResult {
         },
       });
 
-      return result;
+      // watchAsset can return boolean or void (undefined)
+      // Type cast to handle both cases
+      return (result as boolean | undefined) === true || (result as boolean | undefined) === undefined;
     } catch (err: any) {
       console.error("Failed to add token to wallet:", err);
 
