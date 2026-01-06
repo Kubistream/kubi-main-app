@@ -8,9 +8,12 @@ import {
     useWriteContract,
     useWaitForTransactionReceipt,
     usePublicClient,
-    useWalletClient
+    useWalletClient,
+    useConfig
 } from "wagmi";
-import { parseUnits, parseEther, formatUnits, formatEther, getAddress, erc20Abi } from "viem";
+import { getWalletClient, getPublicClient } from "wagmi/actions";
+import { parseUnits, parseEther, formatUnits, formatEther, getAddress, erc20Abi, createPublicClient, http } from "viem";
+import { baseSepolia, mantleSepoliaTestnet } from "viem/chains";
 import { getDonationContractAddress } from "@/services/contracts/donation";
 
 // Donation contract ABI (minimal)
@@ -20,8 +23,8 @@ const DONATION_ABI = [
         type: "function",
         stateMutability: "payable",
         inputs: [
-            { name: "addressSupporter", type: "address" },
             { name: "tokenIn", type: "address" },
+            { name: "tokenOut", type: "address" },
             { name: "amount", type: "uint256" },
             { name: "streamer", type: "address" },
             { name: "amountOutMin", type: "uint256" },
@@ -29,6 +32,13 @@ const DONATION_ABI = [
         ],
         outputs: [],
     },
+    { inputs: [], name: "NotInGlobalWhitelist", type: "error" },
+    { inputs: [], name: "NotInStreamerWhitelist", type: "error" },
+    { inputs: [], name: "PrimaryNotSet", type: "error" },
+    { inputs: [], name: "ZeroAddress", type: "error" },
+    { inputs: [], name: "ZeroAmount", type: "error" },
+    { inputs: [], name: "InsufficientFee", type: "error" },
+    { inputs: [], name: "InvalidToken", type: "error" },
 ] as const;
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as `0x${string}`;
@@ -39,12 +49,14 @@ export type TokenInfo = {
     address?: string;
     isNative?: boolean;
     decimals?: number;
+    chainId?: number;
 };
 
 export type DonationParams = {
     streamerAddress: string;
     amount: string;
     token: TokenInfo;
+    tokenOut?: string;
     name: string;
     message: string;
     streamerId: string;
@@ -53,6 +65,7 @@ export type DonationParams = {
     mediaType?: "TEXT" | "AUDIO" | "VIDEO";
     mediaUrl?: string;
     mediaDuration?: number;
+    chainId?: number;
 };
 
 export type UseDonationResult = {
@@ -68,6 +81,7 @@ export function useDonation(): UseDonationResult {
     const publicClient = usePublicClient();
     const { data: walletClient } = useWalletClient();
     const { writeContractAsync } = useWriteContract();
+    const config = useConfig();
 
     const [isApproving, setIsApproving] = useState(false);
     const [isDonating, setIsDonating] = useState(false);
@@ -76,14 +90,24 @@ export function useDonation(): UseDonationResult {
     const isPending = isApproving || isDonating;
 
     const donate = useCallback(async (params: DonationParams): Promise<{ success: boolean; txHash?: string; error?: string }> => {
-        const { streamerAddress, amount, token, name, message, streamerId, channel, avatarUrl, mediaType, mediaUrl, mediaDuration } = params;
+        const { streamerAddress, amount, token, tokenOut, name, message, streamerId, channel, avatarUrl, mediaType, mediaUrl, mediaDuration, chainId } = params;
 
         if (!address) {
             return { success: false, error: "Wallet not connected" };
         }
 
-        if (!walletClient) {
-            return { success: false, error: "Wallet client not available" };
+        // Get wallet client with fallback
+        let client = walletClient;
+        if (!client) {
+            try {
+                client = await getWalletClient(config);
+            } catch (e) {
+                console.error("Failed to get wallet client:", e);
+            }
+        }
+
+        if (!client) {
+            return { success: false, error: "Wallet client not available. Please reconnect your wallet." };
         }
 
         if (!publicClient) {
@@ -91,6 +115,35 @@ export function useDonation(): UseDonationResult {
         }
 
         try {
+            // Determine the target chain
+            const effectiveChainId = chainId || token.chainId || 84532;
+
+            // Check if wallet is on the correct chain
+            const currentChainId = await client.getChainId();
+            if (currentChainId !== effectiveChainId) {
+                console.log(`🔄 Switching chain from ${currentChainId} to ${effectiveChainId}...`);
+                try {
+                    // Import switchChain from wagmi/actions
+                    const { switchChain } = await import("wagmi/actions");
+                    await switchChain(config, { chainId: effectiveChainId });
+
+                    // Wait a bit for the switch to complete and get new client
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    client = await getWalletClient(config);
+
+                    if (!client) {
+                        return { success: false, error: "Failed to get wallet client after chain switch" };
+                    }
+                    console.log(`✅ Chain switched to ${effectiveChainId}`);
+                } catch (switchError: any) {
+                    console.error("Chain switch error:", switchError);
+                    return {
+                        success: false,
+                        error: `Please switch your wallet to ${effectiveChainId === 5003 ? 'Mantle Sepolia' : 'Base Sepolia'} network`
+                    };
+                }
+            }
+
             // Parse amount
             let cleanAmount = amount.trim();
             if (cleanAmount.endsWith(".")) {
@@ -100,7 +153,26 @@ export function useDonation(): UseDonationResult {
                 return { success: false, error: "Invalid amount" };
             }
 
-            const donationContractAddress = getDonationContractAddress() as `0x${string}`;
+            const donationContractAddress = getDonationContractAddress(effectiveChainId) as `0x${string}`;
+
+            // Create a dedicated public client for this chain using reliable RPCs
+            // This avoids issues where the wallet's default provider is lagging or on the wrong chain
+            // and allows us to reliably wait for transaction receipts.
+            const chainConfigs: Record<number, any> = {
+                84532: baseSepolia,
+                5003: mantleSepoliaTestnet,
+            };
+
+            const rpcUrl = CHAIN_RPCS[effectiveChainId];
+            const chainPublicClient = createPublicClient({
+                chain: chainConfigs[effectiveChainId],
+                transport: http(rpcUrl)
+            });
+
+            if (!chainPublicClient) {
+                return { success: false, error: "Failed to create public client for the target chain" };
+            }
+
             let amountIn: bigint;
             let decimals = 18;
 
@@ -111,7 +183,7 @@ export function useDonation(): UseDonationResult {
                 const tokenAddress = token.address as `0x${string}`;
 
                 // Read decimals
-                const tokenDecimals = await publicClient.readContract({
+                const tokenDecimals = await chainPublicClient.readContract({
                     address: tokenAddress,
                     abi: erc20Abi,
                     functionName: "decimals",
@@ -120,7 +192,7 @@ export function useDonation(): UseDonationResult {
                 amountIn = parseUnits(cleanAmount, decimals);
 
                 // Check allowance
-                const currentAllowance = await publicClient.readContract({
+                const currentAllowance = await chainPublicClient.readContract({
                     address: tokenAddress,
                     abi: erc20Abi,
                     functionName: "allowance",
@@ -145,11 +217,11 @@ export function useDonation(): UseDonationResult {
                         console.log("⏳ Waiting for approve tx:", approveTxHash);
 
                         // Wait for confirmation
-                        await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
+                        await chainPublicClient.waitForTransactionReceipt({ hash: approveTxHash });
                         console.log("✅ Approve succeeded");
 
                         // Wait for allowance update with retry
-                        let newAllowance = await publicClient.readContract({
+                        let newAllowance = await chainPublicClient.readContract({
                             address: tokenAddress,
                             abi: erc20Abi,
                             functionName: "allowance",
@@ -160,7 +232,7 @@ export function useDonation(): UseDonationResult {
                         while (newAllowance < amountIn && retries < 5) {
                             console.log("⌛ waiting allowance update...");
                             await new Promise(r => setTimeout(r, 1000));
-                            newAllowance = await publicClient.readContract({
+                            newAllowance = await chainPublicClient.readContract({
                                 address: tokenAddress,
                                 abi: erc20Abi,
                                 functionName: "allowance",
@@ -189,9 +261,15 @@ export function useDonation(): UseDonationResult {
                 ? ZERO_ADDRESS
                 : (getAddress(token.address!) as `0x${string}`);
 
+            // Default tokenOut to tokenIn if not provided (no swap)
+            const tokenOutAddress = tokenOut
+                ? (getAddress(tokenOut) as `0x${string}`)
+                : tokenInAddress;
+
             console.log("⏳ Sending donation...", {
                 donor: address,
                 tokenIn: tokenInAddress,
+                tokenOut: tokenOutAddress,
                 streamer: streamerAddress,
                 amountIn: amountIn.toString(),
             });
@@ -201,8 +279,8 @@ export function useDonation(): UseDonationResult {
                 abi: DONATION_ABI,
                 functionName: "donate",
                 args: [
-                    address,
                     tokenInAddress,
+                    tokenOutAddress,
                     amountIn,
                     getAddress(streamerAddress) as `0x${string}`,
                     BigInt(0),
@@ -215,7 +293,7 @@ export function useDonation(): UseDonationResult {
             setTxHash(donateTxHash);
 
             // Wait for confirmation
-            await publicClient.waitForTransactionReceipt({ hash: donateTxHash });
+            await chainPublicClient.waitForTransactionReceipt({ hash: donateTxHash });
             console.log("🎉 Donation confirmed!");
 
             // Save donation to API
@@ -233,6 +311,7 @@ export function useDonation(): UseDonationResult {
                         mediaType: mediaType || "TEXT",
                         mediaUrl,
                         mediaDuration,
+                        chainId: effectiveChainId,
                     }),
                 });
                 console.log("✅ Donation data sent to API");
@@ -259,64 +338,120 @@ export function useDonation(): UseDonationResult {
     };
 }
 
-// Hook to get token balances using wagmi
+// Chain RPC configurations for balance fetching
+const CHAIN_RPCS: Record<number, string> = {
+    84532: "https://sepolia.base.org",
+    5003: "https://rpc.sepolia.mantle.xyz",
+};
+
+// Hook to get token balances - individual calls per token
 export function useTokenBalances(tokens: TokenInfo[]) {
-    const { address, isConnected } = useAccount();
-    const publicClient = usePublicClient();
+    const { address } = useAccount();
     const [balances, setBalances] = useState<{ [key: string]: string }>({});
     const [isLoading, setIsLoading] = useState(false);
 
     const fetchBalances = useCallback(async () => {
-        if (!isConnected || !address || !publicClient || tokens.length === 0) {
+        console.log("🔍 fetchBalances called", { address, tokensCount: tokens.length });
+
+        if (!address || tokens.length === 0) {
+            console.log("⏭️ Skipping balance fetch - missing requirements");
             setBalances({});
             return;
         }
+
+        console.log("🚀 Starting balance fetch for", tokens.length, "tokens");
 
         setIsLoading(true);
         const newBalances: { [key: string]: string } = {};
 
         try {
+            // Import viem dynamically
+            const { createPublicClient, http } = await import("viem");
+            const { baseSepolia, mantleSepoliaTestnet } = await import("viem/chains");
+
+            const chainConfigs: Record<number, any> = {
+                84532: baseSepolia,
+                5003: mantleSepoliaTestnet,
+            };
+
+            // Create clients for each chain
+            const clients: Record<number, any> = {};
+            for (const chainId of Object.keys(CHAIN_RPCS)) {
+                const id = Number(chainId);
+                clients[id] = createPublicClient({
+                    chain: chainConfigs[id],
+                    transport: http(CHAIN_RPCS[id]),
+                });
+            }
+
+            // Fetch each token individually
             for (const token of tokens) {
+                const chainId = token.chainId || 84532;
+                const client = clients[chainId];
+
+                // Debug logs
+                console.log(`Checking token: ${token.symbol} on chain ${chainId}. isNative: ${token.isNative}, Address: ${token.address}`);
+
+                if (!client) {
+                    console.warn(`⚠️ No client for chain ${chainId}`);
+                    continue;
+                }
+
                 try {
                     if (token.isNative) {
-                        const balance = await publicClient.getBalance({ address });
-                        newBalances["native"] = formatEther(balance);
+                        // Fetch native balance (ETH/MNT)
+                        console.log(`🔄 Fetching native balance on chain ${chainId}...`);
+                        const balance = await client.getBalance({ address });
+                        const formatted = formatEther(balance);
+                        newBalances[`native-${chainId}`] = formatted;
+
+                        // Also store under the address key if available, so SelectTokenModal can find it
+                        if (token.address) {
+                            newBalances[`${chainId}-${token.address.toLowerCase()}`] = formatted;
+                        }
+
+                        console.log(`✅ Native balance (chain ${chainId}):`, formatted);
                     } else if (token.address) {
                         const tokenAddress = token.address.toLowerCase() as `0x${string}`;
 
-                        // Check if it's a contract
-                        const code = await publicClient.getCode({ address: tokenAddress });
-                        if (!code || code === "0x") continue;
+                        console.log(`🔄 Fetching ${token.symbol} balance on chain ${chainId}...`);
 
                         // Get decimals
-                        const decimals = await publicClient.readContract({
+                        const decimals = await client.readContract({
                             address: tokenAddress,
                             abi: erc20Abi,
                             functionName: "decimals",
                         });
 
                         // Get balance
-                        const balance = await publicClient.readContract({
+                        const balance = await client.readContract({
                             address: tokenAddress,
                             abi: erc20Abi,
                             functionName: "balanceOf",
                             args: [address],
                         });
 
-                        newBalances[tokenAddress] = formatUnits(balance, decimals);
+                        // Use chainId-address as key to prevent overwrite between chains
+                        newBalances[`${chainId}-${tokenAddress}`] = formatUnits(balance, decimals);
+                        console.log(`✅ ${token.symbol} (chain ${chainId}) balance:`, formatUnits(balance, decimals));
                     }
-                } catch (err) {
-                    console.error(`Error fetching balance for ${token.symbol}:`, err);
+                } catch (err: any) {
+                    console.error(`❌ Error fetching balance for ${token.symbol}:`, err);
+                    // store 0 on error to avoid indefinite loading
+                    if (token.address) {
+                        newBalances[`${chainId}-${token.address.toLowerCase()}`] = "0";
+                    }
                 }
             }
 
+            console.log("🎉 Balance fetch complete:", Object.keys(newBalances).length, "balances");
             setBalances(newBalances);
         } catch (err) {
-            console.error("Failed to fetch balances:", err);
+            console.error("❌ Failed to fetch balances:", err);
         } finally {
             setIsLoading(false);
         }
-    }, [isConnected, address, publicClient, tokens]);
+    }, [address, tokens]);
 
     return { balances, isLoading, fetchBalances };
 }

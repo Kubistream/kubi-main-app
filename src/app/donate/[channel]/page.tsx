@@ -21,6 +21,17 @@ import { TOKEN_PRICES_USD } from "@/constants/token-prices";
 
 // ERC20 ABI disediakan via helper getErc20Contract
 
+// Chain explorer configurations
+const CHAIN_EXPLORERS: Record<number, { name: string; url: string }> = {
+  84532: { name: "BaseScan", url: "https://sepolia.basescan.org/tx" },
+  5003: { name: "MantleScan", url: "https://sepolia.mantlescan.xyz/tx" },
+};
+
+const CHAIN_NAMES: Record<number, string> = {
+  84532: "Base Sepolia",
+  5003: "Mantle Sepolia",
+};
+
 const CELEBRATION_MESSAGES = [
   "You just made {streamer}'s day a little brighter. Thank you for the love!",
   "That donation will spark a huge smile from {streamer}. Legendary move!",
@@ -69,7 +80,7 @@ export default function DonatePage() {
     fetchStreamer();
   }, [channel, router]);
   const { isConnected, address } = useAccount();
-  const { donate, isPending: isDonationPending, isApproving } = useDonation();
+  const { donate, isPending: isDonationPending, isApproving, isDonating } = useDonation();
 
   // Transaction Progress State
   const [txStep, setTxStep] = useState<"idle" | "uploading" | "approving" | "signing" | "confirming" | "saving">("idle");
@@ -83,6 +94,7 @@ export default function DonatePage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState("");
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
+  const [lastTxChainId, setLastTxChainId] = useState<number | null>(null);
 
   // Avatar State
   const [donorAvatarUrl, setDonorAvatarUrl] = useState<string>("");
@@ -116,18 +128,22 @@ export default function DonatePage() {
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Token State
-  const [tokens, setTokens] = useState<{ symbol: string; logoURI: string; address?: string; isNative?: boolean }[]>([]);
+  const [tokens, setTokens] = useState<{ symbol: string; logoURI: string; address?: string; isNative?: boolean; chainId?: number }[]>([]);
   const decimalsCacheRef = useRef<Record<string, number>>({});
   const [selectedToken, setSelectedToken] = useState<{
     symbol: string;
     logoURI: string;
     address?: string;
     isNative?: boolean;
+    chainId?: number;
   }>({
-    symbol: "ETH",
-    logoURI: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-    isNative: true,
+    symbol: "USDC",
+    logoURI: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+    isNative: false,
+    chainId: 84532,
   });
+
+  const [primaryTokenAddress, setPrimaryTokenAddress] = useState<string | undefined>(undefined);
 
   // Effects for Donor Profile
   useEffect(() => {
@@ -250,7 +266,8 @@ export default function DonatePage() {
   useEffect(() => {
     const fetchAllTokens = async () => {
       try {
-        const res = await fetch("/api/tokens");
+        // Fetch only non-representative tokens (base tokens, not yield tokens)
+        const res = await fetch("/api/tokens?skipWhitelist=true&representative=false");
         if (!res.ok) throw new Error("Failed to fetch tokens");
         const data = await res.json();
 
@@ -261,6 +278,8 @@ export default function DonatePage() {
         const normalized = list.map((t) => ({
           ...t,
           address: t.address.toLowerCase(),
+          // Identify native tokens based on chain
+          isNative: (t.chainId === 84532 && t.symbol === "ETH") || (t.chainId === 5003 && t.symbol === "MNT"),
         }));
 
         setTokens(normalized);
@@ -295,6 +314,7 @@ export default function DonatePage() {
             address: primary.address,
             isNative: false,
           });
+          setPrimaryTokenAddress(primary.address);
           console.log("✅ Primary token detected:", primary.symbol);
         } else {
           // fallback default
@@ -303,6 +323,7 @@ export default function DonatePage() {
             logoURI: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
             isNative: true,
           });
+          setPrimaryTokenAddress(undefined);
         }
       } catch (err) {
         setTokens([]);
@@ -323,7 +344,7 @@ export default function DonatePage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isConnected) {
+    if (!address) {
       alert("Please connect your wallet first.");
       return;
     }
@@ -393,7 +414,9 @@ export default function DonatePage() {
           logoURI: selectedToken.logoURI,
           address: selectedToken.address,
           isNative: selectedToken.isNative,
+          chainId: selectedToken.chainId,
         },
+        tokenOut: primaryTokenAddress,
         name,
         message,
         streamerId,
@@ -402,6 +425,7 @@ export default function DonatePage() {
         mediaType: mediaType,
         mediaUrl: mediaType !== "TEXT" ? finalMediaUrl : undefined,
         mediaDuration: finalDuration,
+        chainId: selectedToken.chainId,
       });
 
       if (!result.success) {
@@ -422,6 +446,7 @@ export default function DonatePage() {
       const messageTemplate = CELEBRATION_MESSAGES[Math.floor(Math.random() * CELEBRATION_MESSAGES.length)];
       setCelebrationMessage(messageTemplate.replace("{streamer}", displayName || channel));
       setLastTxHash(result.txHash || null);
+      setLastTxChainId(selectedToken.chainId || null);
       setAmount("");
       setRawAmount("");
       setMessage("");
@@ -472,9 +497,9 @@ export default function DonatePage() {
                 {/* Approval Step */}
                 <div className={cn(
                   "flex items-center gap-2 text-xs transition-all",
-                  txStep === "approving" || isApproving ? "text-[var(--color-accent-yellow)]" : (txStep === "idle" || txStep === "uploading") ? "text-slate-500" : "text-slate-400"
+                  (txStep === "approving" || isApproving) && !isDonating ? "text-[var(--color-accent-yellow)]" : (txStep === "idle" || txStep === "uploading") ? "text-slate-500" : "text-slate-400"
                 )}>
-                  {txStep === "approving" || isApproving ? (
+                  {(txStep === "approving" || isApproving) && !isDonating ? (
                     <Loader2 className="h-3 w-3 animate-spin shrink-0" />
                   ) : (txStep === "idle" || txStep === "uploading") ? (
                     <div className="h-3 w-3 rounded-full border border-slate-500 shrink-0" />
@@ -546,13 +571,14 @@ export default function DonatePage() {
           <Card>
             <CardContent className="space-y-6">
               <div className="flex flex-col items-center gap-3 text-center">
-                {/* <ConnectWalletButton label="Connect to donate" /> */}
-                {isConnected && address && (
-                  <p className="text-xs uppercase tracking-[0.25em] text-[var(--color-primary)] font-bold">
-                    Donating from {address.slice(0, 6)}…{address.slice(-4)}
+                {address && (
+                  <p className="text-xs uppercase tracking-[0.25em] text-[var(--color-primary)] font-bold flex items-center justify-center gap-2">
+                    <span>Donating from {address.slice(0, 6)}…{address.slice(-4)}</span>
+                    <span className="text-slate-500">|</span>
+                    <span className="text-slate-300">{CHAIN_NAMES[selectedToken.chainId || 84532] || "Unknown Chain"}</span>
                   </p>
                 )}
-                {!isConnected && (
+                {!address && (
                   <p className="text-xs text-slate-400">
                     A connection is required to submit your donation.
                   </p>
@@ -561,7 +587,7 @@ export default function DonatePage() {
 
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-4">
-                  {isConnected && (
+                  {address && (
                     <div className="flex flex-col items-center gap-2">
                       <button
                         type="button"
@@ -667,11 +693,16 @@ export default function DonatePage() {
                   {/* Saldo token terpilih */}
                   <p className="text-xs text-slate-400">
                     Balance:{" "}
-                    {balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] === undefined
-                      ? "–"
-                      : Number(balances[selectedToken.isNative ? "native" : (selectedToken.address ? selectedToken.address.toLowerCase() : "")] || 0).toLocaleString(undefined, {
-                        maximumFractionDigits: 4,
-                      })}
+                    {(() => {
+                      const balanceKey = selectedToken.isNative
+                        ? `native-${selectedToken.chainId}`
+                        : `${selectedToken.chainId}-${selectedToken.address?.toLowerCase() || ""}`;
+                      return balances[balanceKey] === undefined
+                        ? "–"
+                        : Number(balances[balanceKey] || 0).toLocaleString(undefined, {
+                          maximumFractionDigits: 4,
+                        });
+                    })()}
                   </p>
                   {/* Tombol persentase */}
                   <div className="flex gap-2 mt-2">
@@ -682,15 +713,10 @@ export default function DonatePage() {
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          const bal = parseFloat(
-                            balances[
-                            selectedToken.isNative
-                              ? "native"
-                              : selectedToken.address
-                                ? selectedToken.address.toLowerCase()
-                                : ""
-                            ] || "0"
-                          );
+                          const balanceKey = selectedToken.isNative
+                            ? `native-${selectedToken.chainId}`
+                            : `${selectedToken.chainId}-${selectedToken.address?.toLowerCase() || ""}`;
+                          const bal = parseFloat(balances[balanceKey] || "0");
                           if (!Number.isNaN(bal)) {
                             const rawValue = ((bal * pct) / 100).toFixed(6);
                             const clampedRaw = clampDecimals(rawValue);
@@ -955,7 +981,7 @@ export default function DonatePage() {
                   type="submit"
                   className="w-full"
                   disabled={
-                    !isConnected ||
+                    !address ||
                     submitted ||
                     !rawAmount ||
                     parseFloat(rawAmount) <= 0 ||
@@ -963,10 +989,8 @@ export default function DonatePage() {
                     parseFloat(
                       balances[
                       selectedToken.isNative
-                        ? "native"
-                        : selectedToken.address
-                          ? selectedToken.address.toLowerCase()
-                          : ""
+                        ? `native-${selectedToken.chainId}`
+                        : `${selectedToken.chainId}-${selectedToken.address?.toLowerCase() || ""}`
                       ] || "0"
                     )
                   }
@@ -1000,11 +1024,13 @@ export default function DonatePage() {
               logoURI: (token as any).logoURI ?? "",
               address: (token as any).address,
               isNative: (token as any).isNative ?? false,
+              chainId: (token as any).chainId,
             });
             setIsTokenModalOpen(false);
           }}
           tokens={tokens.map(t => ({ ...t, name: t.symbol, address: t.address ?? "" }))}
           balances={Object.fromEntries(Object.entries(balances).map(([k, v]) => [k, parseFloat(v)]))}
+          defaultChainId={selectedToken.chainId || 84532}
         />
       </main>
       <Dialog open={showCelebration} onOpenChange={(open) => setShowCelebration(open)}>
@@ -1022,16 +1048,19 @@ export default function DonatePage() {
             <p className="text-sm text-slate-400">
               We&apos;ve shared your message with {displayName || channel}. Keep spreading good vibes!
             </p>
-            {lastTxHash && (
-              <a
-                href={`https://sepolia.basescan.org/tx/${lastTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-xl border-2 border-[var(--color-accent-cyan)] bg-[var(--color-accent-cyan)]/10 px-4 py-2 text-sm font-bold text-[var(--color-accent-cyan)] transition hover:bg-[var(--color-accent-cyan)]/20"
-              >
-                View transaction on BaseScan
-              </a>
-            )}
+            {lastTxHash && (() => {
+              const explorer = CHAIN_EXPLORERS[lastTxChainId || 84532] || CHAIN_EXPLORERS[84532];
+              return (
+                <a
+                  href={`${explorer.url}/${lastTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-xl border-2 border-[var(--color-accent-cyan)] bg-[var(--color-accent-cyan)]/10 px-4 py-2 text-sm font-bold text-[var(--color-accent-cyan)] transition hover:bg-[var(--color-accent-cyan)]/20"
+                >
+                  View transaction on {explorer.name}
+                </a>
+              );
+            })()}
             <Button className="w-full" onClick={() => setShowCelebration(false)}>
               Keep supporting
             </Button>

@@ -4,12 +4,36 @@ import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
+// Chain configurations
+const CHAINS: Record<number, {
+  name: string;
+  shortName: string;
+  color: string;
+  iconUrl: string;
+}> = {
+  84532: {
+    name: "Base Sepolia",
+    shortName: "Base",
+    color: "from-[#0052FF] to-[#003DD9]",
+    iconUrl: "https://avatars.githubusercontent.com/u/108554348?s=200&v=4",
+  },
+  5003: {
+    name: "Mantle Sepolia",
+    shortName: "Mantle",
+    color: "from-[#65B3AE] to-[#4A9591]",
+    iconUrl: "https://cryptologos.cc/logos/mantle-mnt-logo.png?v=040",
+  },
+};
+
+const CHAIN_IDS = [84532, 5003];
+
 interface Token {
   symbol: string;
   name: string;
   address: string;
   logoURI?: string;
   decimals?: number;
+  chainId?: number;
 }
 
 interface SelectTokenModalProps {
@@ -18,15 +42,24 @@ interface SelectTokenModalProps {
   onSelectToken: (token: Token) => void;
   balances?: { [address: string]: number };
   tokens?: Token[];
+  defaultChainId?: number;
 }
 
 // Stable empty fallbacks to avoid new identity each render
 const EMPTY_BALANCES: { [address: string]: number } = Object.freeze({});
 const EMPTY_TOKENS: ReadonlyArray<Token> = Object.freeze([]);
 
-export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tokens: propTokens }: SelectTokenModalProps) {
+export function SelectTokenModal({
+  isOpen,
+  onClose,
+  onSelectToken,
+  balances,
+  tokens: propTokens,
+  defaultChainId = 84532
+}: SelectTokenModalProps) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [search, setSearch] = useState("");
+  const [activeChain, setActiveChain] = useState<number>(defaultChainId);
 
   // Ensure stable reference when balances is undefined
   const stableBalances = balances ?? EMPTY_BALANCES;
@@ -53,7 +86,8 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
       return;
     }
 
-    fetch("/api/tokens")
+    // Fetch only non-representative tokens (base tokens, not yield tokens)
+    fetch("/api/tokens?skipWhitelist=true&representative=false")
       .then((res) => res.json())
       .then((data) => {
         let list: Token[] = [];
@@ -67,14 +101,19 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
       })
       .catch(() => setTokens([]));
   }, [isOpen, propTokens]);
-  // localBalances is memoized above; no state updates here to avoid re-render loops
 
-  const filtered = (tokens || []).filter(
-    (t) =>
-      t.symbol.toLowerCase().includes(search.toLowerCase()) ||
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.address.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter tokens by search and active chain
+  const filtered = useMemo(() => {
+    return (tokens || []).filter(
+      (t) =>
+        t.chainId === activeChain &&
+        (t.symbol.toLowerCase().includes(search.toLowerCase()) ||
+          t.name.toLowerCase().includes(search.toLowerCase()) ||
+          t.address.toLowerCase().includes(search.toLowerCase()))
+    );
+  }, [tokens, search, activeChain]);
+
+  const activeChainConfig = CHAINS[activeChain];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -82,6 +121,35 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
         <DialogHeader>
           <DialogTitle>Select Token</DialogTitle>
         </DialogHeader>
+
+        {/* Chain Tabs */}
+        <div className="flex gap-1 p-1 bg-[var(--color-surface-card)] border border-[var(--color-border-dark)] rounded-xl mb-3">
+          {CHAIN_IDS.map((chainId) => {
+            const chain = CHAINS[chainId];
+            const isActive = activeChain === chainId;
+            return (
+              <button
+                key={chainId}
+                type="button"
+                onClick={() => setActiveChain(chainId)}
+                className={`
+                  flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-semibold transition-all duration-200
+                  ${isActive
+                    ? `bg-gradient-to-r ${chain.color} text-white shadow-md`
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }
+                `}
+              >
+                <img
+                  src={chain.iconUrl}
+                  alt={chain.shortName}
+                  className={`w-5 h-5 rounded-full ${isActive ? '' : 'opacity-60'}`}
+                />
+                <span>{chain.shortName}</span>
+              </button>
+            );
+          })}
+        </div>
 
         <Input
           placeholder="Search token or paste address..."
@@ -93,7 +161,7 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
         <div className="max-h-[300px] overflow-y-auto space-y-2">
           {filtered.map((token) => (
             <div
-              key={token.address}
+              key={`${token.chainId}-${token.address}`}
               className="flex items-center gap-3 p-3 rounded-xl border border-border-dark bg-surface-dark hover:bg-white/10 hover:border-primary cursor-pointer transition-colors duration-200"
               onClick={() => {
                 onSelectToken(token);
@@ -115,18 +183,26 @@ export function SelectTokenModal({ isOpen, onClose, onSelectToken, balances, tok
                 </span>
               </div>
               <span className="text-sm font-mono ml-auto min-w-[60px] text-right text-accent-cyan font-bold">
-
-                {localBalances[token.address.toLowerCase()] === undefined
-                  ? "–"
-                  : Number(localBalances[token.address.toLowerCase()] || 0).toLocaleString(undefined, {
-                    maximumFractionDigits: 4,
-                  })}
+                {(() => {
+                  // Balance key includes chainId to differentiate same token across chains
+                  const balanceKey = `${token.chainId}-${token.address.toLowerCase()}`;
+                  const balance = localBalances[balanceKey];
+                  return balance === undefined
+                    ? "–"
+                    : Number(balance || 0).toLocaleString(undefined, {
+                      maximumFractionDigits: 4,
+                    });
+                })()}
               </span>
             </div>
           ))}
 
           {filtered.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-4">Loading...</p>
+            <div className="text-center py-8">
+              <p className="text-sm text-gray-500">
+                {tokens.length === 0 ? "Loading..." : `No tokens found on ${activeChainConfig?.shortName || 'this network'}`}
+              </p>
+            </div>
           )}
         </div>
       </DialogContent>

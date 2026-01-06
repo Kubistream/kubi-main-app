@@ -45,9 +45,18 @@ const STATUS_OPTIONS = [{ value: "all", label: "All statuses" }].concat(
 );
 
 // Consolidated HistoryRow type
+// Chain Metadata Mapping
+const CHAIN_META: Record<number, { name: string; icon: string; scanUrl: string }> = {
+  84532: { name: "Base", icon: "https://raw.githubusercontent.com/base-org/brand-kit/master/logo/symbol/Base_Symbol_Blue.png", scanUrl: "https://sepolia.basescan.org/tx/" },
+  5003: { name: "Mantle", icon: "https://raw.githubusercontent.com/mantlenetworkio/brand-assets/main/logo/mantle-icon-color.png", scanUrl: "https://sepolia.mantlescan.xyz/tx/" }
+};
+
+const UNKNOWN_CHAIN = { name: "Unknown", icon: "", scanUrl: "" };
+
 type HistoryRow = {
   id: string;
   txHash: string;
+  chainId: number;
   blockNumber: number;
   donorWallet: string | null;
   donorName: string | null;
@@ -195,6 +204,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   const rows: HistoryRow[] = donations.map((donation) => ({
     id: donation.id,
     txHash: donation.txHash,
+    chainId: donation.chainId || 84532,
     blockNumber: donation.blockNumber,
     donorWallet: donation.donorWallet,
     donorName: (donation.donorWallet ? donorMap.get(donation.donorWallet.toLowerCase()) : null) ?? null,
@@ -249,8 +259,8 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       <header>
         <p className="text-xs font-black uppercase tracking-widest text-accent-cyan">Transaction history</p>
         <h1 className="mt-3 text-3xl font-black text-white font-display">All your donations in one place</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-400">
-          Monitor live on-chain donations, confirm settlement details, and jump directly to Base Sepolia for full
+        <p className="mt-2 text-sm text-slate-400">
+          Monitor live on-chain donations, confirm settlement details, and jump directly to block explorer for full
           transaction context.
         </p>
       </header>
@@ -267,6 +277,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             <thead>
               <tr className="text-left text-xs uppercase tracking-widest text-slate-500 font-display font-bold">
                 <th className="py-3 px-4">Tx hash</th>
+                <th className="py-3 px-3">Chain</th>
                 <th className="py-3 px-3">From</th>
                 <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-3">Donor Sent</th>
@@ -280,7 +291,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             <tbody className="divide-y divide-[var(--color-border-dark)]/50 text-sm">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-sm text-slate-500">
+                  <td colSpan={10} className="py-10 text-center text-sm text-slate-500">
                     No transactions found for the selected filters.
                   </td>
                 </tr>
@@ -289,7 +300,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                   <tr key={row.id} className="align-middle hover:bg-white/5 transition-colors border-b border-[var(--color-border-dark)]/50 last:border-0">
                     <td className="py-4 px-4 font-mono">
                       <Link
-                        href={`${BASESCAN_TX_URL}${row.txHash}`}
+                        href={`${CHAIN_META[row.chainId]?.scanUrl || CHAIN_META[84532].scanUrl}${row.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-accent-cyan transition hover:text-primary"
@@ -297,6 +308,18 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                         <span>{shortenHash(row.txHash)}</span>
                         <span className="material-symbols-outlined text-sm">open_in_new</span>
                       </Link>
+                    </td>
+                    <td className="py-4 px-3">
+                      <div className="flex items-center gap-2" title={`Chain ID: ${row.chainId}`}>
+                        {CHAIN_META[row.chainId] ? (
+                          <>
+                            <img src={CHAIN_META[row.chainId].icon} alt={CHAIN_META[row.chainId].name} className="w-5 h-5 rounded-full" />
+                            <span className="text-xs font-bold text-slate-300">{CHAIN_META[row.chainId].name}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-500">#{row.chainId}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-3 font-medium text-white">
                       {row.donorName ? (

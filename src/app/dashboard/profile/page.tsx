@@ -22,6 +22,8 @@ import { setPrimaryToken, setStreamerWhitelist } from "@/services/contracts/sett
 import { getStreamerYield, removeStreamerYieldContract, setStreamerYieldContract } from "@/services/contracts/yield";
 import { AutoYieldBadge } from "@/components/ui/auto-yield-badge";
 import { PrimaryTokenFlow, WhitelistFlow, YieldFlow } from "@/components/ui/flow-diagrams";
+import { useConfig } from "wagmi";
+import { getWalletClient, switchChain } from "wagmi/actions";
 
 type FormState = {
   username: string;
@@ -355,7 +357,7 @@ export default function ProfilePage() {
           <PaymentSettingsForm
             disabled={!canEditTokens}
             loading={loadingTokens}
-            tokens={tokens.map((t) => ({ ...t, logoURI: t.logoURI ?? undefined }))}
+            tokens={tokens.filter(t => t.chainId === 5003).map((t) => ({ ...t, logoURI: t.logoURI ?? undefined }))}
             settings={settings}
             onSave={async (next) => {
               await saveTokenSettings(next);
@@ -399,6 +401,9 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     try {
       const streamerAddress = user?.wallet;
       if (!streamerAddress) throw new Error("Streamer wallet not found");
+
+      await ensureMantleNetwork();
+
       const current = subscriptions[tokenId] ?? null;
       if (current && current.toLowerCase() === representativeAddress.toLowerCase()) {
         await removeStreamerYieldContract(streamerAddress, representativeAddress);
@@ -439,6 +444,23 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     };
   }, []);
 
+  const config = useConfig();
+
+  const ensureMantleNetwork = async () => {
+    try {
+      const client = await getWalletClient(config);
+      const chainId = await client.getChainId();
+      if (chainId !== 5003) {
+        await switchChain(config, { chainId: 5003 });
+        // Wait a bit for chain switch
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (e) {
+      console.error("Failed to switch network:", e);
+      throw new Error("Please switch your wallet to Mantle Sepolia network to save settings.");
+    }
+  };
+
   const handleToggleWhitelist = async (tokenId: string, nextPressed: boolean) => {
     if (saving) return;
     setSaving(true);
@@ -449,6 +471,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
       const token = tokens.find((t) => String(t.id) === String(tokenId));
       if (!token) throw new Error("Token not found");
+
+      await ensureMantleNetwork();
 
       await setStreamerWhitelist(streamerAddress, token.address, nextPressed);
 
@@ -631,6 +655,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                       if (!streamerAddress) throw new Error("Streamer wallet not found");
                       const token = tokens.find((x) => String(x.id) === String(t.id));
                       if (!token) throw new Error("Primary token not found");
+
+                      await ensureMantleNetwork();
 
                       // Ensure whitelisted first if not already
                       if (!whitelist.has(t.id)) {

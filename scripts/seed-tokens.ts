@@ -11,7 +11,7 @@ const NON_REPRESENTATIVE_TOKENS = [
         name: "Mantle",
         address: "0x33c6f26dA09502E6540043f030aE1F87f109cc99",
         decimals: 18,
-        logoURI: "https://raw.githubusercontent.com/mantlenetworkio/brand-kit/main/mnt-token/mnt-icon.svg",
+        logoURI: "https://cryptologos.cc/logos/mantle-mnt-logo.png?v=040",
     },
     {
         symbol: "ETH",
@@ -152,6 +152,41 @@ async function main() {
                     created++;
                     console.log(`   ✅ [Chain ${chainId}] Created ${token.symbol}`);
                 }
+
+                // Ensure global whitelist
+                // We need a user ID for 'updatedBy'. Let's try to find one or create a dummy one.
+                let adminUser = await prisma.user.findFirst({
+                    where: { role: "SUPERADMIN" },
+                });
+
+                if (!adminUser) {
+                    // Try to find ANY user
+                    adminUser = await prisma.user.findFirst();
+                }
+
+                if (!adminUser) {
+                    // Create a dummy system user if absolutely no users exist
+                    console.log("   ⚠️ No users found. Creating system user for whitelist seeding...");
+                    adminUser = await prisma.user.create({
+                        data: {
+                            wallet: "0x0000000000000000000000000000000000000000",
+                            role: "SUPERADMIN",
+                            username: "system_seeder"
+                        }
+                    });
+                }
+
+                await prisma.globalTokenWhitelist.upsert({
+                    where: { tokenId: (existing?.id || (await prisma.token.findUnique({ where: { chainId_address: { chainId, address: token.address.toLowerCase() } } }))!.id) },
+                    create: {
+                        tokenId: (existing?.id || (await prisma.token.findUnique({ where: { chainId_address: { chainId, address: token.address.toLowerCase() } } }))!.id),
+                        allowed: true,
+                        updatedBy: adminUser.id
+                    },
+                    update: {
+                        allowed: true
+                    }
+                });
             } catch (error) {
                 console.error(
                     `   ❌ [Chain ${chainId}] Failed to seed ${token.symbol}:`,

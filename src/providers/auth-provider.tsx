@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           domain: window.location.host,
           address,
           statement,
-          uri: defaultAppUrl,
+          uri: window.location.origin,
           version: "1",
           chainId,
           nonce,

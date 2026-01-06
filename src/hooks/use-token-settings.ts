@@ -40,9 +40,25 @@ export function useTokenSettings(): UseTokenSettings {
     }
     setIsLoading(true);
     try {
-      const [toks, s] = await Promise.all([fetchTokens(), fetchTokenSettings()]);
-      setTokens(toks);
-      setSettings(s);
+      const [tokensResult, settingsResult] = await Promise.allSettled([
+        fetchTokens(),
+        fetchTokenSettings(),
+      ]);
+
+      if (tokensResult.status === "fulfilled") {
+        setTokens(tokensResult.value);
+      } else {
+        console.error("fetchTokens rejected:", tokensResult.reason);
+        // We can choose to set error here or just log it
+        // setError(tokensResult.reason as Error); 
+      }
+
+      if (settingsResult.status === "fulfilled") {
+        setSettings(settingsResult.value);
+      } else {
+        console.error("fetchTokenSettings rejected:", settingsResult.reason);
+      }
+
       setError(null);
     } catch (err) {
       setError(err as Error);

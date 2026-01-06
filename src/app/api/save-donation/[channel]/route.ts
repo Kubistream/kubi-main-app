@@ -29,6 +29,7 @@ export async function POST(
       mediaType = "TEXT",
       mediaUrl,
       mediaDuration = 0,
+      chainId: bodyChainId,
     } = body;
 
     const { session, sessionResponse } = await getAuthSession(req);
@@ -61,40 +62,109 @@ export async function POST(
       return NextResponse.json({ error: "Transaction already recorded" }, { status: 400 });
     }
 
+    // Determine Chain and RPC
+    const txChainId = Number(bodyChainId || 84532);
+
+    // Use reliable public RPCs to avoid ENOTFOUND from stale/bad Alchemy URLs in env
+    const RPC_URLS: Record<number, string> = {
+      // Force use of official/public RPCs to bypass potential local env issues
+      84532: "https://sepolia.base.org",
+      5003: "https://rpc.ankr.com/mantle_sepolia",
+    };
+
+    let rpcUrl = RPC_URLS[txChainId];
+
+    // Fallback logic (optional, but we prefer the hardcoded ones above for stability)
+    if (!rpcUrl) {
+      if (txChainId === 84532) rpcUrl = "https://base-sepolia.drpc.org";
+      if (txChainId === 5003) rpcUrl = "https://mantle-sepolia.drpc.org";
+    }
+
+    if (!rpcUrl) {
+      return NextResponse.json({ error: `Unsupported chain ID: ${txChainId}` }, { status: 400 });
+    }
+
     // 🔗 Verifikasi transaksi di chain
-    const provider = new JsonRpcProvider(process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://base-sepolia.drpc.org");
+    const provider = new JsonRpcProvider(rpcUrl);
     const tx = await provider.getTransaction(txHash);
     const receipt = await provider.getTransactionReceipt(txHash);
+
     if (!receipt || receipt.status !== 1) {
       return NextResponse.json({ error: "Invalid or failed transaction" }, { status: 400 });
     }
-    const block = await provider.getBlock(receipt.blockNumber);
+    // Retry fetching the block a few times to handle RPC latency
+    let block = await provider.getBlock(receipt.blockNumber);
+    let attempts = 0;
+    while (!block && attempts < 3) {
+      console.log(`⚠️ Block ${receipt.blockNumber} not found, retrying... (${attempts + 1}/3)`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      block = await provider.getBlock(receipt.blockNumber);
+      attempts++;
+    }
+
     if (!block) {
-      return NextResponse.json({ error: "Block not found" }, { status: 400 });
+      return NextResponse.json({ error: "Block not found after retries" }, { status: 400 });
     }
 
     const blockNumber = receipt.blockNumber;
-    const chainId = Number((await provider.getNetwork()).chainId);
+    // const chainId = Number((await provider.getNetwork()).chainId); // Use parsed chainID
+    const chainId = txChainId;
+
     const logIndex = 0;
     const timestamp = new Date(block.timestamp * 1000);
 
-    // 🔍 Parse event Donation
+    // 🔍 Parse event Donation or DonationBridged
     const abi = [
-      "event Donation(address indexed donor, address indexed streamer, address indexed tokenIn, uint256 amountIn, uint256 feeAmount, address tokenOut, uint256 amountOutToStreamer, uint256 timestamp)"
+      "event Donation(address indexed donor, address indexed streamer, address indexed tokenIn, uint256 amountIn, uint256 feeAmount, address tokenOut, uint256 amountOutToStreamer, uint256 timestamp)",
+      "event DonationBridged(address indexed donor, address indexed streamer, uint32 indexed destinationChain, address tokenBridged, uint256 amount)"
     ];
     const iface = new ethers.Interface(abi);
-    const donationAddress = getDonationContractAddress().toLowerCase();
+
+    // Get correct contract address for this chain
+    const donationAddress = getDonationContractAddress(chainId).toLowerCase();
+
+    // Calculate Topics
     const donationTopic = ethers.id(
       "Donation(address,address,address,uint256,uint256,address,uint256,uint256)"
     );
-    const donationLog = receipt.logs.find(
-      (log) =>
-        log.address.toLowerCase() === donationAddress &&
-        log.topics[0] === donationTopic
+    const donationBridgedTopic = ethers.id(
+      "DonationBridged(address,address,uint32,address,uint256)"
+    );
+
+    // Find ALL logs from this contract address
+    const logsFromContract = receipt.logs.filter(
+      (log) => log.address.toLowerCase() === donationAddress
+    );
+
+    if (logsFromContract.length === 0) {
+      console.error("❌ No logs found from contract address:", donationAddress);
+      return NextResponse.json({
+        error: "Donation log not found (no log from contract)",
+        details: {
+          expectedAddress: donationAddress,
+          foundLogs: receipt.logs.map(l => l.address)
+        }
+      }, { status: 400 });
+    }
+
+    // Try to find one with matching topic (either Donation or DonationBridged)
+    const donationLog = logsFromContract.find(l =>
+      l.topics[0] === donationTopic || l.topics[0] === donationBridgedTopic
     );
 
     if (!donationLog) {
-      return NextResponse.json({ error: "Donation log not found" }, { status: 400 });
+      console.error("❌ Donation log topic mismatch");
+      console.error("   Expected:", donationTopic, "OR", donationBridgedTopic);
+      console.error("   Found Topics:", logsFromContract.map(l => l.topics[0]));
+
+      return NextResponse.json({
+        error: "Donation log found but topic mismatch",
+        details: {
+          expectedTopics: [donationTopic, donationBridgedTopic],
+          foundTopics: logsFromContract.map(l => l.topics[0]),
+          foundLogs: logsFromContract.map(l => l.address)
+        }
+      }, { status: 400 });
     }
 
     let parsed: ethers.LogDescription | null = null;
@@ -102,34 +172,64 @@ export async function POST(
       parsed = iface.parseLog(donationLog);
     } catch (parseError) {
       console.error("Failed to parse donation log", parseError);
-      return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid donation log (parse failed)" }, { status: 400 });
     }
 
     if (!parsed) {
       return NextResponse.json({ error: "Invalid donation log" }, { status: 400 });
     }
 
-    const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
-
+    // Extract args based on event type
     let donorAddress: string;
     let streamerAddress: string;
     let tokenInAddress: string;
     let tokenOutAddress: string;
+    let amountInVal: bigint;
+    let amountOutVal: bigint;
+    let feeVal: bigint;
 
     try {
-      donorAddress = ethers.getAddress(donor as string);
-      streamerAddress = ethers.getAddress(streamer as string);
-      tokenInAddress = ethers.getAddress(tokenIn as string);
-      tokenOutAddress = ethers.getAddress(tokenOut as string);
+      if (parsed.name === "DonationBridged") {
+        const { donor, streamer, tokenBridged, amount } = parsed.args;
+        donorAddress = ethers.getAddress(donor);
+        streamerAddress = ethers.getAddress(streamer);
+        tokenInAddress = ethers.getAddress(tokenBridged);
+        tokenOutAddress = ethers.getAddress(tokenBridged); // In bridged, we assume same token or just track it as is
+        amountInVal = amount;
+        amountOutVal = amount;
+        feeVal = BigInt(0);
+      } else {
+        const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
+        donorAddress = ethers.getAddress(donor);
+        streamerAddress = ethers.getAddress(streamer);
+        tokenInAddress = ethers.getAddress(tokenIn);
+        tokenOutAddress = ethers.getAddress(tokenOut);
+        amountInVal = amountIn;
+        amountOutVal = amountOutToStreamer;
+        feeVal = feeAmount;
+      }
     } catch {
-      return NextResponse.json({ error: "Malformed donation event addresses" }, { status: 400 });
+      return NextResponse.json({ error: "Malformed donation event addresses/args" }, { status: 400 });
     }
 
+    // Variables for downstream logic (mapped to what was there before)
+    const amountIn = amountInVal;
+    const feeAmount = feeVal;
+    const amountOutToStreamer = amountOutVal;
+
     if (donorAddress !== donorWallet) {
-      return NextResponse.json({ error: "Donor address does not match session wallet" }, { status: 400 });
+      // Allow slight mismatch if user signed in with checksummed vs lower, but ethers.getAddress should handle it.
+      // If donorWallet is from session and donorAddress is from chain, they must match.
+      console.warn(`⚠️ Wallet mismatch: Session(${donorWallet}) vs Chain(${donorAddress})`);
+      return NextResponse.json({
+        error: "Donor address does not match session wallet",
+        sessionVal: donorWallet,
+        chainVal: donorAddress
+      }, { status: 400 });
     }
 
     console.log("✅ Transaction verified on chain:", txHash);
+    console.log("   Event Type:", parsed.name);
     console.log("   Donor:", donorAddress);
     console.log("   Streamer:", streamerAddress);
     console.log("   Token In:", tokenInAddress);

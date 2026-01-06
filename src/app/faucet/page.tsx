@@ -3,9 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { FaucetView } from "@/components/faucet/faucet-view";
 import { Metadata } from "next";
 
+// Force dynamic rendering to get fresh token data
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
     title: "Kubi Faucet | Get Test Tokens",
-    description: "Get testnet tokens for the Kubi platform on Base Sepolia.",
+    description: "Get testnet tokens for the Kubi platform on Base Sepolia and Mantle Sepolia.",
 };
 
 export default async function FaucetPage() {
