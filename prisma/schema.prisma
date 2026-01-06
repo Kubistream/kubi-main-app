@@ -116,6 +116,15 @@ model Donation {
   blockNumber   Int
   chainId       Int
   timestamp     DateTime
+  
+  // Cross-chain correlation
+  bridgeMessageId   String?       // Hyperlane messageId for correlation
+  originChainId     Int?          // Origin chain if this is a bridged donation
+  parentDonationId  String?       // Link to donation on origin chain
+  parentDonation    Donation?     @relation("DonationChain", fields: [parentDonationId], references: [id])
+  childDonations    Donation[]    @relation("DonationChain")
+  isBridged         Boolean       @default(false)
+  
   message       String?       @db.Text
   mediaType     MediaType     @default(TEXT)
   mediaUrl      String?
@@ -129,6 +138,8 @@ model Donation {
   @@index([tokenInId])
   @@index([tokenOutId])
   @@index([streamerId, timestamp])
+  @@index([bridgeMessageId])
+  @@index([parentDonationId])
 }
 
 enum MediaType {

@@ -9,32 +9,74 @@ const DEFAULT_AMOUNT = "100";
 
 // Chain RPC configurations
 const CHAIN_RPC: Record<number, string> = {
-    5003: process.env.NEXT_PUBLIC_MANTLE_RPC_URL || "https://mantle-sepolia.drpc.org",
+    5003: process.env.NEXT_PUBLIC_MANTLE_RPC_URL || "https://rpc.sepolia.mantle.xyz",
     84532: process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa",
 };
 
+// Rate limiting: Track faucet requests per address
+const faucetRequestLog = new Map<string, number[]>();
+const FAUCET_COOLDOWN = 30000; // 30 seconds cooldown per address
+const FAUCET_MAX_REQUESTS = 3; // Max 3 requests per cooldown period
+
 // In-memory nonce tracking per chain to avoid "already known" errors
 const nonceCache: Map<number, number> = new Map();
-const nonceLock: Map<number, Promise<void>> = new Map();
+// Sequential queue per chain to ensure transactions are sent one at a time
+const chainQueues: Map<number, Array<() => Promise<any>>> = new Map();
+const processingQueues: Map<number, boolean> = new Map();
 
-async function withNonceLock<T>(chainId: number, fn: () => Promise<T>): Promise<T> {
-    // Wait for any pending lock to release
-    while (nonceLock.has(chainId)) {
-        await nonceLock.get(chainId);
+async function enqueueChainRequest<T>(chainId: number, fn: () => Promise<T>): Promise<T> {
+    // Initialize queue if not exists
+    if (!chainQueues.has(chainId)) {
+        chainQueues.set(chainId, []);
     }
 
-    // Create a new lock
-    let releaseLock: () => void;
-    const lockPromise = new Promise<void>((resolve) => {
-        releaseLock = resolve;
+    // Create a promise that resolves when our turn comes
+    return new Promise((resolve, reject) => {
+        const queue = chainQueues.get(chainId)!;
+
+        // Add our function to the queue
+        queue.push(async () => {
+            try {
+                const result = await fn();
+                resolve(result);
+            } catch (error) {
+                reject(error);
+            }
+        });
+
+        // Process the queue if not already processing
+        processQueue(chainId);
     });
-    nonceLock.set(chainId, lockPromise);
+}
+
+async function processQueue(chainId: number) {
+    // Skip if already processing
+    if (processingQueues.get(chainId)) {
+        return;
+    }
+
+    processingQueues.set(chainId, true);
 
     try {
-        return await fn();
+        const queue = chainQueues.get(chainId);
+        if (!queue || queue.length === 0) {
+            return;
+        }
+
+        // Get the next request from the queue
+        const nextRequest = queue.shift();
+        if (nextRequest) {
+            await nextRequest();
+        }
+
+        // Continue processing if there are more requests
+        if (queue.length > 0) {
+            // Small delay between requests to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await processQueue(chainId);
+        }
     } finally {
-        nonceLock.delete(chainId);
-        releaseLock!();
+        processingQueues.set(chainId, false);
     }
 }
 
@@ -44,57 +86,61 @@ async function sendTokenWithRetry(
     walletAddress: string,
     amountToSend: bigint,
     chainId: number,
-    maxRetries: number = 3
+    maxRetries: number = 5
 ): Promise<{ hash: string }> {
-    let lastError: any;
+    // Enqueue this request to ensure sequential processing per chain
+    return enqueueChainRequest(chainId, async () => {
+        let lastError: any;
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            // Get the current nonce from the network
-            const networkNonce = await wallet.getNonce("pending");
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                // Always get fresh nonce from network
+                const networkNonce = await wallet.getNonce("pending");
 
-            // Use the higher of cached nonce or network nonce
-            const cachedNonce = nonceCache.get(chainId) || 0;
-            const nonce = Math.max(networkNonce, cachedNonce);
+                // Use the higher of cached nonce or network nonce
+                const cachedNonce = nonceCache.get(chainId) || 0;
+                const nonce = Math.max(networkNonce, cachedNonce);
 
-            console.log(`[Faucet] Chain ${chainId}: Attempt ${attempt + 1}, using nonce ${nonce}`);
+                console.log(`[Faucet] Chain ${chainId}: Attempt ${attempt + 1}, using nonce ${nonce}`);
 
-            // Send with explicit nonce
-            const tx = await tokenContract.transfer(walletAddress, amountToSend, {
-                nonce: nonce,
-            });
+                // Send with explicit nonce
+                const tx = await tokenContract.transfer(walletAddress, amountToSend, {
+                    nonce: nonce,
+                });
 
-            // Update cache for next transaction
-            nonceCache.set(chainId, nonce + 1);
+                // Update cache for next transaction
+                nonceCache.set(chainId, nonce + 1);
 
-            return tx;
-        } catch (error: any) {
-            lastError = error;
-            const errorMessage = error.message || JSON.stringify(error);
+                return tx;
+            } catch (error: any) {
+                lastError = error;
+                const errorMessage = error.message || JSON.stringify(error);
 
-            // Check if it's an "already known" or nonce-related error
-            if (
-                errorMessage.includes("already known") ||
-                errorMessage.includes("nonce too low") ||
-                errorMessage.includes("replacement transaction underpriced")
-            ) {
-                console.log(`[Faucet] Chain ${chainId}: Nonce conflict, incrementing and retrying...`);
+                // Check if it's an "already known" or nonce-related error
+                if (
+                    errorMessage.includes("already known") ||
+                    errorMessage.includes("nonce too low") ||
+                    errorMessage.includes("replacement transaction underpriced") ||
+                    errorMessage.includes("nonce has already been used")
+                ) {
+                    console.log(`[Faucet] Chain ${chainId}: Nonce conflict, incrementing and retrying...`);
 
-                // Force refresh from network and increment
-                const freshNonce = await wallet.getNonce("pending");
-                nonceCache.set(chainId, freshNonce + 1);
+                    // Force refresh from network and increment
+                    const freshNonce = await wallet.getNonce("pending");
+                    nonceCache.set(chainId, freshNonce + 1);
 
-                // Small delay before retry
-                await new Promise(resolve => setTimeout(resolve, 500));
-                continue;
+                    // Longer delay before retry
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    continue;
+                }
+
+                // For other errors, throw immediately
+                throw error;
             }
-
-            // For other errors, throw immediately
-            throw error;
         }
-    }
 
-    throw lastError;
+        throw lastError;
+    });
 }
 
 export async function POST(req: Request) {
@@ -107,6 +153,32 @@ export async function POST(req: Request) {
                 { status: 400 }
             );
         }
+
+        // Rate limiting: Check if user is requesting too frequently
+        const now = Date.now();
+        const userRequests = faucetRequestLog.get(walletAddress) || [];
+
+        // Filter out old requests (outside cooldown window)
+        const recentRequests = userRequests.filter(
+            (timestamp) => now - timestamp < FAUCET_COOLDOWN
+        );
+
+        // Check if user exceeded rate limit
+        if (recentRequests.length >= FAUCET_MAX_REQUESTS) {
+            const oldestRequest = Math.min(...recentRequests);
+            const cooldownRemaining = Math.ceil((FAUCET_COOLDOWN - (now - oldestRequest)) / 1000);
+            return NextResponse.json(
+                {
+                    error: `Too many faucet requests. Please wait ${cooldownRemaining} seconds before trying again.`,
+                    cooldownRemaining,
+                },
+                { status: 429 } // 429 Too Many Requests
+            );
+        }
+
+        // Add this request to the log
+        recentRequests.push(now);
+        faucetRequestLog.set(walletAddress, recentRequests);
 
         // 1. Fetch token details from DB
         const token = await prisma.token.findUnique({
@@ -144,9 +216,7 @@ export async function POST(req: Request) {
         // 4. Send Tokens with nonce management and retry
         const amountToSend = parseUnits(DEFAULT_AMOUNT, token.decimals);
 
-        const tx = await withNonceLock(token.chainId, () =>
-            sendTokenWithRetry(wallet, tokenContract, walletAddress, amountToSend, token.chainId)
-        );
+        const tx = await sendTokenWithRetry(wallet, tokenContract, walletAddress, amountToSend, token.chainId);
 
         return NextResponse.json({
             success: true,

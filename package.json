@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"tsx watch src/workers/event-listener.ts\"",
+    "dev:next": "next dev",
+    "dev:listener": "tsx watch src/workers/event-listener.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "concurrently \"next start\" \"tsx src/workers/event-listener.ts\"",
+    "start:next": "next start",
+    "start:listener": "tsx src/workers/event-listener.ts",
     "lint": "eslint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -22,6 +26,7 @@
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.90.2",
     "@uniswap/widgets": "^2.59.0",
+    "concurrently": "^9.2.1",
     "ethers": "^6.15.0",
     "iron-session": "^8.0.4",
     "lucide-react": "^0.545.0",
@@ -31,7 +36,8 @@
     "react-dom": "19.1.0",
     "siwe": "^3.0.0",
     "viem": "^2.37.13",
-    "wagmi": "^2.17.5"
+    "wagmi": "^2.17.5",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -39,10 +45,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "prisma": "^6.17.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
