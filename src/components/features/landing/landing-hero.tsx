@@ -51,8 +51,8 @@ export function LandingHero() {
             </AccentPill>
             <AccentPill className="border border-white/20 bg-white/5 text-slate-300">
               <span className="flex items-center gap-2">
-                <Image src="/assets/illustrations/base-logo.jpeg" alt="Base" width={18} height={18} className="rounded-full opacity-80" />
-                Base · Low fees
+                <Image src="/assets/illustrations/mantle-logo.png" alt="Mantle" width={18} height={18} className="rounded-full opacity-80" />
+                Mantle · Fast & Low fees
               </span>
             </AccentPill>
           </div>

@@ -201,19 +201,17 @@ export function useDonation(): UseDonationResult {
 
                 console.log("🔎 Current allowance:", currentAllowance.toString(), "Needed:", amountIn.toString());
 
-                // Approve if needed - use max allowance to avoid repeated approvals
+                // Approve if needed - request only the exact amount (no unlimited allowance)
                 if (currentAllowance < amountIn) {
-                    console.log("📝 Approving token for donation contract...");
+                    console.log("📝 Approving token for donation contract (exact amount)...");
                     setIsApproving(true);
 
                     try {
-                        // Use max uint256 for unlimited approval to avoid repeated approvals
-                        const maxUint256 = BigInt(2) ** BigInt(256) - BigInt(1);
                         const approveTxHash = await writeContractAsync({
                             address: tokenAddress,
                             abi: erc20Abi,
                             functionName: "approve",
-                            args: [donationContractAddress, maxUint256],
+                            args: [donationContractAddress, amountIn],
                         });
 
                         console.log("⏳ Waiting for approve tx:", approveTxHash);
