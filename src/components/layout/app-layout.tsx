@@ -50,11 +50,14 @@ export function AppLayout({ children }: AppLayoutProps) {
           style={{ backgroundColor: "rgba(11, 14, 20, 0.9)" }}
         >
           <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 transition sm:h-20 sm:flex-nowrap sm:px-6">
-            <Link href="/" className="inline-flex items-center gap-2" aria-label="Kubi Home">
-              <div className="size-10 rounded-xl bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center shadow-lg shadow-primary/20">
-                <span className="material-symbols-outlined text-white font-bold text-xl">savings</span>
-              </div>
-              <span className="text-xl font-bold text-white">Kubi</span>
+            <Link href="/" className="inline-flex items-center" aria-label="Kubi Home">
+              <Image 
+                src="/assets/brand/logo2.png" 
+                alt="Kubi" 
+                width={90} 
+                height={40} 
+                className="h-10 w-auto" 
+              />
             </Link>
 
             <div className="flex items-center gap-3 sm:gap-4" suppressHydrationWarning>

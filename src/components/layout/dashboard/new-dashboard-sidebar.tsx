@@ -22,11 +22,14 @@ export function NewDashboardSidebar() {
     return (
         <aside className="w-64 flex flex-col border-r border-border-dark bg-[#080a0f] hidden md:flex">
             {/* Logo */}
-            <div className="p-8 flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center shadow-lg shadow-primary/20">
-                    <span className="material-symbols-outlined text-white font-bold">savings</span>
-                </div>
-                <h1 className="text-xl font-bold tracking-tight font-display text-white">Kubi</h1>
+            <div className="p-8">
+                <Image 
+                    src="/assets/brand/logo2.png" 
+                    alt="Kubi" 
+                    width={90} 
+                    height={40} 
+                    className="h-10 w-auto" 
+                />
             </div>
 
             <nav className="flex-1 flex flex-col gap-3 px-6 py-4">
