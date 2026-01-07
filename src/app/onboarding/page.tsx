@@ -239,12 +239,12 @@ export default function OnboardingPage() {
           <div className="relative bg-surface-card border border-border-dark rounded-3xl p-8 sm:p-10 shadow-xl">
             <div className="flex flex-col items-center text-center">
               <Image
-                src="/assets/illustrations/mascot2.png"
+                src="/assets/illustrations/mascot_new.png"
                 alt="Kubi mascot"
-                width={320}
-                height={240}
+                width={480}
+                height={360}
                 priority
-                className="h-auto w-52 sm:w-64 drop-shadow-lg"
+                className="h-auto w-72 sm:w-80 md:w-96 drop-shadow-lg"
               />
 
               <h1 className="mt-6 text-4xl sm:text-5xl font-black tracking-tight font-display text-gradient-crypto">

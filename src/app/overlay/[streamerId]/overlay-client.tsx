@@ -193,13 +193,20 @@ export default function OverlayClient({
             console.warn("[Overlay] Failed to play alert sound:", e);
           }
 
-          // Browser TTS if enabled and has message
-          // Note: Don't restrict to TEXT only, allow TTS for any mediaType with message
-          if (textToSpeech && next.message) {
-            console.log(`[Overlay] Playing browser TTS: "${next.message}"`);
-            await speakMessage(next.message);
+          // Browser TTS if enabled
+          if (textToSpeech) {
+            // A. System Notification TTS (English) - "Name has given you X tokens"
+            const notificationMessage = `${next.donorName || "Someone"} has given you ${next.amount} ${next.tokenSymbol}`;
+            console.log(`[Overlay] Playing notification TTS: "${notificationMessage}"`);
+            await speakMessage(notificationMessage);
+
+            // B. User Message TTS - read the donor's message
+            if (next.message) {
+              console.log(`[Overlay] Playing message TTS: "${next.message}"`);
+              await speakMessage(next.message);
+            }
           } else {
-            console.log(`[Overlay] TTS skipped: textToSpeech=${textToSpeech}, message="${next.message}"`);
+            console.log(`[Overlay] TTS skipped: textToSpeech=${textToSpeech}`);
           }
         }
 
