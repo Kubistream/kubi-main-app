@@ -47,8 +47,8 @@ const STATUS_OPTIONS = [{ value: "all", label: "All statuses" }].concat(
 // Consolidated HistoryRow type
 // Chain Metadata Mapping
 const CHAIN_META: Record<number, { name: string; icon: string; scanUrl: string }> = {
-  84532: { name: "Base", icon: "https://raw.githubusercontent.com/base-org/brand-kit/master/logo/symbol/Base_Symbol_Blue.png", scanUrl: "https://sepolia.basescan.org/tx/" },
-  5003: { name: "Mantle", icon: "https://raw.githubusercontent.com/mantlenetworkio/brand-assets/main/logo/mantle-icon-color.png", scanUrl: "https://sepolia.mantlescan.xyz/tx/" }
+  84532: { name: "Base", icon: "https://avatars.githubusercontent.com/u/16627100?s=200&v=4", scanUrl: "https://sepolia.basescan.org/tx/" },
+  5003: { name: "Mantle", icon: "https://avatars.githubusercontent.com/u/110459454?s=200&v=4", scanUrl: "https://sepolia.mantlescan.xyz/tx/" }
 };
 
 const UNKNOWN_CHAIN = { name: "Unknown", icon: "", scanUrl: "" };

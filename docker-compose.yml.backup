@@ -16,16 +16,7 @@ services:
       - AWS_REGION=us-east-1
       - S3_BUCKET_NAME=kubi-media
       - S3_ENDPOINT=http://minio:9000
-      # Pusher Config (for overlay)
-      - PUSHER_APP_ID=${PUSHER_APP_ID}
-      - PUSHER_KEY=${PUSHER_KEY}
-      - PUSHER_SECRET=${PUSHER_SECRET}
-      - PUSHER_CLUSTER=${PUSHER_CLUSTER}
-      # RPC & Chain Config (for rebase scheduler)
-      - RPC_URL=${RPC_URL}
-      - PRIVATE_KEY=${PRIVATE_KEY}
-      - CHAIN_ID=${CHAIN_ID}
-      - CRON_EXPR=${CRON_EXPR:-0 */30 * * * *}
+      # Add other necessary env vars here or use env_file
     depends_on:
       postgres:
         condition: service_healthy

@@ -111,6 +111,7 @@ async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
     });
 
     // Create QueueOverlay entry for notification
+    // The donation-queue-processor will handle broadcasting
     await prisma.queueOverlay.create({
       data: {
         streamerId: streamerRecord.streamer.id,
@@ -122,28 +123,7 @@ async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
       },
     });
 
-    // Broadcast to overlay clients via Pusher
-    const donorRecord = await prisma.user.findFirst({
-      where: { wallet: donor!.toLowerCase() },
-    });
-
-    broadcastToStreamer(streamerRecord.streamer.id, {
-      type: "overlay",
-      amount: formatTokenAmount(amountIn!, tokenInRecord.decimals),
-      donorAddress: donor!.toLowerCase(),
-      donorName: donorRecord?.displayName || "Anonymous",
-      message: "",
-      sounds: [],
-      streamerName: "",
-      tokenSymbol: tokenInRecord.symbol,
-      tokenLogo: tokenInRecord.logoURI || undefined,
-      txHash: transactionHash!,
-      mediaType: "TEXT",
-      mediaUrl: undefined,
-      mediaDuration: 0,
-    });
-
-    console.log(`✅ Donation indexed: ${donation.id}`);
+    console.log(`✅ Donation indexed and queued for overlay: ${donation.id}`);
   } catch (error) {
     console.error(`❌ Error processing Donation event:`, error);
   }
