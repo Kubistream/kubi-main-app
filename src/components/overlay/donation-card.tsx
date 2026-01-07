@@ -1,6 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils"; // Assuming utils exists, standard in UI libs
 import { TrendingUp, Bitcoin } from "lucide-react";
+import { sanitizeMediaUrl, validateYouTubeUrl } from "@/utils/media-validation";
 
 export type DonationCardProps = {
     donorName: string;
@@ -19,9 +20,8 @@ export type DonationCardProps = {
 
 export const getYouTubeId = (url: string) => {
     if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+    // Use the validated YouTube ID from utility
+    return validateYouTubeUrl(url);
 };
 
 export function DonationCard({
@@ -66,18 +66,20 @@ export function DonationCard({
     };
 
     const renderMedia = () => {
-        if (!mediaUrl) return null;
+        // Sanitize URL first
+        const safeUrl = sanitizeMediaUrl(mediaUrl);
+        if (!safeUrl) return null;
 
         if (mediaType === "IMAGE") {
             return (
                 <div className="mt-4 rounded-xl overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_#000]">
-                    <img src={mediaUrl} alt="Donation Media" className="w-full h-auto max-h-[300px] object-cover" />
+                    <img src={safeUrl} alt="Donation Media" className="w-full h-auto max-h-[300px] object-cover" />
                 </div>
             );
         }
 
         if (mediaType === "VIDEO") {
-            const videoId = getYouTubeId(mediaUrl);
+            const videoId = getYouTubeId(safeUrl);
             if (!videoId) return null;
             // Only autoplay if playMedia is true
             const autoplayParam = playMedia ? "1" : "0";
@@ -106,7 +108,7 @@ export function DonationCard({
                     </div>
                     {/* Remove autoPlay attribute, handle via ref */}
                     <audio ref={audioRef} controls className="w-full h-8">
-                        <source src={mediaUrl} />
+                        <source src={safeUrl} />
                         Your browser does not support the audio element.
                     </audio>
                 </div>
@@ -118,7 +120,10 @@ export function DonationCard({
 
     const renderTokenIcon = () => {
         if (tokenLogo) {
-            return <img src={tokenLogo} alt={tokenSymbol} className="w-8 h-8 object-contain" />;
+            const safeLogoUrl = sanitizeMediaUrl(tokenLogo);
+            if (safeLogoUrl) {
+                return <img src={safeLogoUrl} alt={tokenSymbol} className="w-8 h-8 object-contain" />;
+            }
         }
 
         // Fallbacks for common tokens if no logo provided
@@ -151,7 +156,7 @@ export function DonationCard({
                     )}
                 >
                     {/* Header */}
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-center">
                         <div className="flex items-center gap-3">
                             <div className={cn(
                                 "bg-accent-pink w-12 h-12 flex items-center justify-center rounded-lg border-2 shadow-[2px_2px_0px_0px_#000] overflow-hidden",
@@ -160,10 +165,10 @@ export function DonationCard({
                                 {renderTokenIcon()}
                             </div>
                             <div>
-                                <div className={cn("text-xs font-black tracking-wider uppercase mb-0.5", isDark ? "text-accent-pink" : "text-black")}>
+                                <div className={cn("text-xs font-black tracking-wider uppercase mb-0.5 text-center", isDark ? "text-accent-pink" : "text-black")}>
                                     Incoming Donation
                                 </div>
-                                <h3 className={cn("text-2xl font-black leading-none", isDark ? "text-white" : "text-black")}>
+                                <h3 className={cn("text-2xl font-black leading-none text-center", isDark ? "text-white" : "text-black")}>
                                     {donorName}
                                 </h3>
                             </div>
@@ -178,9 +183,9 @@ export function DonationCard({
                     </div>
 
                     {/* Amount box */}
-                    <div className="bg-white rounded-xl p-3 border-2 border-black relative overflow-hidden">
+                    <div className="bg-white rounded-xl p-3 border-2 border-black relative overflow-hidden text-center">
                         <div className="absolute top-0 right-0 w-16 h-full bg-accent-yellow/20 skew-x-12 transform translate-x-4" />
-                        <div className="flex items-baseline gap-2 relative z-10">
+                        <div className="flex items-baseline justify-center gap-2 relative z-10">
                             <span className="text-4xl font-black text-black tracking-tight">
                                 {!isNaN(parseFloat(amount)) && !amount.includes(",")
                                     ? parseFloat(amount).toLocaleString("en-US")
@@ -193,9 +198,9 @@ export function DonationCard({
                     {/* Message bubble */}
                     {/* Message bubble - Only show for TEXT type or if there is a message */}
                     {message && (mediaType === "TEXT" || !mediaType) && (
-                        <div className="relative mt-1">
-                            <div className={cn("absolute -top-2 left-8 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 z-20", isDark ? "border-white" : "border-black")} />
-                            <div className={cn("bg-[#2D2452] border-2 rounded-xl p-4 relative z-10", isDark ? "border-white" : "border-black")}>
+                        <div className="relative mt-1 flex justify-center">
+                            <div className={cn("absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 z-20", isDark ? "border-white" : "border-black")} />
+                            <div className={cn("bg-[#2D2452] border-2 rounded-xl p-4 relative z-10 text-center", isDark ? "border-white" : "border-black")}>
                                 <p className="text-white text-base font-bold leading-snug">
                                     "{message}"
                                 </p>

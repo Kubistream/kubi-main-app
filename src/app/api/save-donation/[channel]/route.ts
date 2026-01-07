@@ -1,4 +1,4 @@
-import { JsonRpcProvider, ethers } from "ethers";
+import { ethers } from "ethers";
 import { Prisma, DonationStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +9,8 @@ import {
 } from "@/lib/auth/session";
 import { getDonationContractAddress } from "@/services/contracts/addresses";
 import { TOKEN_PRICES_USD } from "@/constants/token-prices";
+import { FallbackJsonRpcProvider } from "@/services/contracts/server-provider";
+import { getRpcUrls } from "@/config/rpc-config";
 
 export async function POST(
   req: NextRequest,
@@ -62,43 +64,30 @@ export async function POST(
       return NextResponse.json({ error: "Transaction already recorded" }, { status: 400 });
     }
 
-    // Determine Chain and RPC
+    // Determine Chain
     const txChainId = Number(bodyChainId || 84532);
 
-    // Use reliable public RPCs to avoid ENOTFOUND from stale/bad Alchemy URLs in env
-    const RPC_URLS: Record<number, string> = {
-      // Force use of official/public RPCs to bypass potential local env issues
-      84532: "https://sepolia.base.org",
-      5003: "https://rpc.ankr.com/mantle_sepolia",
-    };
-
-    let rpcUrl = RPC_URLS[txChainId];
-
-    // Fallback logic (optional, but we prefer the hardcoded ones above for stability)
-    if (!rpcUrl) {
-      if (txChainId === 84532) rpcUrl = "https://base-sepolia.drpc.org";
-      if (txChainId === 5003) rpcUrl = "https://mantle-sepolia.drpc.org";
-    }
-
-    if (!rpcUrl) {
+    // Check if chain is supported
+    const rpcUrls = getRpcUrls(txChainId);
+    if (rpcUrls.length === 0) {
       return NextResponse.json({ error: `Unsupported chain ID: ${txChainId}` }, { status: 400 });
     }
 
-    // 🔗 Verifikasi transaksi di chain
-    const provider = new JsonRpcProvider(rpcUrl);
-    const tx = await provider.getTransaction(txHash);
-    const receipt = await provider.getTransactionReceipt(txHash);
+    // 🔗 Verifikasi transaksi di chain using FallbackJsonRpcProvider
+    const fallbackProvider = new FallbackJsonRpcProvider(txChainId);
+    const tx = await fallbackProvider.getTransaction(txHash);
+    const receipt = await fallbackProvider.getTransactionReceipt(txHash);
 
     if (!receipt || receipt.status !== 1) {
       return NextResponse.json({ error: "Invalid or failed transaction" }, { status: 400 });
     }
     // Retry fetching the block a few times to handle RPC latency
-    let block = await provider.getBlock(receipt.blockNumber);
+    let block = await fallbackProvider.getBlock(receipt.blockNumber);
     let attempts = 0;
     while (!block && attempts < 3) {
       console.log(`⚠️ Block ${receipt.blockNumber} not found, retrying... (${attempts + 1}/3)`);
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      block = await provider.getBlock(receipt.blockNumber);
+      block = await fallbackProvider.getBlock(receipt.blockNumber);
       attempts++;
     }
 
@@ -127,7 +116,7 @@ export async function POST(
     const donationAddress = getDonationContractAddress(chainId).toLowerCase();
 
     // Read feeBps from contract to calculate original amount for bridged donations
-    const feeBpsContract = new ethers.Contract(donationAddress, donationContractAbi, provider);
+    const feeBpsContract = new ethers.Contract(donationAddress, donationContractAbi, fallbackProvider.getProvider());
     const feeBps = await feeBpsContract.feeBps();
 
     console.log("📊 Contract feeBps:", feeBps.toString(), `(${Number(feeBps) / 100}%)`);
@@ -352,7 +341,10 @@ export async function POST(
       },
     });
 
-    // 📡 Broadcast to Overlay via WebSocket
+    // 📡 Broadcast to Overlay via WebSocket (Pusher)
+    // NOTE: Sounds are NOT sent here due to Pusher's 10KB limit.
+    // The overlay client will use browser TTS as fallback.
+    // For full audio (alert + TTS), use the QueueOverlay worker instead.
     try {
       const overlayMessage = {
         type: "overlay",
@@ -360,10 +352,10 @@ export async function POST(
         donorAddress: donorAddress,
         donorName: trimmedName || "Anonymous",
         message: message || "",
-        sounds: [], // Add sounds if configured
+        sounds: [], // Empty - let client use browser TTS (Pusher has 10KB limit)
         streamerName: "", // Optional
         tokenSymbol: tokenInRecord.symbol,
-        tokenLogo: tokenInRecord.logoURI, // Pass the logo from DB
+        tokenLogo: tokenInRecord.logoURI,
         txHash: txHash,
         mediaType,
         mediaUrl,
@@ -373,7 +365,7 @@ export async function POST(
 
       // Use our WebSocket server for overlay broadcast
       const { broadcastToStreamer } = await import("@/lib/overlay-ws");
-      broadcastToStreamer(streamerId, overlayMessage);
+      await broadcastToStreamer(streamerId, overlayMessage);
       console.log("✅ Overlay alert broadcasted via WebSocket");
     } catch (wsError) {
       console.error("❌ Failed to broadcast overlay alert:", wsError);

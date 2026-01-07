@@ -1,17 +1,13 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { JsonRpcProvider, Wallet, Contract, parseUnits } from "ethers";
+import { Wallet, Contract, parseUnits } from "ethers";
 import ERC20_ABI from "@/abis/ERC20.json";
+import { FallbackJsonRpcProvider } from "@/services/contracts/server-provider";
+import { getRpcUrls } from "@/config/rpc-config";
 
 // Default amount to dispense: 100 tokens (adjusted by decimals)
 const DEFAULT_AMOUNT = "100";
-
-// Chain RPC configurations
-const CHAIN_RPC: Record<number, string> = {
-    5003: process.env.NEXT_PUBLIC_MANTLE_RPC_URL || "https://rpc.sepolia.mantle.xyz",
-    84532: process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://base-sepolia.g.alchemy.com/v2/okjfsx8BQgIIx7k_zPuLKtTUAk9TaJqa",
-};
 
 // Block explorer URLs
 const CHAIN_EXPLORER: Record<number, string> = {
@@ -204,17 +200,18 @@ export async function POST(req: Request) {
             );
         }
 
-        // Get RPC URL based on token's chainId
-        const rpcUrl = CHAIN_RPC[token.chainId];
-        if (!rpcUrl) {
+        // Check if chain is supported (has RPC URLs configured)
+        const rpcUrls = getRpcUrls(token.chainId);
+        if (rpcUrls.length === 0) {
             return NextResponse.json(
                 { error: `Unsupported chain: ${token.chainId}` },
                 { status: 400 }
             );
         }
 
-        const provider = new JsonRpcProvider(rpcUrl);
-        const wallet = new Wallet(privateKey, provider);
+        // Use FallbackJsonRpcProvider for automatic failover
+        const fallbackProvider = new FallbackJsonRpcProvider(token.chainId);
+        const wallet = new Wallet(privateKey, fallbackProvider.getProvider());
 
         // 3. Connect to Token Contract
         const tokenContract = new Contract(token.address, ERC20_ABI, wallet);

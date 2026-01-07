@@ -10,7 +10,7 @@ console.log("🔄 Initializing Prisma Client...");
 
 export const prisma = globalForPrisma.prisma ??
   new PrismaClient({
-    log: isProduction ? ["error"] : ["query", "error", "warn"],
+    log: ["error", "warn"],
   });
 
 if (!isProduction) {

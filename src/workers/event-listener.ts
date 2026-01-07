@@ -56,8 +56,6 @@ async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
   const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer, timestamp } = log.args;
   const { transactionHash, logIndex, blockNumber } = log;
 
-  console.log(`📩 Donation event: chain=${chainId} tx=${transactionHash}`);
-
   try {
     // Find streamer
     const streamerRecord = await prisma.user.findFirst({
@@ -122,8 +120,6 @@ async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
         status: "PENDING",
       },
     });
-
-    console.log(`✅ Donation indexed and queued for overlay: ${donation.id}`);
   } catch (error) {
     console.error(`❌ Error processing Donation event:`, error);
   }
@@ -135,8 +131,6 @@ async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
 async function handleDonationBridgedEvent(log: Log & { args: any }, chainId: number) {
   const { donor, streamer, destinationChain, tokenBridged, amount, messageId } = log.args;
   const { transactionHash, logIndex, blockNumber } = log;
-
-  console.log(`🌉 DonationBridged event: chain=${chainId} messageId=${messageId}`);
 
   try {
     // Find streamer
@@ -187,8 +181,6 @@ async function handleDonationBridgedEvent(log: Log & { args: any }, chainId: num
         isBridged: true,
       },
     });
-
-    console.log(`✅ DonationBridged indexed: ${donation.id} messageId=${messageId}`);
   } catch (error) {
     console.error(`❌ Error processing DonationBridged event:`, error);
   }
@@ -200,8 +192,6 @@ async function handleDonationBridgedEvent(log: Log & { args: any }, chainId: num
 async function handleBridgedDonationReceivedEvent(log: Log & { args: any }, chainId: number) {
   const { originChain, donor, streamer, token, amount, messageId } = log.args;
   const { transactionHash, logIndex, blockNumber } = log;
-
-  console.log(`📥 BridgedDonationReceived: chain=${chainId} messageId=${messageId}`);
 
   try {
     // Find parent donation by messageId
@@ -268,8 +258,6 @@ async function handleBridgedDonationReceivedEvent(log: Log & { args: any }, chai
         data: { status: "CONFIRMED" },
       });
     }
-
-    console.log(`✅ BridgedDonationReceived indexed: ${donation.id}`);
   } catch (error) {
     console.error(`❌ Error processing BridgedDonationReceived event:`, error);
   }
@@ -279,7 +267,6 @@ async function handleBridgedDonationReceivedEvent(log: Log & { args: any }, chai
  * Setup event listeners for a specific chain
  */
 async function setupChainListeners(chainId: number, contractAddress: `0x${string}`, rpcUrl: string, wsUrl: string) {
-  console.log(`🔗 Setting up listeners for chain ${chainId}...`);
 
   const transport = fallback([
     webSocket(wsUrl),
@@ -325,14 +312,11 @@ async function setupChainListeners(chainId: number, contractAddress: `0x${string
     },
   });
 
-  console.log(`✅ Listening for events on chain ${chainId} (${contractAddress})`);
-
   // Return cleanup function
   return () => {
     unwatchDonation();
     unwatchBridged();
     unwatchReceived();
-    console.log(`🔕 Stopped listening for chain ${chainId}`);
   };
 }
 
@@ -341,11 +325,9 @@ async function setupChainListeners(chainId: number, contractAddress: `0x${string
  */
 async function main() {
   console.log("🚀 Starting Kubi Event Listener...");
-  console.log("=====================================");
 
   // Initialize overlay broadcaster (Pusher)
   initOverlayWebSocket();
-  console.log("[Overlay] Broadcaster initialized (Pusher)");
 
   // Setup cleanup handlers
   const cleanups: Array<() => void> = [];
@@ -369,11 +351,7 @@ async function main() {
     );
     cleanups.push(mantleCleanup);
 
-    console.log("=====================================");
-    console.log("✅ All event listeners started successfully");
-    console.log("🎧 Listening for donation events...");
-    console.log("Press Ctrl+C to stop");
-
+    console.log("✅ All event listeners started");
   } catch (error) {
     console.error("❌ Error starting event listeners:", error);
     process.exit(1);

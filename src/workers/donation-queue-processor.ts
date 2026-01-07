@@ -24,6 +24,9 @@
 import { prisma } from "../lib/prisma";
 import Pusher from "pusher";
 import { MediaType, OverlayStatus } from "@prisma/client";
+import { textToSpeechBase64, generateDonationMessage } from "../services/tts";
+import { loadAlertSound } from "../utils/sound";
+import { sanitizeMediaUrl } from "../utils/media-validation";
 
 // Initialize Pusher for overlay broadcast
 const pusher = new Pusher({
@@ -77,7 +80,11 @@ async function processQueueOverlay(queueId: string): Promise<void> {
     where: { id: queueId },
     include: {
       tokenIn: true,
-      streamer: true,
+      streamer: {
+        include: {
+          user: true,
+        },
+      },
       link: true,
     },
   });
@@ -86,8 +93,6 @@ async function processQueueOverlay(queueId: string): Promise<void> {
     console.warn(`⚠️ QueueOverlay ${queueId} not found`);
     return;
   }
-
-  console.log(`📩 Processing QueueOverlay: ${queueId} (TxHash=${queueItem.txHash})`);
 
   try {
     // Get donation details for enrichment
@@ -104,9 +109,16 @@ async function processQueueOverlay(queueId: string): Promise<void> {
     });
 
     // Get streamer info
-    const streamerName = queueItem.streamer?.user
-      ? (await getUserDisplayNameByWallet(queueItem.streamer.user.wallet))
-      : "";
+    let streamerName = "";
+    if (queueItem.streamer?.userId) {
+      const streamerUser = await prisma.user.findUnique({
+        where: { id: queueItem.streamer.userId },
+        select: { wallet: true, displayName: true },
+      });
+      if (streamerUser) {
+        streamerName = streamerUser.displayName || "";
+      }
+    }
 
     // Get donor name
     const donorName = donation?.donorWallet
@@ -128,6 +140,41 @@ async function processQueueOverlay(queueId: string): Promise<void> {
       amountInUsd = Number(donation.amountInUsd);
     }
 
+    // Build sounds array
+    const sounds: string[] = [];
+
+    try {
+      // 1. Mandatory Alert Sound (Always first)
+      const alertSound = await loadAlertSound();
+      sounds.push(alertSound);
+
+      // 2. TTS Logic (Only for TEXT type with message)
+      if (donation?.mediaType === MediaType.TEXT && donation.message) {
+        // A. System Notification TTS (e.g. "User has donated...")
+        const notificationMessage = generateDonationMessage(
+          donorName,
+          amountInFormatted,
+          tokenSymbol
+        );
+        try {
+          const notificationTts = await textToSpeechBase64(notificationMessage, "en");
+          sounds.push(notificationTts);
+        } catch (ttsError) {
+          console.warn("[TTS] Failed to generate notification TTS:", ttsError);
+        }
+
+        // B. User Message TTS (Indonesian)
+        try {
+          const messageTts = await textToSpeechBase64(donation.message, "id");
+          sounds.push(messageTts);
+        } catch (ttsError) {
+          console.warn("[TTS] Failed to generate message TTS:", ttsError);
+        }
+      }
+    } catch (soundError) {
+      console.error("[Sound] Failed to load sounds:", soundError);
+    }
+
     // Build overlay payload
     const overlayPayload = {
       type: "overlay",
@@ -135,13 +182,13 @@ async function processQueueOverlay(queueId: string): Promise<void> {
       donorAddress: donation?.donorWallet || "",
       donorName: donorName,
       message: donation?.message || queueItem.message || "",
-      sounds: [],
+      sounds: sounds,
       streamerName: streamerName,
       tokenSymbol: tokenSymbol,
       tokenLogo: tokenLogo,
       txHash: queueItem.txHash,
       mediaType: donation?.mediaType || MediaType.TEXT,
-      mediaUrl: donation?.mediaUrl,
+      mediaUrl: sanitizeMediaUrl(donation?.mediaUrl),
       mediaDuration: donation?.mediaDuration || 0,
       usdValue: amountInUsd,
     };
@@ -150,7 +197,6 @@ async function processQueueOverlay(queueId: string): Promise<void> {
     const streamerId = queueItem.streamerId;
     if (streamerId) {
       await pusher.trigger(`overlay-${streamerId}`, "overlay", overlayPayload);
-      console.log(`✅ Overlay alert broadcasted via Pusher to streamer ${streamerId}`);
     }
 
     // Mark as processed
@@ -158,8 +204,6 @@ async function processQueueOverlay(queueId: string): Promise<void> {
       where: { id: queueId },
       data: { status: OverlayStatus.DISPLAYED },
     });
-
-    console.log(`✅ QueueOverlay ${queueId} processed successfully`);
   } catch (error: any) {
     console.error(`❌ Error processing QueueOverlay ${queueId}:`, error);
 
@@ -188,8 +232,6 @@ async function processPendingQueueOverlays(): Promise<void> {
       return;
     }
 
-    console.log(`📦 Found ${pendingItems.length} pending QueueOverlay items`);
-
     // Process each item
     for (const item of pendingItems) {
       await processQueueOverlay(item.id);
@@ -203,12 +245,7 @@ async function processPendingQueueOverlays(): Promise<void> {
  * Main function to start the processor
  */
 async function main() {
-  console.log("🚀 Starting Kubi Donation Queue Processor (Database-Based)...");
-  console.log("=====================================");
-  console.log("📊 Polling QueueOverlay table for pending donations...");
-  console.log(`⏱️  Poll interval: ${POLL_INTERVAL}ms`);
-  console.log(`📦 Batch size: ${BATCH_SIZE}`);
-  console.log("=====================================");
+  console.log("🚀 Starting Kubi Donation Queue Processor...");
 
   // Start polling loop
   const interval = setInterval(async () => {
@@ -219,8 +256,6 @@ async function main() {
   await processPendingQueueOverlays();
 
   console.log("✅ Donation queue processor started");
-  console.log("🎧 Processing pending donations...");
-  console.log("Press Ctrl+C to stop");
 
   // Handle graceful shutdown
   process.on("SIGINT", () => {

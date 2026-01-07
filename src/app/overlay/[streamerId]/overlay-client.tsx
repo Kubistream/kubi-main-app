@@ -49,7 +49,7 @@ export default function OverlayClient({
 
   const theme = (settings?.theme as "Vibrant Dark" | "Minimal Light") ?? "Vibrant Dark";
   const showYieldApy = settings?.showYieldApy ?? true;
-  const textToSpeech = settings?.textToSpeech ?? false;
+  const textToSpeech = settings?.textToSpeech ?? true;
   const minAmountUsd = settings?.minAmountUsd ?? 0;
   const minAudioAmountUsd = settings?.minAudioAmountUsd ?? 0;
   const minVideoAmountUsd = settings?.minVideoAmountUsd ?? 0;
@@ -179,9 +179,28 @@ export default function OverlayClient({
         // If backend sends sounds, we assume it contains the necessary audio (SFX + TTS)
         if (next.sounds && next.sounds.length > 0) {
           await playAudiosSequentially(next.sounds);
-        } else if (textToSpeech && next.message && next.mediaType === "TEXT") {
-          // Fallback: Browser TTS if no server sounds provided
-          await speakMessage(next.message);
+        } else {
+          // Fallback: Play client-side alert sound + browser TTS
+          // Alert sound from public folder
+          try {
+            const alertAudio = new Audio("/overlay/sound.mp3");
+            await new Promise<void>((resolve) => {
+              alertAudio.onended = () => resolve();
+              alertAudio.onerror = () => resolve();
+              alertAudio.play().catch(() => resolve());
+            });
+          } catch (e) {
+            console.warn("[Overlay] Failed to play alert sound:", e);
+          }
+
+          // Browser TTS if enabled and has message
+          // Note: Don't restrict to TEXT only, allow TTS for any mediaType with message
+          if (textToSpeech && next.message) {
+            console.log(`[Overlay] Playing browser TTS: "${next.message}"`);
+            await speakMessage(next.message);
+          } else {
+            console.log(`[Overlay] TTS skipped: textToSpeech=${textToSpeech}, message="${next.message}"`);
+          }
         }
 
         // 2. Start Video/Audio Content (after sounds finish)

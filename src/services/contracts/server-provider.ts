@@ -1,28 +1,12 @@
-"use client";
-
-import { BrowserProvider, JsonRpcProvider } from "ethers";
-import { getRpcUrls, DEFAULT_CHAIN_ID } from "@/config/rpc-config";
-
-export function getBrowserProvider(): BrowserProvider {
-  if (typeof window === "undefined" || !(window as any).ethereum) {
-    throw new Error("Wallet provider not found. Please connect your wallet.");
-  }
-  return new BrowserProvider((window as any).ethereum, "any");
-}
-
 /**
- * Get default RPC provider for the primary chain (client-side)
- * Uses fallback URL from rpc-config
+ * Server-side RPC Provider with Fallback Support
+ * 
+ * This file is for server-side use only (API routes, workers, etc.)
+ * For client-side, use provider.ts
  */
-export function getRpcProvider(): JsonRpcProvider {
-  const envUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL;
-  if (envUrl) {
-    return new JsonRpcProvider(envUrl);
-  }
-  // Fallback to first URL from config
-  const urls = getRpcUrls(DEFAULT_CHAIN_ID);
-  return new JsonRpcProvider(urls[0] || "https://sepolia.base.org");
-}
+
+import { JsonRpcProvider } from "ethers";
+import { getRpcUrls } from "@/config/rpc-config";
 
 /**
  * FallbackJsonRpcProvider - Provider with automatic RPC failover
