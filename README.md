@@ -24,7 +24,7 @@
 - Non-custodial tipping on Base: transactions are verified directly from contract logs before persisting to Postgres.
 - Creator dashboard bundles donation link + QR generator, multi-range earnings sparkline, and per-supporter token breakdown.
 - Auto-yield aggregation reads representative token subscriptions and surfaces protocol growth percentages.
-- Real-time streaming overlay via WebSocket with queued audio clips and animated gradients ready for OBS.
+- Real-time streaming overlay via Pusher with queued audio clips and animated gradients ready for OBS.
 - SIWE + Iron Session with RainbowKit/wagmi; creators onboard automatically after connecting a wallet.
 - Avatar uploads to S3-compatible storage let supporters personalize their presence on leaderboards.
 
@@ -74,7 +74,7 @@
 - Production server (uses the build output): `pnpm start`
 - Prisma Studio (DB inspector): `pnpm prisma:studio`
 
-The overlay WebSocket relay is expected to run separately. Point `NEXT_PUBLIC_OVERLAY_WS_URL` to that service so OBS overlays receive live donation events.
+The overlay realtime channel uses Pusher (no self-hosted WebSocket relay required).
 
 ## Environment Variables
 ### Server-side (`.env`)
@@ -97,7 +97,8 @@ The overlay WebSocket relay is expected to run separately. Point `NEXT_PUBLIC_OV
 | --- | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Must match `APP_URL` to satisfy SIWE origin checks. |
 | `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` | `abcd1234...` | WalletConnect Project ID (fallback provided if you don’t have one yet). |
-| `NEXT_PUBLIC_OVERLAY_WS_URL` | `ws://localhost:8080` | WebSocket endpoint feeding OBS overlays. |
+| `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER` | – | Server-side Pusher credentials for overlay broadcasting. |
+| `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` | – | Client-side Pusher credentials for overlay subscription. |
 | `NEXT_PUBLIC_BASE_RPC_URL` | `https://base-sepolia.drpc.org` | Public Base Sepolia RPC for clients. |
 | `NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS` | `0xabc...` | Optional override for the donation contract address. |
 | `NEXT_PUBLIC_CHAIN_ID` | `84532` | Optional client-side chain ID override. |
@@ -117,7 +118,7 @@ The overlay WebSocket relay is expected to run separately. Point `NEXT_PUBLIC_OV
 
 ### 3. OBS Overlay
 - `src/app/overlay/[streamerId]/page.tsx` is a full-screen layout with gradient animation and mascot art.
-- Connects to the WebSocket endpoint (`NEXT_PUBLIC_OVERLAY_WS_URL`) and queues audio/messages sequentially to avoid overlap.
+- Subscribes to `overlay-<streamerId>` channel on Pusher and queues audio/messages sequentially to avoid overlap.
 - Supporting assets live in `public/overlay/` (mp3/gif) for easy customization.
 
 ### 4. Authentication & Sessions
@@ -172,7 +173,7 @@ The database schema in `prisma/schema.prisma` covers `User`, `Streamer`, `Donati
 2. Build the app: `pnpm build`.
 3. Serve it: `pnpm start` (defaults to port 3000) behind HTTPS/reverse proxy.
 4. Apply schema migrations on release: `pnpm prisma:migrate deploy`.
-5. Confirm the overlay relay and Base Sepolia RPC are reachable from your deployment environment.
+5. Confirm Pusher credentials and Base Sepolia RPC are reachable from your deployment environment.
 
 The sample CI/CD pipeline in `.github/workflows/deploy-dev.yaml` is a good starting point for automated deployments (Vercel or self-hosted).
 

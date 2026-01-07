@@ -122,25 +122,25 @@ async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
       },
     });
 
-    // Broadcast to overlay WebSocket clients
+    // Broadcast to overlay clients via Pusher
     const donorRecord = await prisma.user.findFirst({
       where: { wallet: donor!.toLowerCase() },
     });
 
     broadcastToStreamer(streamerRecord.streamer.id, {
-      type: "DONATION",
-      data: {
-        id: donation.id,
-        txHash: transactionHash,
-        donor: donor!.toLowerCase(),
-        donorName: donorRecord?.displayName || null,
-        tokenSymbol: tokenInRecord.symbol,
-        amountIn: formatTokenAmount(amountIn!, tokenInRecord.decimals),
-        amountOut: formatTokenAmount(amountOutToStreamer!, tokenOutRecord.decimals),
-        tokenOutSymbol: tokenOutRecord.symbol,
-        timestamp: Number(timestamp),
-        chainId,
-      },
+      type: "overlay",
+      amount: formatTokenAmount(amountIn!, tokenInRecord.decimals),
+      donorAddress: donor!.toLowerCase(),
+      donorName: donorRecord?.displayName || "Anonymous",
+      message: "",
+      sounds: [],
+      streamerName: "",
+      tokenSymbol: tokenInRecord.symbol,
+      tokenLogo: tokenInRecord.logoURI || undefined,
+      txHash: transactionHash!,
+      mediaType: "TEXT",
+      mediaUrl: undefined,
+      mediaDuration: 0,
     });
 
     console.log(`✅ Donation indexed: ${donation.id}`);
@@ -363,10 +363,9 @@ async function main() {
   console.log("🚀 Starting Kubi Event Listener...");
   console.log("=====================================");
 
-  // Initialize WebSocket overlay server
-  const wsPort = Number(process.env.OVERLAY_WS_PORT || 3001);
-  initOverlayWebSocket(wsPort);
-  console.log(`🔌 Overlay WebSocket server initialized on port ${wsPort}`);
+  // Initialize overlay broadcaster (Pusher)
+  initOverlayWebSocket();
+  console.log("[Overlay] Broadcaster initialized (Pusher)");
 
   // Setup cleanup handlers
   const cleanups: Array<() => void> = [];

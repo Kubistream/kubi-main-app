@@ -120,8 +120,6 @@ pnpm dev:listener
 PONDER_RPC_URL_84532=https://base-sepolia.g.alchemy.com/v2/YOUR_KEY
 PONDER_RPC_URL_5003=https://rpc.sepolia.mantle.xyz
 
-# WebSocket overlay server port (default: 3001)
-OVERLAY_WS_PORT=3001
 ```
 
 ## Event Handlers

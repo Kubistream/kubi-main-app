@@ -368,6 +368,7 @@ export async function POST(
         mediaType,
         mediaUrl,
         mediaDuration,
+        usdValue: amountInUsd,
       };
 
       // Use our WebSocket server for overlay broadcast

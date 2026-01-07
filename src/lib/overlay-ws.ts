@@ -1,148 +1,76 @@
-import { WebSocketServer, WebSocket } from "ws";
+import Pusher from "pusher";
 
-// Map streamerId -> Set of connected clients
-const streamerClients = new Map<string, Set<WebSocket>>();
+let pusher: Pusher | null = null;
 
-let wss: WebSocketServer | null = null;
+type PusherEnv = {
+  appId?: string;
+  key?: string;
+  secret?: string;
+  cluster?: string;
+};
 
-/**
- * Initialize WebSocket server for overlay notifications
- * @param port - Port to run WebSocket server on (default: 3001)
- */
-export function initOverlayWebSocket(port: number = 3001): WebSocketServer {
-  if (wss) return wss;
+function loadEnv(): PusherEnv {
+  return {
+    appId: process.env.PUSHER_APP_ID,
+    key: process.env.PUSHER_KEY,
+    secret: process.env.PUSHER_SECRET,
+    cluster: process.env.PUSHER_CLUSTER,
+  };
+}
 
-  wss = new WebSocketServer({ port });
+function getPusher(): Pusher | null {
+  if (pusher) return pusher;
 
-  wss.on("connection", (ws, req) => {
-    console.log(`🔌 New WebSocket connection received!`);
-    console.log(`   URL:`, req.url);
-    console.log(`   Headers:`, req.headers);
+  const { appId, key, secret, cluster } = loadEnv();
+  if (!appId || !key || !secret || !cluster) {
+    console.error(
+      "[Overlay] Missing Pusher configuration. Please set PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER.",
+    );
+    return null;
+  }
 
-    // Extract streamerId from URL: /ws/overlay/:streamerId
-    const urlParts = req.url?.split("/") || [];
-    const streamerId = urlParts[urlParts.length - 1];
-
-    console.log(`   URL parts:`, urlParts);
-    console.log(`   Extracted streamerId:`, streamerId);
-
-    if (!streamerId || streamerId === "ws" || streamerId === "overlay") {
-      console.log(`   ❌ Invalid streamerId, closing connection`);
-      ws.close(1008, "Missing streamerId in URL. Use: ws://host:port/ws/overlay/{streamerId}");
-      return;
-    }
-
-    console.log(`🔌 Overlay client connected: streamerId=${streamerId}`);
-
-    // Register client
-    if (!streamerClients.has(streamerId)) {
-      streamerClients.set(streamerId, new Set());
-      console.log(`   Created new Set for streamerId=${streamerId}`);
-    }
-    streamerClients.get(streamerId)!.add(ws);
-    console.log(`   Client added. Total clients for streamerId=${streamerId}:`, streamerClients.get(streamerId)!.size);
-
-    // Send welcome message
-    ws.send(JSON.stringify({
-      type: "CONNECTED",
-      data: { streamerId, timestamp: Date.now() },
-    }));
-
-    // Handle ping/pong for connection health
-    ws.on("ping", () => {
-      ws.pong();
-    });
-
-    ws.on("message", (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        if (data.type === "PING") {
-          ws.send(JSON.stringify({ type: "PONG", timestamp: Date.now() }));
-        }
-      } catch {
-        // Ignore non-JSON messages
-      }
-    });
-
-    ws.on("close", () => {
-      console.log(`🔌 Overlay client disconnected: streamerId=${streamerId}`);
-      streamerClients.get(streamerId)?.delete(ws);
-      
-      // Clean up empty sets
-      if (streamerClients.get(streamerId)?.size === 0) {
-        streamerClients.delete(streamerId);
-      }
-    });
-
-    ws.on("error", (error) => {
-      console.error(`WebSocket error for streamerId=${streamerId}:`, error);
-    });
+  pusher = new Pusher({
+    appId,
+    key,
+    secret,
+    cluster,
+    useTLS: true,
   });
 
-  console.log(`🔌 Overlay WebSocket server running on port ${port}`);
-  return wss;
+  return pusher;
 }
 
 /**
- * Broadcast message to all clients listening to a streamer
- * @param streamerId - The streamer ID to broadcast to
- * @param data - The data object to send
+ * Initialize Pusher (kept for API compatibility with previous WS init).
+ * Port parameter is ignored; Pusher handles connections via its service.
  */
-export function broadcastToStreamer(streamerId: string, data: object): void {
-  console.log(`🔔 broadcastToStreamer called with streamerId="${streamerId}"`);
-  console.log(`   Available streamerIds:`, Array.from(streamerClients.keys()));
-
-  const clients = streamerClients.get(streamerId);
-  if (!clients || clients.size === 0) {
-    console.warn(`⚠️ No clients found for streamerId="${streamerId}"`);
-    return;
-  }
-
-  const message = JSON.stringify(data);
-  let sentCount = 0;
-
-  clients.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(message);
-      sentCount++;
-      console.log(`   ✅ Sent to client ${sentCount}`);
-    } else {
-      console.warn(`   ⚠️ Client not ready, state=${ws.readyState}`);
-    }
-  });
-
-  if (sentCount > 0) {
-    console.log(`📤 Broadcast to ${sentCount} clients for streamerId=${streamerId}`);
-    console.log(`   Message:`, message.substring(0, 200) + "...");
+export function initOverlayWebSocket(_port: number = 3001): void {
+  const client = getPusher();
+  if (client) {
+    console.log("[Overlay] Pusher initialized for overlay broadcasting (WS server disabled).");
   }
 }
 
 /**
- * Get count of connected clients for a streamer
+ * Broadcast message to a streamer channel via Pusher.
+ * Channel: overlay-{streamerId}
+ * Event: "donation"
  */
-export function getClientCount(streamerId: string): number {
-  return streamerClients.get(streamerId)?.size || 0;
+export async function broadcastToStreamer(streamerId: string, data: object): Promise<void> {
+  const client = getPusher();
+  if (!client) return;
+
+  try {
+    await client.trigger(`overlay-${streamerId}`, "donation", data);
+    console.log(`[Overlay] Pushed donation event to overlay-${streamerId}`);
+  } catch (error) {
+    console.error(`[Overlay] Failed to push event for streamerId=${streamerId}:`, error);
+  }
 }
 
 /**
- * Get total connected clients across all streamers
- */
-export function getTotalClientCount(): number {
-  let total = 0;
-  streamerClients.forEach((clients) => {
-    total += clients.size;
-  });
-  return total;
-}
-
-/**
- * Close the WebSocket server
+ * Close Pusher client (noop for compatibility)
  */
 export function closeOverlayWebSocket(): void {
-  if (wss) {
-    wss.close();
-    wss = null;
-    streamerClients.clear();
-    console.log("🔌 Overlay WebSocket server closed");
-  }
+  pusher = null;
 }
