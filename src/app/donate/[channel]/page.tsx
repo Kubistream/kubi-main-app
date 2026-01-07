@@ -278,8 +278,9 @@ export default function DonatePage() {
         const normalized = list.map((t) => ({
           ...t,
           address: t.address.toLowerCase(),
-          // Identify native tokens based on chain
-          isNative: (t.chainId === 84532 && t.symbol === "ETH") || (t.chainId === 5003 && t.symbol === "MNT"),
+          // All tokens from database are ERC20 (including mock ETH, MNT)
+          // Native token handling disabled - use mock tokens instead
+          isNative: false,
         }));
 
         setTokens(normalized);

@@ -275,8 +275,9 @@ export async function POST(
     // 💵 Hitung nilai USD dan IDR
     const priceInUsd = TOKEN_PRICES_USD[tokenInAddress.toLowerCase()] || 0;
     const priceOutUsd = TOKEN_PRICES_USD[tokenOutAddress.toLowerCase()] || 0;
-    const amountInFloat = parseFloat(ethers.formatUnits(amountIn, 18));
-    const amountOutFloat = parseFloat(ethers.formatUnits(amountOutToStreamer, 18));
+    // Use actual token decimals from database, not hardcoded 18
+    const amountInFloat = parseFloat(ethers.formatUnits(amountIn, tokenInRecord.decimals));
+    const amountOutFloat = parseFloat(ethers.formatUnits(amountOutToStreamer, tokenOutRecord.decimals));
     const amountInUsd = amountInFloat * priceInUsd;
     const amountOutUsd = amountOutFloat * priceOutUsd;
     const usdToIdr = 16000;
