@@ -11,7 +11,7 @@
  *   RPC_URL -> Ethereum node RPC (HTTP/WS)
  *   PRIVATE_KEY -> hex private key of owner (0x...)
  *   CHAIN_ID -> chain id (e.g. 1, 137, 5003)
- *   CRON_EXPR -> cron expression (default "0 */30 * * * *" -> every 30 minutes)
+ *   CRON_EXPR -> cron expression (default: every 30 minutes)
  *
  * Optional:
  *   GAS_LIMIT -> gas limit for rebase tx (default 300000)
