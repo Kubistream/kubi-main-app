@@ -385,65 +385,70 @@ export function useTokenBalances(tokens: TokenInfo[]) {
                 });
             }
 
-            // Fetch each token individually
-            for (const token of tokens) {
-                const chainId = token.chainId || 84532;
-                const client = clients[chainId];
+            // Fetch all tokens in parallel using Promise.all
+            console.log(`✅ Tokens loaded: ${tokens.length}`);
+            console.log(`🔄 Starting balance fetch for ${tokens.length} tokens`);
 
-                // Debug logs
-                console.log(`Checking token: ${token.symbol} on chain ${chainId}. isNative: ${token.isNative}, Address: ${token.address}`);
+            await Promise.all(
+                tokens.map(async (token) => {
+                    const chainId = token.chainId || 84532;
+                    const client = clients[chainId];
 
-                if (!client) {
-                    console.warn(`⚠️ No client for chain ${chainId}`);
-                    continue;
-                }
+                    // Debug logs
+                    console.log(`Checking token: ${token.symbol} on chain ${chainId}. isNative: ${token.isNative}, Address: ${token.address}`);
 
-                try {
-                    if (token.isNative) {
-                        // Fetch native balance (ETH/MNT)
-                        console.log(`🔄 Fetching native balance on chain ${chainId}...`);
-                        const balance = await client.getBalance({ address });
-                        const formatted = formatEther(balance);
-                        newBalances[`native-${chainId}`] = formatted;
+                    if (!client) {
+                        console.warn(`⚠️ No client for chain ${chainId}`);
+                        return;
+                    }
 
-                        // Also store under the address key if available, so SelectTokenModal can find it
-                        if (token.address) {
-                            newBalances[`${chainId}-${token.address.toLowerCase()}`] = formatted;
+                    try {
+                        if (token.isNative) {
+                            // Fetch native balance (ETH/MNT)
+                            console.log(`🔄 Fetching ${token.symbol} balance on chain ${chainId}...`);
+                            const balance = await client.getBalance({ address });
+                            const formatted = formatEther(balance);
+                            newBalances[`native-${chainId}`] = formatted;
+
+                            // Also store under the address key if available, so SelectTokenModal can find it
+                            if (token.address) {
+                                newBalances[`${chainId}-${token.address.toLowerCase()}`] = formatted;
+                            }
+
+                            console.log(`✅ ${token.symbol} (chain ${chainId}) balance: ${formatted}`);
+                        } else if (token.address) {
+                            const tokenAddress = token.address.toLowerCase() as `0x${string}`;
+
+                            console.log(`🔄 Fetching ${token.symbol} balance on chain ${chainId}...`);
+
+                            // Get decimals
+                            const decimals = await client.readContract({
+                                address: tokenAddress,
+                                abi: erc20Abi,
+                                functionName: "decimals",
+                            });
+
+                            // Get balance
+                            const balance = await client.readContract({
+                                address: tokenAddress,
+                                abi: erc20Abi,
+                                functionName: "balanceOf",
+                                args: [address],
+                            });
+
+                            // Use chainId-address as key to prevent overwrite between chains
+                            newBalances[`${chainId}-${tokenAddress}`] = formatUnits(balance, decimals);
+                            console.log(`✅ ${token.symbol} (chain ${chainId}) balance: ${formatUnits(balance, decimals)}`);
                         }
-
-                        console.log(`✅ Native balance (chain ${chainId}):`, formatted);
-                    } else if (token.address) {
-                        const tokenAddress = token.address.toLowerCase() as `0x${string}`;
-
-                        console.log(`🔄 Fetching ${token.symbol} balance on chain ${chainId}...`);
-
-                        // Get decimals
-                        const decimals = await client.readContract({
-                            address: tokenAddress,
-                            abi: erc20Abi,
-                            functionName: "decimals",
-                        });
-
-                        // Get balance
-                        const balance = await client.readContract({
-                            address: tokenAddress,
-                            abi: erc20Abi,
-                            functionName: "balanceOf",
-                            args: [address],
-                        });
-
-                        // Use chainId-address as key to prevent overwrite between chains
-                        newBalances[`${chainId}-${tokenAddress}`] = formatUnits(balance, decimals);
-                        console.log(`✅ ${token.symbol} (chain ${chainId}) balance:`, formatUnits(balance, decimals));
+                    } catch (err: any) {
+                        console.error(`❌ Error fetching balance for ${token.symbol}:`, err);
+                        // store 0 on error to avoid indefinite loading
+                        if (token.address) {
+                            newBalances[`${chainId}-${token.address.toLowerCase()}`] = "0";
+                        }
                     }
-                } catch (err: any) {
-                    console.error(`❌ Error fetching balance for ${token.symbol}:`, err);
-                    // store 0 on error to avoid indefinite loading
-                    if (token.address) {
-                        newBalances[`${chainId}-${token.address.toLowerCase()}`] = "0";
-                    }
-                }
-            }
+                })
+            );
 
             console.log("🎉 Balance fetch complete:", Object.keys(newBalances).length, "balances");
             setBalances(newBalances);
