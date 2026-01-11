@@ -23,12 +23,12 @@ export function NewDashboardSidebar() {
         <aside className="w-64 flex flex-col border-r border-border-dark bg-[#080a0f] hidden md:flex">
             {/* Logo */}
             <div className="p-8">
-                <Image 
-                    src="/assets/brand/logo2.png" 
-                    alt="Kubi" 
-                    width={90} 
-                    height={40} 
-                    className="h-10 w-auto" 
+                <Image
+                    src="/assets/brand/logo2.png"
+                    alt="Kubi"
+                    width={90}
+                    height={40}
+                    className="h-10 w-auto"
                 />
             </div>
 
@@ -124,10 +124,16 @@ export function NewDashboardSidebar() {
             {/* User Profile Footer */}
             <div className="p-6 border-t border-border-dark/50">
                 <div className="flex items-center gap-3 p-3 rounded-2xl bg-surface-dark/50 border border-border-dark/50 hover:bg-surface-dark transition-colors cursor-pointer">
-                    <div
-                        className="size-10 rounded-full bg-cover bg-center ring-2 ring-primary/50"
-                        style={{ backgroundImage: "url('/assets/brand/logo2.png')" }}
-                    ></div>
+                    {user?.profile?.avatarUrl ? (
+                        <div
+                            className="size-10 rounded-full bg-cover bg-center ring-2 ring-primary/50"
+                            style={{ backgroundImage: `url('${user.profile.avatarUrl}')` }}
+                        ></div>
+                    ) : (
+                        <div className="size-10 rounded-full bg-gradient-to-br from-primary to-accent-cyan ring-2 ring-primary/50 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-white text-xl">person</span>
+                        </div>
+                    )}
                     <div className="flex flex-col overflow-hidden">
                         <p className="text-sm font-bold text-white font-display truncate">
                             {user?.profile?.displayName || user?.profile?.username || "Guest User"}

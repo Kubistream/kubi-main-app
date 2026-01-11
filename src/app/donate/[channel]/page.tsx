@@ -570,7 +570,7 @@ export default function DonatePage() {
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <div className="flex flex-col items-center gap-3 text-center">
                 {address && (
                   <p className="text-xs uppercase tracking-[0.25em] text-[var(--color-primary)] font-bold flex items-center justify-center gap-2">
@@ -586,8 +586,8 @@ export default function DonatePage() {
                 )}
               </div>
 
-              <form className="space-y-5" onSubmit={handleSubmit}>
-                <div className="space-y-4">
+              <form className="space-y-3" onSubmit={handleSubmit}>
+                <div className="space-y-2">
                   {address && (
                     <div className="flex flex-col items-center gap-2">
                       <button
@@ -640,7 +640,7 @@ export default function DonatePage() {
                     </a>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div className="flex flex-col gap-2">
                     <Label>Amount</Label>
                     <div className="flex">
@@ -791,7 +791,7 @@ export default function DonatePage() {
                   )}
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div className="relative grid grid-cols-3 gap-1 p-1 bg-[var(--color-surface-card)] border border-[var(--color-border-dark)] rounded-xl">
                     {/* Sliding Indicator */}
                     <div
