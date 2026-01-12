@@ -1,185 +1,495 @@
-# Kubi - Stream Smarter, Earn Onchain
-
 <p align="center">
-  <img src="./public/assets/brand/logo.png" alt="Kubi logo" width="128" />
+  <img src="./public/assets/brand/logo.png" alt="Kubi logo" width="160" />
 </p>
 
-> A creator platform for receiving onchain tips on Base, stitching in auto-yield, and broadcasting interactive overlays straight into OBS.
+<h1 align="center">Kubi - Stream Smarter, Earn Onchain</h1>
 
-## Table of Contents
-- [Highlights](#highlights)
-- [Core Stack](#core-stack)
-- [Prerequisites](#prerequisites)
-- [Quick Installation](#quick-installation)
-- [Running the Services](#running-the-services)
-- [Environment Variables](#environment-variables)
-- [Core Features](#core-features)
-- [Architecture & Directories](#architecture--directories)
-- [pnpm Scripts](#pnpm-scripts)
-- [Testing & Quality](#testing--quality)
-- [Deployment](#deployment)
-- [Additional Notes](#additional-notes)
+<p align="center">
+  <strong>A creator platform for receiving onchain tips with multichain support, auto-yield aggregation, and interactive OBS overlays</strong>
+</p>
 
-## Highlights
-- Non-custodial tipping on Base: transactions are verified directly from contract logs before persisting to Postgres.
-- Creator dashboard bundles donation link + QR generator, multi-range earnings sparkline, and per-supporter token breakdown.
-- Auto-yield aggregation reads representative token subscriptions and surfaces protocol growth percentages.
-- Real-time streaming overlay via Pusher with queued audio clips and animated gradients ready for OBS.
-- SIWE + Iron Session with RainbowKit/wagmi; creators onboard automatically after connecting a wallet.
-- Avatar uploads to S3-compatible storage let supporters personalize their presence on leaderboards.
+<p align="center">
+  <a href="#highlights">Highlights</a> •
+  <a href="#supported-networks">Networks</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#deployment">Deployment</a>
+</p>
 
-## Core Stack
-- Next.js 15 (App Router) + React 19, full TypeScript coverage.
-- Tailwind CSS 4 with bespoke design components in `src/components`.
-- Prisma 6 + PostgreSQL (see `prisma/schema.prisma` and `docker-compose.yml`).
-- wagmi 2, RainbowKit, ethers 6, and viem for Base Sepolia integrations.
-- Iron Session + SIWE for encrypted, httpOnly cookie sessions.
-- AWS SDK S3 for avatar uploads and shareable public URLs.
+---
 
-## Prerequisites
-- Node.js 20 or newer (20.11+ recommended for Next 15 compatibility).
-- pnpm (the repo ships with `pnpm-lock.yaml`).
-- Docker & Docker Compose if you want a quick local Postgres.
-- Base Sepolia RPC access and a test wallet to sign transactions.
+## ✨ Highlights
 
-## Quick Installation
-1. Clone the repo and install dependencies:
-   ```bash
-   pnpm install
-   ```
-2. Prepare environment files:
-   ```bash
-   cp env/.env.example .env
-   cp env/.env.example env/.env.local
-   ```
-   Populate the relevant variables (see [Environment Variables](#environment-variables)).
-3. Spin up local Postgres (optional but recommended):
-   ```bash
-   docker compose up -d
-   ```
-4. Run database migrations and generate the Prisma Client:
-   ```bash
-   pnpm prisma:migrate dev
-   pnpm prisma:generate
-   ```
-5. Start the development server:
-   ```bash
-   pnpm dev
-   ```
-   The app lives at http://localhost:3000.
+- 🔗 **Multichain Donations** – Receive tips on **Mantle Sepolia** (primary), **Base Sepolia**, and **Arbitrum Sepolia** with automatic cross-chain support.
+- 💰 **Non-Custodial Tipping** – Transactions verified directly from contract logs before persisting to Postgres.
+- 📊 **Creator Dashboard** – Donation link + QR generator, multi-range earnings sparkline, and per-supporter token breakdown.
+- 📈 **Auto-Yield Aggregation** – Reads representative token subscriptions and surfaces protocol growth percentages.
+- 🎬 **Real-Time OBS Overlay** – Pusher-powered overlays with queued audio clips and animated gradients.
+- 🔐 **SIWE Authentication** – Iron Session + RainbowKit/wagmi; creators onboard automatically after wallet connection.
+- 🖼️ **Avatar Uploads** – S3-compatible storage for personalized leaderboard presence.
 
-## Running the Services
-- Next.js app (dev): `pnpm dev`
-- Production build: `pnpm build`
-- Production server (uses the build output): `pnpm start`
-- Prisma Studio (DB inspector): `pnpm prisma:studio`
+---
 
-The overlay realtime channel uses Pusher (no self-hosted WebSocket relay required).
+## 🛠️ Tech Stack
 
-## Environment Variables
+| Category | Technologies |
+|----------|--------------|
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript 5, Tailwind CSS 4 |
+| **Web3** | Wagmi 2, Viem 2, RainbowKit 2, Ethers.js 6, SIWE 3 |
+| **Database** | Prisma 6 ORM, PostgreSQL 16 |
+| **Storage** | AWS S3 Compatible (MinIO support) |
+| **Real-Time** | Pusher Channels |
+| **Auth** | Iron Session, Sign-In With Ethereum (SIWE) |
+| **Infrastructure** | Docker Compose, Node.js 20+ |
+| **Dev Tools** | pnpm, ESLint, Concurrently, tsx |
+
+### Key Dependencies
+
+```
+├── @rainbow-me/rainbowkit  # Wallet connection UI
+├── wagmi                   # React hooks for Ethereum
+├── viem                    # TypeScript Ethereum library
+├── ethers                  # Ethereum utilities
+├── siwe                    # Sign-In With Ethereum
+├── @prisma/client          # Database ORM
+├── pusher / pusher-js      # Real-time notifications
+├── iron-session            # Encrypted session cookies
+├── @aws-sdk/client-s3      # S3-compatible storage
+├── node-cron               # Scheduler for yield rebase
+├── lucide-react            # Icon library
+└── qrcode.react            # QR code generation
+```
+
+---
+
+## 🌐 Supported Networks
+
+<table>
+  <thead>
+    <tr>
+      <th>Network</th>
+      <th>Chain ID</th>
+      <th>Status</th>
+      <th>Environment</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://cryptologos.cc/logos/mantle-mnt-logo.svg?v=040" height="16" style="vertical-align:middle" /> <strong>Mantle Sepolia</strong></td>
+      <td><code>5003</code></td>
+      <td>✅ Primary</td>
+      <td>Testnet</td>
+    </tr>
+    <tr>
+      <td><img src="https://avatars.githubusercontent.com/u/108554348?s=200&v=4" height="16" style="vertical-align:middle" /> <strong>Base Sepolia</strong></td>
+      <td><code>84532</code></td>
+      <td>✅ Supported</td>
+      <td>Testnet</td>
+    </tr>
+    <tr>
+      <td><img src="https://cryptologos.cc/logos/mantle-mnt-logo.svg?v=040" height="16" style="vertical-align:middle" /> <strong>Mantle</strong></td>
+      <td><code>5000</code></td>
+      <td>🚧 Planned</td>
+      <td>Mainnet</td>
+    </tr>
+    <tr>
+      <td><img src="https://avatars.githubusercontent.com/u/108554348?s=200&v=4" height="16" style="vertical-align:middle" /> <strong>Base</strong></td>
+      <td><code>8453</code></td>
+      <td>🚧 Planned</td>
+      <td>Mainnet</td>
+    </tr>
+  </tbody>
+</table>
+
+> **Note:** The smart contracts are deployed on **Mantle Sepolia** as the primary network. The application supports multichain donations, allowing users to donate from any supported chain.
+
+---
+
+## 📋 Table of Contents
+
+- [Highlights](#-highlights)
+- [Supported Networks](#-supported-networks)
+- [Prerequisites](#-prerequisites)
+- [Quick Start](#-quick-start)
+- [Running the Services](#-running-the-services)
+- [Environment Variables](#-environment-variables)
+- [Core Features](#-core-features)
+- [Architecture & Directories](#-architecture--directories)
+- [pnpm Scripts](#-pnpm-scripts)
+- [Testing & Quality](#-testing--quality)
+- [Deployment](#-deployment)
+- [Docker Support](#-docker-support)
+- [License](#-license)
+
+---
+
+## 📦 Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| **Node.js** | `20+` | `20.11+` recommended for Next 15 compatibility |
+| **pnpm** | Latest | The repo ships with `pnpm-lock.yaml` |
+| **Docker** | Latest | Optional; for local Postgres/MinIO |
+| **Wallet** | Any EVM wallet | Required for signing transactions |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Clone & Install
+
+```bash
+git clone https://github.com/your-org/kubi-main-app.git
+cd kubi-main-app
+pnpm install
+```
+
+### 2. Configure Environment
+
+```bash
+cp env/.env.example .env
+cp env/.env.example env/.env.local
+```
+
+Edit both files with your configuration (see [Environment Variables](#-environment-variables)).
+
+### 3. Start Database
+
+```bash
+docker compose up -d postgres
+```
+
+### 4. Run Migrations
+
+```bash
+pnpm prisma:migrate dev
+pnpm prisma:generate
+```
+
+### 5. Seed Data (Optional)
+
+```bash
+pnpm seed:tokens
+pnpm seed:yield-tokens
+```
+
+### 6. Start Development Server
+
+```bash
+pnpm dev
+```
+
+🎉 The app lives at **http://localhost:3000**
+
+---
+
+## ▶️ Running the Services
+
+The Kubi application consists of multiple workers that run alongside the Next.js app:
+
+| Service | Command | Description |
+|---------|---------|-------------|
+| **Full Stack** | `pnpm dev` | Runs Next.js + all workers with hot reload |
+| **Next.js Only** | `pnpm dev:next` | Just the web application |
+| **Event Listener** | `pnpm dev:listener` | Blockchain event monitoring |
+| **Queue Processor** | `pnpm dev:processor` | Overlay broadcast processor |
+| **Rebase Scheduler** | `pnpm dev:scheduler` | Auto-yield rebase cron |
+
+### Production Mode
+
+```bash
+pnpm build
+pnpm start          # Runs Next.js + all workers
+pnpm start:next     # Just the web application
+```
+
+---
+
+## 🔧 Environment Variables
+
 ### Server-side (`.env`)
-| Name | Example | Description |
-| --- | --- | --- |
-| `DATABASE_URL` | `postgresql://kubi:kubi@localhost:5432/kubi?schema=public` | Postgres connection string for Prisma. |
-| `SESSION_SECRET` | `super-long-random-string` | Iron Session cookie secret; minimum 32 characters. |
-| `APP_URL` | `http://localhost:3000` | Base URL used for SIWE domain validation (must match deploy origin). |
-| `S3_ENDPOINT` | `http://127.0.0.1:9000` | S3-compatible storage endpoint for avatars. |
-| `S3_REGION` | `us-east-1` | Optional; defaults to `us-east-1`. |
-| `S3_ACCESS_KEY_ID` | `minio` | Bucket access credential. |
-| `S3_SECRET_ACCESS_KEY` | `minio-secret` | Bucket access credential. |
-| `S3_PUBLIC_BASE_URL` | `https://cdn.example.com` | Public URL prefix stored in the DB. |
-| `S3_BUCKET_AVATARS` | `kubi-avatars` | Avatar bucket name. |
-| `S3_FORCE_PATH_STYLE` | `true` | Optional, use `true` for MinIO/LocalStack setups. |
-| `CHAIN_ID` | `84532` | Override chain ID server-side if you diverge from Base Sepolia. |
 
-### Client/Public (`env/.env.local`)
-| Name | Example | Description |
-| --- | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Must match `APP_URL` to satisfy SIWE origin checks. |
-| `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` | `abcd1234...` | WalletConnect Project ID (fallback provided if you don’t have one yet). |
-| `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER` | – | Server-side Pusher credentials for overlay broadcasting. |
-| `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` | – | Client-side Pusher credentials for overlay subscription. |
-| `NEXT_PUBLIC_BASE_RPC_URL` | `https://base-sepolia.drpc.org` | Public Base Sepolia RPC for clients. |
-| `NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS` | `0xabc...` | Optional override for the donation contract address. |
-| `NEXT_PUBLIC_CHAIN_ID` | `84532` | Optional client-side chain ID override. |
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `postgresql://kubi:kubi@localhost:5432/kubi?schema=public` | Postgres connection string |
+| `SESSION_SECRET` | `super-long-random-string-min-32-chars` | Iron Session cookie secret |
+| `APP_URL` | `http://localhost:3000` | Base URL for SIWE domain validation |
+| `CHAIN_ID` | `5003` | Primary chain ID (Mantle Sepolia) |
+| `PRIVATE_KEY` | `0x...` | Owner key for rebase scheduler |
 
-`env/.env.local` loads after `.env`, so values there override the shared server config for local development.
+#### S3/MinIO Configuration
 
-## Core Features
-### 1. Donation & Supporter Flow
-- `src/app/api/save-donation/[channel]/route.ts` validates onchain receipts (Donation event ABI) before persisting to the `Donation` table.
-- Donor identity is resolved by wallet address: existing profiles are updated, new donors are created automatically.
-- USD/IDR conversion still uses a mock price map—swap in a real feed when ready for production.
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `S3_ENDPOINT` | `http://127.0.0.1:9000` | S3-compatible endpoint |
+| `S3_REGION` | `us-east-1` | Bucket region |
+| `S3_ACCESS_KEY_ID` | `minio` | Access credential |
+| `S3_SECRET_ACCESS_KEY` | `minio-secret` | Secret credential |
+| `S3_PUBLIC_BASE_URL` | `https://cdn.example.com` | Public URL prefix |
+| `S3_BUCKET_AVATARS` | `kubi-avatars` | Avatar bucket name |
+| `S3_FORCE_PATH_STYLE` | `true` | Use path-style URLs (MinIO) |
 
-### 2. Creator Dashboard
-- `src/app/dashboard/page.tsx` renders the **Donation Link Card** with a high-resolution QR generator (`DonationLinkCard`) ready to download.
-- **Earnings Overview Card** surfaces an interactive sparkline with timeframe toggles (`use-earnings-overview`) and currency switch (USD/IDR).
-- Token history + yield growth is handled by `AutoYieldPositionsCard`, reading representative token contracts and provider whitelists.
+#### Pusher Configuration
 
-### 3. OBS Overlay
-- `src/app/overlay/[streamerId]/page.tsx` is a full-screen layout with gradient animation and mascot art.
-- Subscribes to `overlay-<streamerId>` channel on Pusher and queues audio/messages sequentially to avoid overlap.
-- Supporting assets live in `public/overlay/` (mp3/gif) for easy customization.
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `PUSHER_APP_ID` | `1234567` | Pusher application ID |
+| `PUSHER_KEY` | `abc123` | Pusher key |
+| `PUSHER_SECRET` | `secret` | Pusher secret |
+| `PUSHER_CLUSTER` | `ap1` | Pusher cluster |
 
-### 4. Authentication & Sessions
-- SIWE is implemented via `src/providers/auth-provider.tsx`, `src/lib/auth/siwe.ts`, and `src/lib/auth/session.ts`.
-- Flow: `/api/auth/nonce` -> sign message -> `/api/auth/verify` -> Iron Session cookie `kubi.session`.
-- The `useLaunchApp` hook routes users to onboarding or dashboard based on profile status.
+### Client-side (`env/.env.local`)
 
-### 5. Token & Yield Management
-- Contract helpers live in `src/services/contracts/` (addresses, yield, erc20, provider).
-- Prisma stores token whitelists, yield providers, and streamer relationships (`StreamerTokenWhitelist`, `YieldProvider`).
-- Admin endpoints (e.g. `/api/admin/yield/providers`) supply dashboard data.
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Must match `APP_URL` |
+| `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` | `abcd1234...` | WalletConnect Project ID |
+| `NEXT_PUBLIC_PUSHER_KEY` | `abc123` | Client-side Pusher key |
+| `NEXT_PUBLIC_PUSHER_CLUSTER` | `ap1` | Client-side Pusher cluster |
+| `NEXT_PUBLIC_BASE_RPC_URL` | `https://sepolia.base.org` | Base Sepolia RPC |
+| `NEXT_PUBLIC_MANTLE_RPC_URL` | `https://rpc.sepolia.mantle.xyz` | Mantle Sepolia RPC |
+| `NEXT_PUBLIC_ARBITRUM_RPC_URL` | `https://sepolia-rollup.arbitrum.io/rpc` | Arbitrum Sepolia RPC |
+| `NEXT_PUBLIC_CHAIN_ID` | `5003` | Primary chain ID |
+| `NEXT_PUBLIC_DONATION_CONTRACT_ADDRESS` | `0xDb26Ba...` | Donation contract address |
 
-### 6. Media Storage
-- Avatar uploads go through `/api/uploads/avatar` using the AWS SDK S3 client.
-- Files are validated (<5MB, PNG/JPEG) before upload.
-- `publicUrlForKey` generates CDN-ready URLs that are saved in the database.
+---
 
-## Architecture & Directories
+## ⚡ Core Features
+
+### 1. 💸 Donation & Supporter Flow
+
+- `src/app/api/save-donation/[channel]/route.ts` validates onchain receipts before persisting.
+- Donor identity resolved by wallet address; new donors created automatically.
+- Supports multiple tokens per chain with real-time price conversion.
+
+### 2. 📊 Creator Dashboard
+
+- **Donation Link Card** – High-resolution QR generator ready to download.
+- **Earnings Overview** – Interactive sparkline with timeframe toggles and USD/IDR switch.
+- **Token History** – Auto-yield positions and provider whitelists.
+
+### 3. 🎬 OBS Overlay
+
+- `src/app/overlay/[streamerId]/page.tsx` – Full-screen gradient animations.
+- Pusher subscription with sequential audio/message queue.
+- Customizable assets in `public/overlay/` (mp3/gif).
+
+### 4. 🔐 Authentication & Sessions
+
+- SIWE flow: `/api/auth/nonce` → sign → `/api/auth/verify` → Iron Session cookie.
+- Automatic routing based on profile completion status.
+
+### 5. 📈 Token & Yield Management
+
+- Contract helpers in `src/services/contracts/`.
+- Prisma models: `StreamerTokenWhitelist`, `YieldProvider`.
+- Admin endpoints for dashboard data.
+
+### 6. 🖼️ Media Storage
+
+- Avatar uploads via `/api/uploads/avatar`.
+- Validation: <5MB, PNG/JPEG only.
+- CDN-ready URLs saved to database.
+
+---
+
+## 📁 Architecture & Directories
+
 ```
-src/
-  app/                 // Next.js App Router routes (dashboard, donate, overlay, API)
-  components/          // UI primitives and feature components (landing, dashboard, etc.)
-  providers/           // Context providers (AuthProvider, Theme, ...)
-  hooks/               // Custom hooks such as wallet, earnings
-  services/            // Contract, token, upload, profile integrations
-  lib/                 // Env helpers, Prisma client, utilities, auth helpers, S3
-prisma/                // Database schema & migrations
-public/overlay/        // Overlay assets (audio, sample visuals)
-env/                   // Environment templates (.env.example, .env.local)
+kubi-main-app/
+├── src/
+│   ├── app/                    # Next.js App Router routes
+│   │   ├── api/                # API routes (auth, donation, admin)
+│   │   ├── dashboard/          # Creator dashboard pages
+│   │   ├── donate/             # Donation flow pages
+│   │   └── overlay/            # OBS overlay pages
+│   ├── components/             # UI primitives and features
+│   │   ├── dashboard/          # Dashboard-specific components
+│   │   ├── landing/            # Landing page components
+│   │   └── ui/                 # Reusable UI components
+│   ├── config/                 # App configuration
+│   │   ├── chain-id.ts         # Chain ID configuration
+│   │   ├── rpc-config.ts       # RPC fallback configuration
+│   │   └── web3.ts             # Wagmi/RainbowKit setup
+│   ├── hooks/                  # Custom React hooks
+│   ├── lib/                    # Utilities, auth, Prisma client
+│   ├── providers/              # Context providers
+│   ├── services/               # Contract, token, upload integrations
+│   │   └── contracts/          # Smart contract interactions
+│   └── workers/                # Background workers
+│       ├── event-listener.ts   # Blockchain event monitoring
+│       ├── donation-queue-processor.ts  # Overlay broadcast
+│       └── rebase-scheduler.ts # Auto-yield rebase cron
+├── prisma/                     # Database schema & migrations
+├── public/
+│   ├── assets/                 # Static assets
+│   └── overlay/                # Overlay audio/visual assets
+├── env/                        # Environment templates
+├── scripts/                    # Utility scripts
+├── tests/                      # Test scaffolding
+└── docker-compose.yml          # Docker services
 ```
 
-The database schema in `prisma/schema.prisma` covers `User`, `Streamer`, `Donation`, `Token`, `YieldProvider`, `QueueOverlay`, and other supporting models.
+---
 
-## pnpm Scripts
-| Script | Description | Notes |
-| --- | --- | --- |
-| `pnpm dev` | Runs the Next.js dev server with hot reload. | Ensure env variables are set. |
-| `pnpm build` | Produces a production build of Next.js. | Run before deployment. |
-| `pnpm start` | Serves the production build. | Use in staging/prod behind a proxy. |
-| `pnpm lint` | Executes ESLint. | Recommended pre-commit. |
-| `pnpm prisma:generate` | Regenerates Prisma Client. | Run after schema changes. |
-| `pnpm prisma:migrate` | Creates/apply dev migrations locally. | Requires Postgres running. |
-| `pnpm prisma:studio` | Opens Prisma Studio. | Handy for visual data debugging. |
+## 📜 pnpm Scripts
 
-## Testing & Quality
-- Automated test suites aren’t in place yet; `tests/` is scaffolded for future E2E coverage.
+| Script | Description |
+|--------|-------------|
+| `pnpm dev` | Runs Next.js + all workers with hot reload |
+| `pnpm dev:next` | Next.js development server only |
+| `pnpm dev:listener` | Event listener with watch mode |
+| `pnpm dev:processor` | Queue processor with watch mode |
+| `pnpm dev:scheduler` | Rebase scheduler with watch mode |
+| `pnpm build` | Production build (Prisma generate + Next.js) |
+| `pnpm start` | Production server (Next.js + all workers) |
+| `pnpm lint` | Run ESLint |
+| `pnpm prisma:generate` | Regenerate Prisma Client |
+| `pnpm prisma:migrate` | Create/apply dev migrations |
+| `pnpm prisma:push` | Push schema changes to database |
+| `pnpm prisma:studio` | Open Prisma Studio (visual DB editor) |
+| `pnpm seed:tokens` | Seed token configuration |
+| `pnpm seed:yield-tokens` | Seed yield token configuration |
+
+---
+
+## 🧪 Testing & Quality
+
 - Run `pnpm lint` before pushing to catch formatting/TypeScript issues.
-- Use `pnpm prisma:studio` or `psql` to verify data after trial donation flows.
+- Use `pnpm prisma:studio` or `psql` to verify data after donation flows.
+- E2E test scaffolding available in `tests/` directory.
 
-## Deployment
-1. Ensure production env variables are provisioned (especially S3 credentials and public URLs).
-2. Build the app: `pnpm build`.
-3. Serve it: `pnpm start` (defaults to port 3000) behind HTTPS/reverse proxy.
-4. Apply schema migrations on release: `pnpm prisma:migrate deploy`.
-5. Confirm Pusher credentials and Base Sepolia RPC are reachable from your deployment environment.
+### Manual Testing Checklist
 
-The sample CI/CD pipeline in `.github/workflows/deploy-dev.yaml` is a good starting point for automated deployments (Vercel or self-hosted).
+- [ ] Wallet connection and SIWE authentication
+- [ ] Donation flow on Mantle Sepolia
+- [ ] Cross-chain donation from Base Sepolia
+- [ ] Overlay broadcast via Pusher
+- [ ] Avatar upload to S3/MinIO
 
-## Additional Notes
-- Token prices in the `save-donation` route are placeholders—swap for a live feed (Chainlink, Coingecko API, etc.) before going live.
-- `docker-compose.yml` spins up Postgres 16 with a persistent `postgres-data` volume.
-- Keep `env/.env.example` up to date whenever you introduce new variables to streamline onboarding.
+---
 
-Happy building the onchain streaming ecosystem with Kubi! 🚀
+## 🚀 Deployment
+
+### 1. Production Environment Setup
+
+```bash
+# Required environment variables
+DATABASE_URL=postgresql://...
+SESSION_SECRET=...
+APP_URL=https://your-domain.com
+PUSHER_APP_ID=...
+PUSHER_KEY=...
+PUSHER_SECRET=...
+PUSHER_CLUSTER=...
+```
+
+### 2. Build & Start
+
+```bash
+pnpm build
+pnpm start
+```
+
+### 3. Apply Migrations
+
+```bash
+pnpm prisma:migrate deploy
+```
+
+### 4. Verify Connectivity
+
+- Pusher credentials accessible
+- RPC endpoints reachable
+- S3/MinIO storage configured
+
+---
+
+## 🐳 Docker Support
+
+### Available Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `app` | 3000 | Next.js application |
+| `postgres` | 5432 | PostgreSQL database |
+| `minio` | 9000, 9001 | S3-compatible storage |
+
+### Commands
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f app
+
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
+```
+
+### Management UIs
+
+- **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
+- **Prisma Studio**: `pnpm prisma:studio`
+
+---
+
+## 🔄 Architecture: Database Queue vs RabbitMQ
+
+Kubi uses a **database-based queue** (PostgreSQL) instead of RabbitMQ for simplicity:
+
+| Aspect | RabbitMQ | Database Queue |
+|--------|----------|----------------|
+| Deployment | Additional service | ✅ Uses existing Postgres |
+| Maintenance | Monitor RabbitMQ | ✅ Already handled |
+| Reliability | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| Latency | Real-time | ~1s polling |
+| Complexity | Complex | ✅ Simple |
+| Setup | Difficult | ✅ Easy |
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] **Mainnet Deployment** – Launch on Mantle and Base mainnet
+- [ ] **Cross-Chain Bridging** – Hyperlane integration for seamless cross-chain donations
+- [ ] **Token Swaps** – Uniswap widget integration for token conversion
+- [ ] **Analytics Dashboard** – Advanced creator analytics and insights
+- [ ] **Mobile App** – Native iOS/Android applications
+- [ ] **Fiat Onramp** – Enable fiat-to-crypto donations
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our contributing guidelines and submit pull requests to the `dev` branch.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+<p align="center">
+  <strong>Happy building the onchain streaming ecosystem with Kubi! 🚀</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/your-org/kubi-main-app">
+    <img src="https://img.shields.io/github/stars/your-org/kubi-main-app?style=social" alt="GitHub stars" />
+  </a>
+  <a href="https://twitter.com/kubistream">
+    <img src="https://img.shields.io/twitter/follow/kubistream?style=social" alt="Twitter Follow" />
+  </a>
+</p>
