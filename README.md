@@ -5,7 +5,7 @@
 <h1 align="center">Kubi - Stream Smarter, Earn Onchain</h1>
 
 <p align="center">
-  <strong>A creator platform for receiving onchain tips with multichain support, auto-yield aggregation, and interactive OBS overlays</strong>
+  <strong>A multichain creator platform with Mantle as the hub chain — receive onchain tips from any supported chain with automatic cross-chain bridging, auto-yield aggregation, and interactive OBS overlays</strong>
 </p>
 
 <p align="center">
@@ -19,7 +19,8 @@
 
 ## ✨ Highlights
 
-- 🔗 **Multichain Donations** – Receive tips on **Mantle Sepolia** (primary) and **Base Sepolia**  with automatic cross-chain support.
+- 🔗 **Multichain Donations with Auto-Bridge** – Supporters can donate from **any supported chain**. All donations are automatically bridged to **Mantle** (hub chain) — creators receive everything in one place!
+- 🌉 **Mantle as Hub Chain** – Mantle Sepolia serves as the central hub. Cross-chain donations from Base Sepolia are automatically routed and consolidated on Mantle.
 - 💰 **Non-Custodial Tipping** – Transactions verified directly from contract logs before persisting to Postgres.
 - 📊 **Creator Dashboard** – Donation link + QR generator, multi-range earnings sparkline, and per-supporter token breakdown.
 - 📈 **Auto-Yield Aggregation** – Reads representative token subscriptions and surfaces protocol growth percentages.
@@ -100,7 +101,40 @@
   </tbody>
 </table>
 
-> **Note:** The smart contracts are deployed on **Mantle Sepolia** as the primary network. The application supports multichain donations, allowing users to donate from any supported chain.
+### 🏗️ Hub & Spoke Architecture
+
+Kubi implements a **Hub & Spoke** cross-chain architecture with **Mantle as the Hub Chain**:
+
+```
+                    ┌─────────────────────────────────────┐
+                    │          🎯 MANTLE (Hub)            │
+                    │    All donations consolidated here  │
+                    │    Creators withdraw from Mantle    │
+                    └─────────────────────────────────────┘
+                                      ▲
+                                      │
+                        ┌─────────────┴─────────────┐
+                        │      Auto-Bridge          │
+                        │   (Cross-chain routing)   │
+                        └─────────────┬─────────────┘
+                                      ▲
+              ┌───────────────────────┼───────────────────────┐
+              │                       │                       │
+    ┌─────────┴─────────┐   ┌─────────┴─────────┐   ┌─────────┴─────────┐
+    │   Base (Spoke)    │   │  Mantle (Direct)  │   │  Future Chains    │
+    │   Donate here →   │   │   Donate here →   │   │   (Arbitrum, etc) │
+    │   Auto-bridge ✓   │   │   No bridge needed│   │   Auto-bridge ✓   │
+    └───────────────────┘   └───────────────────┘   └───────────────────┘
+```
+
+**How it works:**
+
+1. **Donation on Hub (Mantle)** — Direct deposit to the streamer's contract. No bridging needed.
+2. **Donation on Spoke (Base, etc.)** — The smart contract automatically initiates a cross-chain bridge to Mantle. The donation is routed to the streamer's Mantle address seamlessly.
+3. **Unified Balance** — All donations, regardless of source chain, are consolidated on Mantle. Creators only need to manage one wallet on one chain.
+
+> 💡 **Why Mantle?** Mantle offers low gas fees, fast finality, and excellent DeFi ecosystem integration — making it the perfect hub for creator economy applications.
+
 
 ---
 
