@@ -105,26 +105,30 @@
 
 Kubi implements a **Hub & Spoke** cross-chain architecture with **Mantle as the Hub Chain**:
 
-```
-                    ┌─────────────────────────────────────┐
-                    │          🎯 MANTLE (Hub)            │
-                    │    All donations consolidated here  │
-                    │    Creators withdraw from Mantle    │
-                    └─────────────────────────────────────┘
-                                      ▲
-                                      │
-                        ┌─────────────┴─────────────┐
-                        │      Auto-Bridge          │
-                        │   (Cross-chain routing)   │
-                        └─────────────┬─────────────┘
-                                      ▲
-              ┌───────────────────────┼───────────────────────┐
-              │                       │                       │
-    ┌─────────┴─────────┐   ┌─────────┴─────────┐   ┌─────────┴─────────┐
-    │   Base (Spoke)    │   │  Mantle (Direct)  │   │  Future Chains    │
-    │   Donate here →   │   │   Donate here →   │   │   (Arbitrum, etc) │
-    │   Auto-bridge ✓   │   │   No bridge needed│   │   Auto-bridge ✓   │
-    └───────────────────┘   └───────────────────┘   └───────────────────┘
+```mermaid
+flowchart BT
+    subgraph hub["🎯 MANTLE (Hub Chain)"]
+        H["All donations consolidated here<br/>Creators withdraw from Mantle"]
+    end
+
+    subgraph bridge["🌉 Auto-Bridge Layer"]
+        B["Cross-chain routing"]
+    end
+
+    subgraph spokes["Spoke Chains"]
+        S1["🔵 Base Sepolia<br/>Donate here → Auto-bridge ✓"]
+        S2["🟣 Mantle Sepolia<br/>Donate here → Direct ✓"]
+        S3["🔮 Future Chains<br/>Arbitrum, Polygon, etc."]
+    end
+
+    S1 --> B
+    S3 --> B
+    B --> H
+    S2 --> H
+
+    style hub fill:#4ade80,stroke:#22c55e,stroke-width:2px,color:#000
+    style bridge fill:#60a5fa,stroke:#3b82f6,stroke-width:2px,color:#000
+    style spokes fill:#f472b6,stroke:#ec4899,stroke-width:2px,color:#000
 ```
 
 **How it works:**
