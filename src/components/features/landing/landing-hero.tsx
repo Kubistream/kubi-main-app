@@ -68,7 +68,7 @@ export function LandingHero() {
 
           <p className="mx-auto max-w-3xl text-lg leading-relaxed text-slate-400 sm:text-xl md:text-2xl font-medium">
             Fuse live streams with DeFi auto-yield, OBS alerts, and non-custodial security—
-            supercharge tips that grow on Base's low-fee chain.
+            supercharge tips that grow on Mantle's low-fee chain.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-6">

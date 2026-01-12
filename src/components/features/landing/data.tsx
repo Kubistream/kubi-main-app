@@ -118,7 +118,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "Which tokens/networks?",
     answer:
-      "ERC-20s on supported EVM networks (Base Sepolia in beta; more networks coming). Creators can set preferred tokens.",
+      "ERC-20s on supported EVM networks (Mantle Sepolia in beta; more networks coming). Creators can set preferred tokens.",
   },
   {
     question: "How does Auto-Swap work?",
@@ -128,7 +128,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "Is Auto-Yield safe?",
     answer:
-      "Auto-Yield is optional and integrates with leading lending protocols on Base (more providers coming). You keep custody—yield accrues to your wallet—and you can withdraw directly on the provider you chose. It carries smart-contract and market risk; APR varies and is not guaranteed.",
+      "Auto-Yield is optional and integrates with leading lending protocols on Mantle (more providers coming). You keep custody—yield accrues to your wallet—and you can withdraw directly on the provider you chose. It carries smart-contract and market risk; APR varies and is not guaranteed.",
   },
   {
     question: "Can I donate without crypto?",
