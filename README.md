@@ -19,7 +19,7 @@
 
 ## ✨ Highlights
 
-- 🔗 **Multichain Donations** – Receive tips on **Mantle Sepolia** (primary), **Base Sepolia**, and **Arbitrum Sepolia** with automatic cross-chain support.
+- 🔗 **Multichain Donations** – Receive tips on **Mantle Sepolia** (primary) and **Base Sepolia**  with automatic cross-chain support.
 - 💰 **Non-Custodial Tipping** – Transactions verified directly from contract logs before persisting to Postgres.
 - 📊 **Creator Dashboard** – Donation link + QR generator, multi-range earnings sparkline, and per-supporter token breakdown.
 - 📈 **Auto-Yield Aggregation** – Reads representative token subscriptions and surfaces protocol growth percentages.
@@ -115,7 +115,6 @@
 - [Core Features](#-core-features)
 - [Architecture & Directories](#-architecture--directories)
 - [pnpm Scripts](#-pnpm-scripts)
-- [Testing & Quality](#-testing--quality)
 - [Deployment](#-deployment)
 - [Docker Support](#-docker-support)
 - [License](#-license)
@@ -352,21 +351,6 @@ kubi-main-app/
 
 ---
 
-## 🧪 Testing & Quality
-
-- Run `pnpm lint` before pushing to catch formatting/TypeScript issues.
-- Use `pnpm prisma:studio` or `psql` to verify data after donation flows.
-- E2E test scaffolding available in `tests/` directory.
-
-### Manual Testing Checklist
-
-- [ ] Wallet connection and SIWE authentication
-- [ ] Donation flow on Mantle Sepolia
-- [ ] Cross-chain donation from Base Sepolia
-- [ ] Overlay broadcast via Pusher
-- [ ] Avatar upload to S3/MinIO
-
----
 
 ## 🚀 Deployment
 
@@ -437,31 +421,7 @@ docker-compose down -v
 
 ---
 
-## 🔄 Architecture: Database Queue vs RabbitMQ
 
-Kubi uses a **database-based queue** (PostgreSQL) instead of RabbitMQ for simplicity:
-
-| Aspect | RabbitMQ | Database Queue |
-|--------|----------|----------------|
-| Deployment | Additional service | ✅ Uses existing Postgres |
-| Maintenance | Monitor RabbitMQ | ✅ Already handled |
-| Reliability | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| Latency | Real-time | ~1s polling |
-| Complexity | Complex | ✅ Simple |
-| Setup | Difficult | ✅ Easy |
-
----
-
-## 🗺️ Roadmap
-
-- [ ] **Mainnet Deployment** – Launch on Mantle and Base mainnet
-- [ ] **Cross-Chain Bridging** – Hyperlane integration for seamless cross-chain donations
-- [ ] **Token Swaps** – Uniswap widget integration for token conversion
-- [ ] **Analytics Dashboard** – Advanced creator analytics and insights
-- [ ] **Mobile App** – Native iOS/Android applications
-- [ ] **Fiat Onramp** – Enable fiat-to-crypto donations
-
----
 
 ## 🤝 Contributing
 
