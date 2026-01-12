@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/assets/brand/logo.png" alt="Kubi logo" width="160" />
+  <img src="./public/assets/brand/logo_big.png" alt="Kubi logo" width="160" />
 </p>
 
 <h1 align="center">Kubi - Stream Smarter, Earn Onchain</h1>
