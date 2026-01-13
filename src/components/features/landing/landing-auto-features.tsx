@@ -41,7 +41,7 @@ export function LandingAutoFeatures() {
                 </span>
               </div>
               <CardDescription className="text-base leading-relaxed text-slate-300 sm:text-lg font-medium">
-                Opt-in to route received tokens into a yield strategy via leading lending protocols on Base. You keep custody at all times while funds remain in your wallet.
+                Opt-in to route received tokens into a yield strategy via leading lending protocols on Mantle. You keep custody at all times while funds remain in your wallet.
               </CardDescription>
             </div>
           </CardHeader>
@@ -53,7 +53,7 @@ export function LandingAutoFeatures() {
               <li>You hold the yield in your wallet and can withdraw at the chosen lending protocol.</li>
             </ul>
             <p className="mt-6 text-xs text-slate-500 font-mono border-t border-white/5 pt-4 leading-relaxed">
-              Powered by top lending providers on Base; more providers will be added over time. Risk note: Yield is optional and involves smart-contract and market risk. Returns vary and are not guaranteed.
+              Powered by top lending providers on Mantle; more providers will be added over time. Risk note: Yield is optional and involves smart-contract and market risk. Returns vary and are not guaranteed.
             </p>
           </CardContent>
         </Card>

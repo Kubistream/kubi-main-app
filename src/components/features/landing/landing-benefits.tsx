@@ -20,7 +20,7 @@ const benefits = [
   },
   {
     title: "Auto-Yield",
-    description: "Earn yield via top Base lending protocols; you keep custody.",
+    description: "Earn yield via top Mantle lending protocols; you keep custody.",
     icon: TrendingUp,
   },
 ];
