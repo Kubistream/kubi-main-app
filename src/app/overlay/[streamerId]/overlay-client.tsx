@@ -120,10 +120,10 @@ export default function OverlayClient({
       }
     };
 
-    channel.bind("donation", handler);
+    channel.bind("overlay", handler);
 
     return () => {
-      channel.unbind("donation", handler);
+      channel.unbind("overlay", handler);
       pusher.unsubscribe(channelName);
       pusher.disconnect();
     };
