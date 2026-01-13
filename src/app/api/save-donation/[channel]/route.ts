@@ -343,9 +343,35 @@ export async function POST(
     });
 
     // 📡 Broadcast to Overlay via WebSocket (Pusher)
-    // NOTE: Sounds are NOT sent here due to Pusher's 10KB limit.
-    // The overlay client will use browser TTS as fallback.
-    // For full audio (alert + TTS), use the QueueOverlay worker instead.
+    // Generate sounds via URL system (Test endpoint style)
+    const sounds: string[] = [];
+    try {
+      const { loadAlertSound } = await import("@/utils/sound");
+      const { textToSpeechUrl, generateDonationMessage } = await import("@/services/tts");
+
+      // 1. Alert Sound
+      const alertSound = await loadAlertSound();
+      sounds.push(alertSound);
+
+      // 2. TTS Logic
+      if (mediaType === "TEXT" && message) {
+        const formattedAmount = parseFloat(ethers.formatUnits(amountIn, tokenInRecord.decimals)).toLocaleString('en-US', { maximumFractionDigits: 4 });
+        const notificationMsg = generateDonationMessage(trimmedName || "Anonymous", formattedAmount, tokenInRecord.symbol);
+        
+        try {
+          const notifAudio = await textToSpeechUrl(notificationMsg, "en");
+          sounds.push(notifAudio);
+        } catch (e) { console.warn("TTS Notif failed:", e); }
+
+        try {
+          const msgAudio = await textToSpeechUrl(message, "id");
+          sounds.push(msgAudio);
+        } catch (e) { console.warn("TTS Message failed:", e); }
+      }
+    } catch (soundError) {
+      console.warn("Sound generation failed in API:", soundError);
+    }
+
     try {
       const overlayMessage = {
         type: "overlay",
@@ -353,7 +379,7 @@ export async function POST(
         donorAddress: donorAddress,
         donorName: trimmedName || "Anonymous",
         message: message || "",
-        sounds: [], // Empty - let client use browser TTS (Pusher has 10KB limit)
+        sounds: sounds, // Now populated with URLs
         streamerName: "", // Optional
         tokenSymbol: tokenInRecord.symbol,
         tokenLogo: tokenInRecord.logoURI,
