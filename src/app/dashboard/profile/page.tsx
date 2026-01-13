@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, ChangeEventHandler, useEffect, useMemo, useRef, useState } from "react";
-import { UserRound, TrendingUp, CircleHelp, ChevronDown, ChevronUp, Wallet } from "lucide-react";
+import { UserRound, TrendingUp, CircleHelp, ChevronDown, ChevronUp, Wallet, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -682,17 +682,22 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           className="flex h-11 w-full items-center justify-between rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] px-4 text-left text-sm shadow-sm transition hover:border-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="flex items-center gap-2 text-white">
-            {selectedPrimary?.logoURI && (
+            {loading ? (
+              <span className="flex items-center">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span className="text-slate-500">Loading tokens...</span>
+              </span>
+            ) : selectedPrimary?.logoURI ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={selectedPrimary.logoURI!} alt={selectedPrimary.symbol} className="h-5 w-5 rounded-full" />
-            )}
-            {selectedPrimary ? (
+            ) : null}
+            {!loading && (selectedPrimary ? (
               <>
                 <span className="font-medium">{selectedPrimary.symbol}</span>
               </>
             ) : (
               <span className="text-slate-500">Select a token…</span>
-            )}
+            ))}
           </span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -827,31 +832,37 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {tokens.length === 0 && (
+          {loading ? (
+            <div className="flex items-center gap-2 py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+              <span className="text-sm text-slate-500">Loading whitelist...</span>
+            </div>
+          ) : tokens.length === 0 ? (
             <p className="text-sm text-slate-500">No tokens available.</p>
+          ) : (
+            tokens.map((t) => {
+              const selected = whitelist.has(t.id);
+              const tokenLocked = Boolean(subscriptions[t.id ?? ""]);
+              return (
+                <div key={t.id} className="flex items-center gap-2">
+                  <Toggle
+                    pressed={selected}
+                    onPressedChange={(pressed) => handleToggleWhitelist(t.id, pressed)}
+                    disabled={tokenLocked || isDisabled}
+                    size="sm"
+                    title={tokenLocked ? "Unsubscribe to change whitelist" : t.name ?? t.symbol}
+                    className="data-[state=on]:!bg-accent-cyan data-[state=on]:!text-black data-[state=on]:!border-accent-cyan data-[state=on]:font-black border-slate-700 hover:border-slate-500"
+                  >
+                    {t.logoURI && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={t.logoURI} alt={t.symbol} className="mr-2 h-4 w-4 rounded-full" />
+                    )}
+                    {t.symbol}
+                  </Toggle>
+                </div>
+              );
+            })
           )}
-          {tokens.map((t) => {
-            const selected = whitelist.has(t.id);
-            const tokenLocked = Boolean(subscriptions[t.id ?? ""]);
-            return (
-              <div key={t.id} className="flex items-center gap-2">
-                <Toggle
-                  pressed={selected}
-                  onPressedChange={(pressed) => handleToggleWhitelist(t.id, pressed)}
-                  disabled={tokenLocked || isDisabled}
-                  size="sm"
-                  title={tokenLocked ? "Unsubscribe to change whitelist" : t.name ?? t.symbol}
-                  className="data-[state=on]:!bg-accent-cyan data-[state=on]:!text-black data-[state=on]:!border-accent-cyan data-[state=on]:font-black border-slate-700 hover:border-slate-500"
-                >
-                  {t.logoURI && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.logoURI} alt={t.symbol} className="mr-2 h-4 w-4 rounded-full" />
-                  )}
-                  {t.symbol}
-                </Toggle>
-              </div>
-            );
-          })}
         </div>
         <p className="text-xs text-slate-500">Tokens in this list are accepted without auto-swap.</p>
       </div>
@@ -872,14 +883,21 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           </div>
           <p className="text-xs text-slate-400">Subscribe one protocol per token</p>
         </div>
-        <AutoYieldByTokenSection
-          tokens={tokens}
-          whitelist={whitelist}
-          subscriptions={subscriptions}
-          disabled={isDisabled || loadingProviders}
-          providersByUnderlying={providersByUnderlying}
-          onToggle={(tokenId, representativeAddress) => toggleSubscription(tokenId, representativeAddress)}
-        />
+        {loadingProviders ? (
+          <div className="flex items-center justify-center py-8 text-slate-500 gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading yield providers...</span>
+          </div>
+        ) : (
+          <AutoYieldByTokenSection
+            tokens={tokens}
+            whitelist={whitelist}
+            subscriptions={subscriptions}
+            disabled={isDisabled || loadingProviders}
+            providersByUnderlying={providersByUnderlying}
+            onToggle={(tokenId, representativeAddress) => toggleSubscription(tokenId, representativeAddress)}
+          />
+        )}
       </div>
 
       {/* <Button onClick={handleSave} disabled={isDisabled} className="w-full">
