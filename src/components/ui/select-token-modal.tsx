@@ -25,7 +25,7 @@ const CHAINS: Record<number, {
   },
 };
 
-const CHAIN_IDS = [84532, 5003];
+const CHAIN_IDS = [5003, 84532];
 
 interface Token {
   symbol: string;
@@ -55,7 +55,7 @@ export function SelectTokenModal({
   onSelectToken,
   balances,
   tokens: propTokens,
-  defaultChainId = 84532
+  defaultChainId = 5003
 }: SelectTokenModalProps) {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [search, setSearch] = useState("");

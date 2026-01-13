@@ -116,7 +116,7 @@ export function useDonation(): UseDonationResult {
 
         try {
             // Determine the target chain
-            const effectiveChainId = chainId || token.chainId || 84532;
+            const effectiveChainId = chainId || token.chainId || 5003;
 
             // Check if wallet is on the correct chain
             const currentChainId = await client.getChainId();
@@ -391,7 +391,7 @@ export function useTokenBalances(tokens: TokenInfo[]) {
 
             await Promise.all(
                 tokens.map(async (token) => {
-                    const chainId = token.chainId || 84532;
+                    const chainId = token.chainId || 5003;
                     const client = clients[chainId];
 
                     // Debug logs

@@ -137,10 +137,10 @@ export default function DonatePage() {
     isNative?: boolean;
     chainId?: number;
   }>({
-    symbol: "USDC",
-    logoURI: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
-    isNative: false,
-    chainId: 84532,
+    symbol: "MNT",
+    logoURI: "https://cryptologos.cc/logos/mantle-mnt-logo.png?v=040",
+    isNative: true,
+    chainId: 5003,
   });
 
   const [primaryTokenAddress, setPrimaryTokenAddress] = useState<string | undefined>(undefined);
@@ -1031,7 +1031,7 @@ export default function DonatePage() {
           }}
           tokens={tokens.map(t => ({ ...t, name: t.symbol, address: t.address ?? "" }))}
           balances={Object.fromEntries(Object.entries(balances).map(([k, v]) => [k, parseFloat(v)]))}
-          defaultChainId={selectedToken.chainId || 84532}
+          defaultChainId={selectedToken.chainId || 5003}
         />
       </main>
       <Dialog open={showCelebration} onOpenChange={(open) => setShowCelebration(open)}>
