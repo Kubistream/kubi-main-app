@@ -77,17 +77,19 @@ export async function getStreamerYield(streamer: string, underlying: string): Pr
 }
 
 // Subscribe a streamer to a yield contract (representative token contract)
-export async function setStreamerYieldContract(streamer: string, yieldContract: string): Promise<{ hash: string }> {
+export async function setStreamerYieldContract(streamer: string, yieldContract: string, onTxHash?: (hash: string) => void): Promise<{ hash: string }> {
   const contract = await getDonationContractWithSigner();
   const tx = await contract.setStreamerYieldContract(getAddress(streamer), getAddress(yieldContract));
+  if (onTxHash) onTxHash(tx.hash);
   const receipt = await tx.wait();
   return { hash: receipt?.hash ?? tx.hash };
 }
 
 // Unsubscribe a streamer from a yield contract (representative token contract)
-export async function removeStreamerYieldContract(streamer: string, yieldContract: string): Promise<{ hash: string }> {
+export async function removeStreamerYieldContract(streamer: string, yieldContract: string, onTxHash?: (hash: string) => void): Promise<{ hash: string }> {
   const contract = await getDonationContractWithSigner();
   const tx = await contract.removeStreamerYieldContract(getAddress(streamer), getAddress(yieldContract));
+  if (onTxHash) onTxHash(tx.hash);
   const receipt = await tx.wait();
   return { hash: receipt?.hash ?? tx.hash };
 }

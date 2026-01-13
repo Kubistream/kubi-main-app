@@ -3,16 +3,18 @@
 import { getAddress } from "ethers";
 import { getDonationContractWithSigner, getDonationContractReadOnly } from "./factory";
 
-export async function setPrimaryToken(streamer: string, token: string) {
+export async function setPrimaryToken(streamer: string, token: string, onTxHash?: (hash: string) => void) {
   const contract = await getDonationContractWithSigner();
   const tx = await contract.setPrimaryToken(getAddress(streamer), getAddress(token));
+  if (onTxHash) onTxHash(tx.hash);
   const receipt = await tx.wait();
   return { hash: receipt?.hash ?? tx.hash };
 }
 
-export async function setStreamerWhitelist(streamer: string, token: string, allowed: boolean) {
+export async function setStreamerWhitelist(streamer: string, token: string, allowed: boolean, onTxHash?: (hash: string) => void) {
   const contract = await getDonationContractWithSigner();
   const tx = await contract.setStreamerWhitelist(getAddress(streamer), getAddress(token), allowed);
+  if (onTxHash) onTxHash(tx.hash);
   const receipt = await tx.wait();
   return { hash: receipt?.hash ?? tx.hash };
 }

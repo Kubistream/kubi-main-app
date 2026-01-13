@@ -135,6 +135,44 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                         )}
                     </div>
 
+                    {/* Donation Page Link Card */}
+                    <div className="flex flex-col gap-3 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2D2452] bg-slate-50 dark:bg-[#130c29]">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                                    <Link className="h-4 w-4 text-green-500" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Donation Page Link</p>
+                                    <p className="text-xs text-slate-400">Share with your viewers</p>
+                                </div>
+                            </div>
+                        </div>
+                        {settings.donateUrl ? (
+                            <div className="flex gap-2">
+                                <input
+                                    readOnly
+                                    value={settings.donateUrl}
+                                    className="flex-1 bg-white dark:bg-[#0B061D] border border-slate-200 dark:border-[#2D2452] rounded-lg px-3 py-2 text-xs font-mono text-slate-600 dark:text-slate-300"
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (settings.donateUrl) {
+                                            navigator.clipboard.writeText(settings.donateUrl);
+                                            alert("Donation link copied!");
+                                        }
+                                    }}
+                                    className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                                >
+                                    <Copy size={14} />
+                                    Copy
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-slate-400 italic">No donation URL available</p>
+                        )}
+                    </div>
+
                     {/* QR Code Overlay Link (for OBS) */}
                     <div className="flex flex-col gap-3 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2D2452] bg-slate-50 dark:bg-[#130c29]">
                         <div className="flex items-center justify-between">
@@ -284,21 +322,7 @@ export function OverlayEditor({ initialSettings }: OverlayEditorProps) {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between p-3 rounded-xl border-2 border-slate-200 dark:border-[#2D2452] bg-slate-50 dark:bg-[#130c29]">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Show Yield APY</span>
-                                <span className="text-xs text-slate-400 font-medium">Display auto-yield stats</span>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={settings.showYieldApy}
-                                    onChange={(e) => setSettings(s => ({ ...s, showYieldApy: e.target.checked }))}
-                                />
-                                <div className="w-12 h-7 bg-slate-300 dark:bg-[#2D2452] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-black after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-cyan peer-checked:after:border-2"></div>
-                            </label>
-                        </div>
+
 
                         <div className="flex items-center justify-between p-3 rounded-xl border-2 border-slate-200 dark:border-[#2D2452] bg-slate-50 dark:bg-[#130c29]">
                             <div className="flex flex-col">

@@ -61,6 +61,10 @@ function formatTokenAmount(amount: bigint, decimals: number): string {
  * Handle Donation event
  */
 async function handleDonationEvent(log: Log & { args: any }, chainId: number) {
+  if (!log.args) {
+    console.warn(`⚠️ Skipping log with missing args: ${log.transactionHash}`);
+    return;
+  }
   const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer, timestamp } = log.args;
   const { transactionHash, logIndex, blockNumber } = log;
 

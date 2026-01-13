@@ -321,6 +321,12 @@ async function runRebaseJob() {
   const rpcUrl = process.env.RPC_URL;
   const privateKey = process.env.PRIVATE_KEY;
 
+  console.log("Debug Env vars:", {
+    chainId: !!chainId,
+    rpcUrl: !!rpcUrl,
+    privateKeyRaw: privateKey ? `${privateKey.substring(0, 6)}...` : "undefined"
+  });
+
   if (!rpcUrl) {
     throw new Error("RPC_URL env missing");
   }
@@ -328,12 +334,18 @@ async function runRebaseJob() {
     throw new Error("PRIVATE_KEY env missing");
   }
 
+  // Sanitize private key (remove quotes and ensure 0x prefix)
+  let cleanKey = privateKey.trim().replace(/^["']|["']$/g, "");
+  if (!cleanKey.startsWith("0x")) {
+    cleanKey = `0x${cleanKey}`;
+  }
+
   // Create clients
   const publicClient = createPublicClient({
     transport: http(rpcUrl),
   });
 
-  const account = privateKeyToAccount(privateKey as `0x${string}`);
+  const account = privateKeyToAccount(cleanKey as `0x${string}`);
   const walletClient = createWalletClient({
     account,
     transport: http(rpcUrl),
@@ -401,6 +413,11 @@ async function main() {
   const chainId = process.env.CHAIN_ID;
 
   if (!rpcUrl || !privateKey || !chainId) {
+    console.log("Debug Main Env vars:", {
+      chainId: !!chainId,
+      rpcUrl: !!rpcUrl,
+      privateKeyRaw: privateKey ? `${privateKey.substring(0, 6)}...` : "undefined"
+    });
     console.warn("⚠️  Missing required environment variables for rebase scheduler:");
     console.warn("   - RPC_URL:", rpcUrl ? "✓" : "✗");
     console.warn("   - PRIVATE_KEY:", privateKey ? "✓" : "✗");

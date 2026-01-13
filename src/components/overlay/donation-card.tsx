@@ -156,36 +156,31 @@ export function DonationCard({
                     )}
                 >
                     {/* Header */}
-                    <div className="flex items-start justify-center">
+                    <div className="flex items-start justify-between w-full">
                         <div className="flex items-center gap-3">
                             <div className={cn(
-                                "bg-accent-pink w-12 h-12 flex items-center justify-center rounded-lg border-2 shadow-[2px_2px_0px_0px_#000] overflow-hidden",
+                                "bg-accent-pink w-12 h-12 flex items-center justify-center rounded-lg border-2 shadow-[2px_2px_0px_0px_#000] overflow-hidden flex-shrink-0",
                                 isDark ? "border-white" : "border-black"
                             )}>
                                 {renderTokenIcon()}
                             </div>
-                            <div>
-                                <div className={cn("text-xs font-black tracking-wider uppercase mb-0.5 text-center", isDark ? "text-accent-pink" : "text-black")}>
+                            <div className="text-left">
+                                <div className={cn("text-[10px] font-black tracking-wider uppercase mb-0.5", isDark ? "text-accent-pink" : "text-black")}>
                                     Incoming Donation
                                 </div>
-                                <h3 className={cn("text-2xl font-black leading-none text-center", isDark ? "text-white" : "text-black")}>
+                                <h3 className={cn("text-2xl font-black leading-none", isDark ? "text-white" : "text-black")}>
                                     {donorName}
                                 </h3>
                             </div>
                         </div>
 
-                        {showYieldApy && (
-                            <div className="bg-accent-cyan text-black border-2 border-black rounded-lg px-2 py-1 flex items-center gap-1 shadow-[2px_2px_0px_0px_#000] transform -rotate-2">
-                                <TrendingUp size={16} strokeWidth={3} />
-                                <span className="text-[11px] font-black">{apy}</span>
-                            </div>
-                        )}
+                        {/* APY Badge hidden per user request */}
                     </div>
 
                     {/* Amount box */}
-                    <div className="bg-white rounded-xl p-3 border-2 border-black relative overflow-hidden text-center">
+                    <div className="bg-white rounded-xl p-3 border-2 border-black relative overflow-hidden text-left pl-4">
                         <div className="absolute top-0 right-0 w-16 h-full bg-accent-yellow/20 skew-x-12 transform translate-x-4" />
-                        <div className="flex items-baseline justify-center gap-2 relative z-10">
+                        <div className="flex items-baseline gap-2 relative z-10">
                             <span className="text-4xl font-black text-black tracking-tight">
                                 {!isNaN(parseFloat(amount)) && !amount.includes(",")
                                     ? parseFloat(amount).toLocaleString("en-US")
@@ -198,9 +193,9 @@ export function DonationCard({
                     {/* Message bubble */}
                     {/* Message bubble - Only show for TEXT type or if there is a message */}
                     {message && (mediaType === "TEXT" || !mediaType) && (
-                        <div className="relative mt-1 flex justify-center">
-                            <div className={cn("absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 z-20", isDark ? "border-white" : "border-black")} />
-                            <div className={cn("bg-[#2D2452] border-2 rounded-xl p-4 relative z-10 text-center", isDark ? "border-white" : "border-black")}>
+                        <div className="relative mt-1 flex justify-start">
+                            <div className={cn("absolute -top-2 left-6 w-4 h-4 bg-[#2D2452] rotate-45 border-l-2 border-t-2 z-20", isDark ? "border-white" : "border-black")} />
+                            <div className={cn("bg-[#2D2452] border-2 rounded-xl p-4 relative z-10 text-left w-full", isDark ? "border-white" : "border-black")}>
                                 <p className="text-white text-base font-bold leading-snug">
                                     "{message}"
                                 </p>

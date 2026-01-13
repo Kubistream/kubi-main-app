@@ -24,6 +24,8 @@ import { AutoYieldBadge } from "@/components/ui/auto-yield-badge";
 import { PrimaryTokenFlow, WhitelistFlow, YieldFlow } from "@/components/ui/flow-diagrams";
 import { useConfig } from "wagmi";
 import { getWalletClient, switchChain } from "wagmi/actions";
+import { TransactionProgressModal, TransactionStep } from "@/components/ui/transaction-progress-modal";
+import { cn } from "@/lib/utils";
 
 type FormState = {
   username: string;
@@ -406,10 +408,17 @@ type PaymentSettingsFormProps = {
   onSave: (next: { primaryTokenId: string | null; autoswapEnabled: boolean; whitelistTokenIds: string[] }) => Promise<void>;
 };
 
+
 function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: PaymentSettingsFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [helpDialog, setHelpDialog] = useState<"primary" | "whitelist" | "yield" | null>(null);
+
+  // Transaction Progress State
+  const [txState, setTxState] = useState<{
+    open: boolean;
+    step: "signing" | "confirming" | "success" | "error";
+  }>({ open: false, step: "signing" });
 
   const [primaryTokenId, setPrimaryTokenId] = useState<string | "" | null>(settings?.primaryTokenId ?? null);
   // Autoswap permanently enabled for now
@@ -425,26 +434,56 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     if (saving) return;
     setSaving(true);
     setError(null);
+    setTxState({ open: true, step: "signing" });
+    console.log("DEBUG: Modal should be OPEN now", { open: true, step: "signing" });
+
     try {
       const streamerAddress = user?.wallet;
       if (!streamerAddress) throw new Error("Streamer wallet not found");
 
       await ensureMantleNetwork();
 
+      const onTxHash = (hash: string) => {
+        setTxState({ open: true, step: "confirming" });
+      };
+
       const current = subscriptions[tokenId] ?? null;
+
       if (current && current.toLowerCase() === representativeAddress.toLowerCase()) {
-        await removeStreamerYieldContract(streamerAddress, representativeAddress);
+        await removeStreamerYieldContract(streamerAddress, representativeAddress, onTxHash);
         setSubscriptions((prev) => ({ ...prev, [tokenId]: null }));
       } else {
-        await setStreamerYieldContract(streamerAddress, representativeAddress);
+        await setStreamerYieldContract(streamerAddress, representativeAddress, onTxHash);
         setSubscriptions((prev) => ({ ...prev, [tokenId]: representativeAddress }));
       }
+
+      setTxState({ open: false, step: "success" });
     } catch (e) {
+      console.error(e);
       setError(e instanceof Error ? e.message : "Failed to update yield subscription");
+      setTxState({ open: false, step: "error" });
     } finally {
       setSaving(false);
+      // Ensure modal closes on error/success after short delay if we want? 
+      // Current logic closes immediately on success/error.
     }
   };
+
+  // ... rest of useEffects ...
+
+  // Helper to generate steps for modal
+  const progressSteps: TransactionStep[] = [
+    {
+      id: "signing",
+      label: "Sign transaction in wallet",
+      status: txState.step === "signing" ? "loading" : txState.step === "confirming" || txState.step === "success" ? "success" : "idle"
+    },
+    {
+      id: "confirming",
+      label: "Confirming on blockchain",
+      status: txState.step === "confirming" ? "loading" : txState.step === "success" ? "success" : "idle"
+    }
+  ];
 
   useEffect(() => {
     setPrimaryTokenId(settings?.primaryTokenId ?? null);
@@ -492,6 +531,8 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
     if (saving) return;
     setSaving(true);
     setError(null);
+    setTxState({ open: true, step: "signing" });
+
     try {
       const streamerAddress = user?.wallet;
       if (!streamerAddress) throw new Error("Streamer wallet not found");
@@ -501,7 +542,9 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
       await ensureMantleNetwork();
 
-      await setStreamerWhitelist(streamerAddress, token.address, nextPressed);
+      await setStreamerWhitelist(streamerAddress, token.address, nextPressed, (hash) => {
+        setTxState({ open: true, step: "confirming" });
+      });
 
       // Update local state and mirror to DB
       const nextSet = new Set(whitelist);
@@ -514,8 +557,12 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
         autoswapEnabled,
         whitelistTokenIds: Array.from(nextSet),
       });
+
+      setTxState({ open: false, step: "success" });
     } catch (e) {
+      console.error(e);
       setError(e instanceof Error ? e.message : "Failed to update whitelist");
+      setTxState({ open: false, step: "error" });
     } finally {
       setSaving(false);
     }
@@ -677,6 +724,9 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                     if (saving) return;
                     setSaving(true);
                     setError(null);
+                    setPrimaryDialogOpen(false);
+                    setTxState({ open: true, step: "signing" });
+
                     try {
                       const streamerAddress = user?.wallet;
                       if (!streamerAddress) throw new Error("Streamer wallet not found");
@@ -687,7 +737,9 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
 
                       // Ensure whitelisted first if not already
                       if (!whitelist.has(t.id)) {
-                        await setStreamerWhitelist(streamerAddress, token.address, true);
+                        await setStreamerWhitelist(streamerAddress, token.address, true, (hash) => {
+                          setTxState({ open: true, step: "confirming" });
+                        });
                         const nextSet = new Set(whitelist);
                         nextSet.add(t.id);
                         setWhitelist(nextSet);
@@ -699,7 +751,12 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                       }
 
                       // Now set primary on-chain
-                      await setPrimaryToken(streamerAddress, token.address);
+                      // Revert to signing if we just finished a whitelist tx
+                      setTxState({ open: true, step: "signing" });
+
+                      await setPrimaryToken(streamerAddress, token.address, (hash) => {
+                        setTxState({ open: true, step: "confirming" });
+                      });
                       setPrimaryTokenId(t.id);
 
                       // Mirror to DB
@@ -709,14 +766,21 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                         whitelistTokenIds: Array.from(whitelist.has(t.id) ? whitelist : new Set([...whitelist, t.id])),
                       });
 
-                      setPrimaryDialogOpen(false);
+                      setTxState({ open: false, step: "success" });
                     } catch (e) {
+                      console.error(e);
                       setError(e instanceof Error ? e.message : "Failed to set primary token");
+                      setTxState({ open: false, step: "error" });
                     } finally {
                       setSaving(false);
                     }
                   }}
-                  className="flex w-full items-center gap-3 rounded-xl border-2 border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] p-3 text-left hover:bg-[var(--color-border-dark)] hover:border-[var(--color-primary)] transition-colors"
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors",
+                    String(t.id) === String(primaryTokenId ?? "")
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                      : "border-[var(--color-border-dark)] bg-[var(--color-surface-dark)] hover:bg-[var(--color-border-dark)] hover:border-[var(--color-primary)]/50"
+                  )}
                 >
                   {t.logoURI && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -777,7 +841,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
                   disabled={tokenLocked || isDisabled}
                   size="sm"
                   title={tokenLocked ? "Unsubscribe to change whitelist" : t.name ?? t.symbol}
-                  className="border-slate-300 hover:border-rose-300"
+                  className="data-[state=on]:!bg-accent-cyan data-[state=on]:!text-black data-[state=on]:!border-accent-cyan data-[state=on]:font-black border-slate-700 hover:border-slate-500"
                 >
                   {t.logoURI && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -921,7 +985,14 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+
+      <TransactionProgressModal
+        open={txState.open}
+        title={txState.step === "signing" ? "Check your wallet" : "Processing transaction"}
+        description={txState.step === "signing" ? "Please sign the transaction in your wallet." : "Waiting for blockchain confirmation..."}
+        steps={progressSteps}
+      />
+    </div >
   );
 }
 

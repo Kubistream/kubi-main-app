@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useAccount } from "wagmi";
 import { useEarningsOverview } from "@/hooks/use-earnings-overview";
+import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import type { EarningsTimeframe, EarningsCurrency } from "@/types/earnings";
 
 // Format number with commas
@@ -34,6 +35,7 @@ export default function DashboardPage() {
     const [currency] = useState<EarningsCurrency>("USD");
 
     const { data: earningsData, loading: earningsLoading } = useEarningsOverview(timeframe, currency);
+    const { data: dashboardStats, loading: statsLoading } = useDashboardStats();
 
     // Generate sparkline path from data
     const sparklinePath = useMemo(() => {
@@ -124,48 +126,70 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Current Yield APY */}
-                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-accent-purple/80 transition-all duration-300 shadow-xl">
+                {/* Total Donors */}
+                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-accent-cyan/80 transition-all duration-300 shadow-xl">
                     <div className="absolute -right-6 -top-6 p-6 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12">
-                        <span className="material-symbols-outlined text-9xl text-accent-purple">trending_up</span>
+                        <span className="material-symbols-outlined text-9xl text-accent-cyan">group</span>
                     </div>
                     <div className="flex flex-col gap-6 relative z-10 h-full justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-3 bg-accent-purple rounded-xl text-black shadow-lg shadow-accent-purple/20 border-2 border-black">
-                                <span className="material-symbols-outlined">percent</span>
+                            <div className="p-3 bg-accent-cyan rounded-xl text-black shadow-lg shadow-accent-cyan/20 border-2 border-black">
+                                <span className="material-symbols-outlined">people</span>
                             </div>
-                            <p className="text-gray-300 font-bold font-display tracking-wide uppercase text-xs">Current Yield APY</p>
+                            <p className="text-gray-300 font-bold font-display tracking-wide uppercase text-xs">Total Donors</p>
                         </div>
                         <div>
-                            <h3 className="text-4xl font-black text-white font-display tracking-tight">4.8%</h3>
-                            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent-purple/10 border border-accent-purple/20">
-                                <span className="material-symbols-outlined text-sm text-accent-purple">arrow_upward</span>
-                                <p className="text-accent-purple text-xs font-bold">+0.5% boost active</p>
+                            {statsLoading ? (
+                                <div className="h-10 w-20 bg-surface-dark animate-pulse rounded-lg"></div>
+                            ) : (
+                                <h3 className="text-4xl font-black text-white font-display tracking-tight">
+                                    {formatNumber(dashboardStats?.totalDonors ?? 0, 0)}
+                                </h3>
+                            )}
+                            <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg ${(dashboardStats?.donorsGrowthPercent ?? 0) >= 0
+                                ? "bg-green-500/10 border border-green-500/20"
+                                : "bg-red-500/10 border border-red-500/20"
+                                }`}>
+                                <span className={`material-symbols-outlined text-sm ${(dashboardStats?.donorsGrowthPercent ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {(dashboardStats?.donorsGrowthPercent ?? 0) >= 0 ? "trending_up" : "trending_down"}
+                                </span>
+                                <p className={`text-xs font-bold ${(dashboardStats?.donorsGrowthPercent ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {(dashboardStats?.donorsGrowthPercent ?? 0) >= 0 ? "+" : ""}{dashboardStats?.donorsGrowthPercent ?? 0}% vs last 7d
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Active OBS Widgets */}
-                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-accent-cyan/80 transition-all duration-300 shadow-xl">
+                {/* Total Donations */}
+                <div className="bg-[#181033] border-2 border-white rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:border-accent-purple/80 transition-all duration-300 shadow-xl">
                     <div className="absolute -right-6 -top-6 p-6 opacity-5 group-hover:opacity-10 transition-opacity transform rotate-12">
-                        <span className="material-symbols-outlined text-9xl text-accent-cyan">broadcast_on_personal</span>
+                        <span className="material-symbols-outlined text-9xl text-accent-purple">receipt_long</span>
                     </div>
                     <div className="flex flex-col gap-6 relative z-10 h-full justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-3 bg-accent-cyan rounded-xl text-black shadow-lg shadow-accent-cyan/20 border-2 border-black">
-                                <span className="material-symbols-outlined">dvr</span>
+                            <div className="p-3 bg-accent-purple rounded-xl text-black shadow-lg shadow-accent-purple/20 border-2 border-black">
+                                <span className="material-symbols-outlined">confirmation_number</span>
                             </div>
-                            <p className="text-gray-300 font-bold font-display tracking-wide uppercase text-xs">Active OBS Widgets</p>
+                            <p className="text-gray-300 font-bold font-display tracking-wide uppercase text-xs">Total Donations</p>
                         </div>
                         <div>
-                            <h3 className="text-4xl font-black text-white font-display tracking-tight">
-                                {user?.streamerId ? "1" : "0"}
-                            </h3>
-                            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent-cyan/10 border border-accent-cyan/20">
-                                <span className={`size-2 rounded-full ${user?.streamerId ? "bg-accent-cyan animate-pulse" : "bg-gray-500"}`}></span>
-                                <p className="text-accent-cyan text-xs font-bold">
-                                    Status: {user?.streamerId ? "Online" : "Offline"}
+                            {statsLoading ? (
+                                <div className="h-10 w-20 bg-surface-dark animate-pulse rounded-lg"></div>
+                            ) : (
+                                <h3 className="text-4xl font-black text-white font-display tracking-tight">
+                                    {formatNumber(dashboardStats?.totalDonations ?? 0, 0)}
+                                </h3>
+                            )}
+                            <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg ${(dashboardStats?.donationsGrowthPercent ?? 0) >= 0
+                                ? "bg-green-500/10 border border-green-500/20"
+                                : "bg-red-500/10 border border-red-500/20"
+                                }`}>
+                                <span className={`material-symbols-outlined text-sm ${(dashboardStats?.donationsGrowthPercent ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {(dashboardStats?.donationsGrowthPercent ?? 0) >= 0 ? "trending_up" : "trending_down"}
+                                </span>
+                                <p className={`text-xs font-bold ${(dashboardStats?.donationsGrowthPercent ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {(dashboardStats?.donationsGrowthPercent ?? 0) >= 0 ? "+" : ""}{dashboardStats?.donationsGrowthPercent ?? 0}% vs last 7d
                                 </p>
                             </div>
                         </div>

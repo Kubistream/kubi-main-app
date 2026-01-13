@@ -77,7 +77,7 @@ export function LandingHero() {
               type="button"
               onClick={onLaunch}
               disabled={disabled}
-              className="h-14 px-8 text-lg font-bold bg-[#7C3AED] text-white shadow-[4px_4px_0_0_#5EEAD4] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] border-2 border-white rounded-xl transition-all"
+              className="h-14 px-8 text-lg font-bold bg-[#FDE047] text-slate-900 shadow-[4px_4px_0_0_#5EEAD4] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] border-2 border-white rounded-xl transition-all"
               aria-label="Join Kubi Beta"
             >
               Start Streaming

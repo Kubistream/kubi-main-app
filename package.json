@@ -10,6 +10,7 @@
     "dev:processor": "tsx watch src/workers/donation-queue-processor.ts",
     "dev:scheduler": "tsx watch src/workers/rebase-scheduler.ts",
     "build": "prisma generate && next build",
+    "build:run": "npm run build && npm run start",
     "start": "concurrently \"next start\" \"tsx src/workers/event-listener.ts\" \"tsx src/workers/donation-queue-processor.ts\" \"tsx src/workers/rebase-scheduler.ts\"",
     "start:next": "next start",
     "start:listener": "tsx src/workers/event-listener.ts",

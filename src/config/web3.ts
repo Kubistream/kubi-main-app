@@ -53,12 +53,15 @@ const configureChain = (chain: Chain, rpcEnvVar?: string) => {
 };
 
 const configuredBaseSepolia = configureChain(baseSepolia, "NEXT_PUBLIC_BASE_RPC_URL");
-const configuredMantleSepolia = configureChain(mantleSepoliaTestnet, "NEXT_PUBLIC_MANTLE_RPC_URL");
+const configuredMantleSepolia = {
+  ...configureChain(mantleSepoliaTestnet, "NEXT_PUBLIC_MANTLE_RPC_URL"),
+  iconUrl: "/assets/illustrations/mantle-logo.png",
+};
 const configuredArbitrumSepolia = configureChain(arbitrumSepolia, "NEXT_PUBLIC_ARBITRUM_RPC_URL");
 
 export const supportedChains = [
-  configuredBaseSepolia,
   configuredMantleSepolia,
+  configuredBaseSepolia,
   configuredArbitrumSepolia
 ] as const;
 
