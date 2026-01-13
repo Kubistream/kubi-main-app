@@ -54,14 +54,14 @@ export function initOverlayWebSocket(_port: number = 3001): void {
 /**
  * Broadcast message to a streamer channel via Pusher.
  * Channel: overlay-{streamerId}
- * Event: "donation"
+ * Event: "overlay"
  */
 export async function broadcastToStreamer(streamerId: string, data: object): Promise<void> {
   const client = getPusher();
   if (!client) return;
 
   try {
-    await client.trigger(`overlay-${streamerId}`, "donation", data);
+    await client.trigger(`overlay-${streamerId}`, "overlay", data);
     console.log(`[Overlay] Pushed donation event to overlay-${streamerId}`);
   } catch (error) {
     console.error(`[Overlay] Failed to push event for streamerId=${streamerId}:`, error);
