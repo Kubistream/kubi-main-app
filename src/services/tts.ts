@@ -32,8 +32,13 @@ export async function textToSpeechUrl(
     // Build Google TTS URL
     const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${escapedMessage}&tl=${lang}&client=tw-ob`;
 
-    // Fetch audio
-    const response = await fetch(ttsUrl);
+    // Fetch audio with headers to avoid 403
+    const response = await fetch(ttsUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Referer": "https://translate.google.com/"
+      }
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
@@ -76,8 +81,13 @@ export async function textToSpeechBase64(
     // Build Google TTS URL
     const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${escapedMessage}&tl=${lang}&client=tw-ob`;
 
-    // Fetch audio
-    const response = await fetch(ttsUrl);
+    // Fetch audio with headers
+    const response = await fetch(ttsUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Referer": "https://translate.google.com/"
+      }
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);

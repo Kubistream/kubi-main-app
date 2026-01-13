@@ -359,17 +359,25 @@ export async function POST(
         const notificationMsg = generateDonationMessage(trimmedName || "Anonymous", formattedAmount, tokenInRecord.symbol);
         
         try {
+          console.log("[API] Generatin Notif TTS for:", notificationMsg);
           const notifAudio = await textToSpeechUrl(notificationMsg, "en");
+          console.log(`[API] ✅ Notif TTS generated: ${notifAudio}`);
           sounds.push(notifAudio);
-        } catch (e) { console.warn("TTS Notif failed:", e); }
+        } catch (e: any) { 
+          console.log("❌ [API] TTS Notif failed:", e.message); 
+        }
 
         try {
+          console.log("[API] Generatin Message TTS for:", message);
           const msgAudio = await textToSpeechUrl(message, "id");
+          console.log(`[API] ✅ Message TTS generated: ${msgAudio}`);
           sounds.push(msgAudio);
-        } catch (e) { console.warn("TTS Message failed:", e); }
+        } catch (e: any) { 
+          console.log("❌ [API] TTS Message failed:", e.message); 
+        }
       }
-    } catch (soundError) {
-      console.warn("Sound generation failed in API:", soundError);
+    } catch (soundError: any) {
+      console.log("❌ [API] Sound generation failed:", soundError.message);
     }
 
     try {
