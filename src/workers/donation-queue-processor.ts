@@ -33,7 +33,7 @@ import { MediaType, OverlayStatus } from "@prisma/client";
 
 const { prisma } = await import("../lib/prisma");
 const { textToSpeechUrl, generateDonationMessage } = await import("../services/tts");
-const { cleanupExpiredAudioFiles } = await import("../utils/audio-storage");
+
 const { loadAlertSound } = await import("../utils/sound");
 const { sanitizeMediaUrl } = await import("../utils/media-validation");
 
@@ -256,10 +256,7 @@ async function processPendingQueueOverlays(): Promise<void> {
 async function main() {
   console.log("🚀 Starting Kubi Donation Queue Processor...");
 
-  // Start cleanup interval (every 5 minutes)
-  const cleanupInterval = setInterval(async () => {
-    await cleanupExpiredAudioFiles();
-  }, 5 * 60 * 1000);
+
 
   // Start polling loop
   const interval = setInterval(async () => {
@@ -268,7 +265,7 @@ async function main() {
 
   // Run once immediately on startup
   await processPendingQueueOverlays();
-  await cleanupExpiredAudioFiles(); // Initial cleanup
+
 
   console.log("✅ Donation queue processor started");
 
@@ -276,14 +273,14 @@ async function main() {
   process.on("SIGINT", () => {
     console.log("\n🛑 Shutting down gracefully...");
     clearInterval(interval);
-    clearInterval(cleanupInterval);
+
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
     console.log("\n🛑 Shutting down gracefully...");
     clearInterval(interval);
-    clearInterval(cleanupInterval);
+
     process.exit(0);
   });
 }

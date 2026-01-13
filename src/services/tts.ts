@@ -5,7 +5,7 @@
  * Returns URL to audio file or base64-encoded audio data.
  */
 
-import { saveAudioFile } from "../utils/audio-storage";
+
 
 /**
  * Text-to-Speech function (URL version - recommended for Pusher)
@@ -22,38 +22,17 @@ export async function textToSpeechUrl(
   }
 
   if (lang === "") {
-    lang = "id"; // Default to Indonesian
+    lang = "id";
   }
 
-  try {
-    // Encode message for URL
-    const escapedMessage = encodeURIComponent(message);
+  const params = new URLSearchParams({
+    text: message,
+    lang: lang
+  });
 
-    // Build Google TTS URL
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${escapedMessage}&tl=${lang}&client=tw-ob`;
-
-    // Fetch audio with headers to avoid 403
-    const response = await fetch(ttsUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Referer": "https://translate.google.com/"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
-    }
-
-    // Get audio buffer
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Save to temp file and return URL
-    const audioFile = await saveAudioFile(buffer, "mp3");
-    return audioFile.url;
-  } catch (error: any) {
-    throw new Error(`Failed to convert text to speech: ${error.message}`);
-  }
+  // Return the relative URL to our proxy API
+  // Frontend/Client will handle the domain
+  return `/api/tts?${params.toString()}`;
 }
 
 /**
