@@ -32,7 +32,8 @@ import Pusher from "pusher";
 import { MediaType, OverlayStatus } from "@prisma/client";
 
 const { prisma } = await import("../lib/prisma");
-const { textToSpeechBase64, generateDonationMessage } = await import("../services/tts");
+const { textToSpeechUrl, generateDonationMessage } = await import("../services/tts");
+const { cleanupExpiredAudioFiles } = await import("../utils/audio-storage");
 const { loadAlertSound } = await import("../utils/sound");
 const { sanitizeMediaUrl } = await import("../utils/media-validation");
 
@@ -165,7 +166,7 @@ async function processQueueOverlay(queueId: string): Promise<void> {
           tokenSymbol
         );
         try {
-          const notificationTts = await textToSpeechBase64(notificationMessage, "en");
+          const notificationTts = await textToSpeechUrl(notificationMessage, "en");
           sounds.push(notificationTts);
         } catch (ttsError) {
           console.warn("[TTS] Failed to generate notification TTS:", ttsError);
@@ -173,7 +174,7 @@ async function processQueueOverlay(queueId: string): Promise<void> {
 
         // B. User Message TTS (Indonesian)
         try {
-          const messageTts = await textToSpeechBase64(donation.message, "id");
+          const messageTts = await textToSpeechUrl(donation.message, "id");
           sounds.push(messageTts);
         } catch (ttsError) {
           console.warn("[TTS] Failed to generate message TTS:", ttsError);
@@ -255,6 +256,11 @@ async function processPendingQueueOverlays(): Promise<void> {
 async function main() {
   console.log("🚀 Starting Kubi Donation Queue Processor...");
 
+  // Start cleanup interval (every 5 minutes)
+  const cleanupInterval = setInterval(async () => {
+    await cleanupExpiredAudioFiles();
+  }, 5 * 60 * 1000);
+
   // Start polling loop
   const interval = setInterval(async () => {
     await processPendingQueueOverlays();
@@ -262,6 +268,7 @@ async function main() {
 
   // Run once immediately on startup
   await processPendingQueueOverlays();
+  await cleanupExpiredAudioFiles(); // Initial cleanup
 
   console.log("✅ Donation queue processor started");
 
@@ -269,12 +276,14 @@ async function main() {
   process.on("SIGINT", () => {
     console.log("\n🛑 Shutting down gracefully...");
     clearInterval(interval);
+    clearInterval(cleanupInterval);
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
     console.log("\n🛑 Shutting down gracefully...");
     clearInterval(interval);
+    clearInterval(cleanupInterval);
     process.exit(0);
   });
 }

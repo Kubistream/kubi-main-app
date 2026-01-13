@@ -56,5 +56,5 @@ export async function readFileBase64(relativePath: string): Promise<string> {
  * @returns Base64-encoded alert sound with data URI prefix
  */
 export async function loadAlertSound(): Promise<string> {
-  return readFileBase64("overlay/sound.mp3");
+  return "/overlay/sound.mp3";
 }

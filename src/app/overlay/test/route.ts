@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { broadcastToStreamer } from "@/lib/overlay-ws";
+// Audio storage is handled inside the handler to avoid cold start issues if needed, or just standard import
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +18,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing streamerId" }, { status: 400 });
     }
 
-    const mockTtsUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+    // Generate real audio using the new URL system
+    const { loadAlertSound } = await import("@/utils/sound");
+    const { textToSpeechUrl, generateDonationMessage } = await import("@/services/tts");
+
+    const sounds: string[] = [];
+    
+    // 1. Alert Sound
+    const alertSound = await loadAlertSound();
+    sounds.push(alertSound);
+
+    // 2. TTS
+    if (mediaType === "TEXT" && message) {
+        try {
+            const notificationMsg = generateDonationMessage("Test User", "100", "TEST");
+            const notificationTts = await textToSpeechUrl(notificationMsg, "en");
+            sounds.push(notificationTts);
+
+            const messageTts = await textToSpeechUrl(message, "id");
+            sounds.push(messageTts);
+        } catch (error) {
+            console.warn("Failed to generate test TTS:", error);
+        }
+    }
 
     const overlayPayload = {
       type: "overlay",
@@ -25,17 +49,17 @@ export async function POST(req: NextRequest) {
       mediaType,
       mediaUrl,
       mediaDuration,
-      audioUrl: mockTtsUrl,
+      audioUrl: undefined, // Deprecated in favor of sounds array
       donorName: "Test User",
-      amount: "0.00",
+      amount: "100",
       tokenSymbol: "TEST",
       tokenLogo: undefined,
       donorAddress: "0x0000000000000000000000000000000000000000",
-      sounds: [],
-      streamerName: "",
+      sounds: sounds,
+      streamerName: "Streamer",
       txHash: "0xTEST",
       mediaDurationSeconds: mediaDuration,
-      usdValue: 0,
+      usdValue: 10,
     };
 
     await broadcastToStreamer(streamerId, overlayPayload);
