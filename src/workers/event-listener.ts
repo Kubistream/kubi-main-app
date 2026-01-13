@@ -5,10 +5,18 @@
  * Listens for donation events on Base Sepolia and Mantle Sepolia.
  */
 
+import * as dotenv from "dotenv";
+import path from "path";
+
+// Load environment variables before other imports
+dotenv.config({ path: path.resolve(process.cwd(), "env", ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
 import { createPublicClient, fallback, webSocket, http, parseAbiItem, formatUnits, Log, defineChain } from "viem";
 import { baseSepolia } from "viem/chains";
-import { prisma } from "../lib/prisma";
-import { initOverlayWebSocket, broadcastToStreamer, closeOverlayWebSocket } from "../lib/overlay-ws";
+
+const { prisma } = await import("../lib/prisma");
+const { initOverlayWebSocket, broadcastToStreamer, closeOverlayWebSocket } = await import("../lib/overlay-ws");
 
 // Define Mantle Sepolia testnet (not exported by viem/chains)
 export const mantleSepolia = defineChain({

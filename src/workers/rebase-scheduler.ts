@@ -18,10 +18,18 @@
  *   GAS_PRICE_GWEI -> gas price in gwei (if not set, uses suggested)
  */
 
+import * as dotenv from "dotenv";
+import path from "path";
+
+// Load environment variables before other imports
+dotenv.config({ path: path.resolve(process.cwd(), "env", ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
 import { createPublicClient, createWalletClient, http, parseUnits, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { prisma } from "../lib/prisma";
 import cron from "node-cron";
+
+const { prisma } = await import("../lib/prisma");
 
 // ABI for TokenYield contract (minimal - only what we need)
 const TOKEN_YIELD_ABI = [

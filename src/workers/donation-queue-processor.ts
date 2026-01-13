@@ -21,12 +21,20 @@
  *   4. Mark as processed
  */
 
-import { prisma } from "../lib/prisma";
+import * as dotenv from "dotenv";
+import path from "path";
+
+// Load environment variables before other imports
+dotenv.config({ path: path.resolve(process.cwd(), "env", ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
 import Pusher from "pusher";
 import { MediaType, OverlayStatus } from "@prisma/client";
-import { textToSpeechBase64, generateDonationMessage } from "../services/tts";
-import { loadAlertSound } from "../utils/sound";
-import { sanitizeMediaUrl } from "../utils/media-validation";
+
+const { prisma } = await import("../lib/prisma");
+const { textToSpeechBase64, generateDonationMessage } = await import("../services/tts");
+const { loadAlertSound } = await import("../utils/sound");
+const { sanitizeMediaUrl } = await import("../utils/media-validation");
 
 // Initialize Pusher for overlay broadcast
 const pusher = new Pusher({
