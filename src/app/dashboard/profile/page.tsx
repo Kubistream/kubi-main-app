@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, ChangeEventHandler, useEffect, useMemo, useRef, useState } from "react";
-import { UserRound, TrendingUp, CircleHelp, ChevronDown, ChevronUp, Wallet, Loader2 } from "lucide-react";
+import { UserRound, TrendingUp, CircleHelp, ChevronDown, ChevronUp, Wallet, Loader2, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,6 +73,16 @@ export default function ProfilePage() {
       bio: profile.bio ?? "",
     });
   }, [profile]);
+
+  // Auto-redirect if onboarding is complete and all requirements are met
+  useEffect(() => {
+    if (onboarding && profile?.isComplete && settings?.primaryTokenId && !loadingTokens && !isLoading) {
+      const timer = setTimeout(() => {
+        router.replace("/dashboard");
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [onboarding, profile?.isComplete, settings?.primaryTokenId, loadingTokens, isLoading, router]);
 
   const isSubmitDisabled =
     !isConnected ||
@@ -212,7 +222,6 @@ export default function ProfilePage() {
         </p>
       </header>
 
-      {/* Onboarding progress indicator */}
       {onboarding && (
         <div className="rounded-2xl border-2 border-accent-cyan/30 bg-accent-cyan/5 p-6">
           <div className="flex items-start gap-4">
@@ -234,6 +243,17 @@ export default function ProfilePage() {
                   <span>Select your primary token for receiving donations</span>
                 </li>
               </ul>
+              {profile?.isComplete && settings?.primaryTokenId && (
+                <div className="mt-4">
+                  <Button
+                    onClick={() => router.replace("/dashboard")}
+                    className="bg-accent-cyan text-black hover:bg-accent-cyan/90 font-bold"
+                  >
+                    Go to Dashboard
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
