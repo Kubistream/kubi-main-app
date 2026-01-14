@@ -263,11 +263,17 @@ async function handleBridgedDonationReceivedEvent(log: Log & { args: any }, chai
       },
     });
 
-    // Update parent donation status
+    // Update parent donation status AND final amounts
     if (parentDonation) {
       await prisma.donation.update({
         where: { id: parentDonation.id },
-        data: { status: "CONFIRMED" },
+        data: {
+          status: "CONFIRMED",
+          // Sync final received details to the parent record effectively "closing the loop"
+          // This ensures the displayed history shows the EXACT amount received on destination
+          amountOutRaw: formatTokenAmount(amount!, tokenRecord.decimals),
+          tokenOutId: tokenRecord.id
+        },
       });
     }
   } catch (error) {

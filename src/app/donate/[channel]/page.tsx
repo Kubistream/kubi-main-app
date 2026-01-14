@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEventHandler, FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEventHandler, FormEvent, useEffect, useRef, useState, useMemo } from "react";
 import { Loader2, PartyPopper, UserRound } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
@@ -314,6 +314,7 @@ export default function DonatePage() {
             logoURI: primary.logoURI,
             address: primary.address,
             isNative: false,
+            chainId: primary.chainId || 5003,
           });
           setPrimaryTokenAddress(primary.address);
           console.log("✅ Primary token detected:", primary.symbol);
@@ -333,8 +334,20 @@ export default function DonatePage() {
     fetchTokens();
   }, [channel]);
 
+  // Gabungkan tokens dan selectedToken agar useTokenBalances juga mengambil saldo token yang sedang dipilih (terutama default/native)
+  const tokensToFetch = useMemo(() => {
+    // Cek apakah selectedToken sudah ada di list tokens (berdasarkan address atau isNative+chainId)
+    const exists = tokens.some(t => {
+      if (selectedToken.isNative) return t.isNative && t.chainId === selectedToken.chainId;
+      return t.address?.toLowerCase() === selectedToken.address?.toLowerCase() && t.chainId === selectedToken.chainId;
+    });
+
+    if (exists) return tokens;
+    return [...tokens, selectedToken];
+  }, [tokens, selectedToken]);
+
   // Gunakan hook untuk fetch balances
-  const { balances, isLoading: isBalancesLoading, fetchBalances } = useTokenBalances(tokens);
+  const { balances, isLoading: isBalancesLoading, fetchBalances } = useTokenBalances(tokensToFetch);
 
   // Trigger fetch balances saat tokens berubah atau wallet connect
   useEffect(() => {
@@ -648,8 +661,10 @@ export default function DonatePage() {
                         required
                         value={amount}
                         onChange={(e) => {
-                          const withoutSeparators = e.target.value.replace(/,/g, "");
-                          let normalized = withoutSeparators.replace(/[^0-9.]/g, "");
+                          // Replace comma with dot immediately for normalization
+                          let normalized = e.target.value.replace(/,/g, ".");
+                          // Remove anything that is not a number or a dot
+                          normalized = normalized.replace(/[^0-9.]/g, "");
                           normalized = normalized.replace(/\.(?=.*\.)/g, "");
                           normalized = clampDecimals(normalized);
                           if (normalized === "" || normalized === ".") {
@@ -660,7 +675,12 @@ export default function DonatePage() {
                           setRawAmount(normalized);
                           const num = parseFloat(normalized);
                           if (!Number.isNaN(num)) {
-                            setAmount(num.toLocaleString(undefined, { maximumFractionDigits: 4 }));
+                            // Only format with commas if the user isn't currently typing a decimal part
+                            if (normalized.includes('.')) {
+                              setAmount(normalized);
+                            } else {
+                              setAmount(num.toLocaleString(undefined, { maximumFractionDigits: 4 }));
+                            }
                           } else {
                             setAmount(normalized);
                           }
@@ -695,9 +715,10 @@ export default function DonatePage() {
                   <p className="text-xs text-slate-400">
                     Balance:{" "}
                     {(() => {
+                      const chainId = selectedToken.chainId || 5003;
                       const balanceKey = selectedToken.isNative
-                        ? `native-${selectedToken.chainId}`
-                        : `${selectedToken.chainId}-${selectedToken.address?.toLowerCase() || ""}`;
+                        ? `native-${chainId}`
+                        : `${chainId}-${selectedToken.address?.toLowerCase() || ""}`;
                       return balances[balanceKey] === undefined
                         ? "–"
                         : Number(balances[balanceKey] || 0).toLocaleString(undefined, {

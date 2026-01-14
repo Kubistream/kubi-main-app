@@ -116,10 +116,13 @@ export async function POST(
     const donationAddress = getDonationContractAddress(chainId).toLowerCase();
 
     // Read feeBps from contract to calculate original amount for bridged donations
-    const feeBpsContract = new ethers.Contract(donationAddress, donationContractAbi, fallbackProvider.getProvider());
-    const feeBps = await feeBpsContract.feeBps();
+    // Use execute to ensure we try multiple RPCs if one fails
+    const feeBps = await fallbackProvider.execute(async (provider) => {
+      const c = new ethers.Contract(donationAddress, donationContractAbi, provider);
+      return await c.feeBps();
+    });
 
-    console.log("📊 Contract feeBps:", feeBps.toString(), `(${Number(feeBps) / 100}%)`);
+    console.log("📊 Contract feeBps (Live):", feeBps.toString(), `(${Number(feeBps) / 100}%)`);
 
     // Calculate Topics - MUST match the smart contract exactly
     const donationTopic = ethers.id(
@@ -186,9 +189,12 @@ export async function POST(
     let amountOutVal: bigint;
     let feeVal: bigint;
 
+    let messageId: string | undefined;
+    let isBridged = false;
+
     try {
       if (parsed.name === "DonationBridged") {
-        const { donor, streamer, tokenBridged, amount } = parsed.args;
+        const { donor, streamer, tokenBridged, amount, messageId: msgId } = parsed.args;
 
         // For bridged donations, the event emits amount AFTER fee was deducted
         // We need to reverse calculate to get the original amountIn and fee
@@ -206,10 +212,14 @@ export async function POST(
         amountOutVal = amountAfterFee;   // ← Amount after fee (what was bridged)
         feeVal = calculatedFee;          // ← Calculated fee
 
+        messageId = msgId;
+        isBridged = true;
+
         console.log("🌉 Bridged Donation - Reverse Calculation:");
         console.log("   Amount After Fee (bridged):", amountAfterFee.toString());
         console.log("   Calculated Original Amount:", amountInOriginal.toString());
         console.log("   Calculated Fee:", calculatedFee.toString());
+        console.log("   Message ID:", messageId);
       } else {
         const { donor, streamer, tokenIn, amountIn, feeAmount, tokenOut, amountOutToStreamer } = parsed.args;
         donorAddress = ethers.getAddress(donor);
@@ -274,10 +284,67 @@ export async function POST(
 
     // 💵 Hitung nilai USD dan IDR
     const priceInUsd = TOKEN_PRICES_USD[tokenInAddress.toLowerCase()] || 0;
-    const priceOutUsd = TOKEN_PRICES_USD[tokenOutAddress.toLowerCase()] || 0;
+
+    // If bridged, override tokenOut to be USDC on Mantle (5003)
+    // The user expects to see "ETH -> USDC"
+    let finalTokenOutRecord = tokenOutRecord;
+    let finalTokenOutId = tokenOutRecord.id;
+
+    if (isBridged) {
+      const MANTLE_USDC_ADDRESS = "0xB288Ba5B5b80Dd0Fd83541ef2e5922f71121Fa13".toLowerCase();
+      const mantleUsdc = await prisma.token.findFirst({
+        where: {
+          chainId: 5003,
+          address: MANTLE_USDC_ADDRESS
+        }
+      });
+
+      if (mantleUsdc) {
+        console.log("🌉 Bridging detected: Overriding tokenOut to Mantle USDC");
+        finalTokenOutRecord = mantleUsdc;
+        finalTokenOutId = mantleUsdc.id;
+      } else {
+        console.warn("⚠️ Mantle USDC not found in DB, keeping original tokenOut");
+      }
+    }
+
+    const priceOutUsd = TOKEN_PRICES_USD[finalTokenOutRecord.address.toLowerCase()] || 0;
+
     // Use actual token decimals from database, not hardcoded 18
     const amountInFloat = parseFloat(ethers.formatUnits(amountIn, tokenInRecord.decimals));
-    const amountOutFloat = parseFloat(ethers.formatUnits(amountOutToStreamer, tokenOutRecord.decimals));
+    // For bridged, amountOutToStreamer is technically in ETH (bridged token), 
+    // but if we show USDC, we should probably show the ESTIMATED USDC amount?
+    // User flow: Donate ETH -> Receive USDC. 
+    // If we simply switch the tokenOut to USDC but keep the raw ETH amount (e.g. 0.01), it will look like 0.01 USDC (wrong).
+    // We should estimate the swap amount. 
+    // Since we don't have real-time swap data here, and this is for display, we can estimate based on USD value?
+    // amountOut (USDC) ≈ amountIn (ETH) * Price(ETH) / Price(USDC)
+
+    let finalAmountOutRaw = amountOutToStreamer.toString();
+
+    if (isBridged && finalTokenOutRecord.symbol === "USDC") {
+      // Estimate USDC amount preserving value (minus fees if we considered them)
+      // amountInUsd is calculated below.
+      // We can use the calculated USD value to determine USDC amount.
+
+      // Fix: Use amountOutToStreamer (which is net of fee) instead of amountInFloat (gross)
+      const amountOutFromSourceFloat = parseFloat(ethers.formatUnits(amountOutToStreamer, tokenInRecord.decimals));
+      const estimatedUsdValue = amountOutFromSourceFloat * priceInUsd;
+
+      // USDC has 18 decimals in this repo based on seed-tokens.ts? 
+      // Checking seed-tokens: USDC address ... decimals: 18.
+      // Wait, real USDC is 6, but seed says 18. trusting seed.
+      const usdcDecimals = finalTokenOutRecord.decimals;
+
+      // amountOut = UsdValue / UsdcPrice (usually $1)
+      const usdcPrice = TOKEN_PRICES_USD[finalTokenOutRecord.address.toLowerCase()] || 1;
+      const estimatedUsdcAmount = estimatedUsdValue / usdcPrice;
+
+      finalAmountOutRaw = ethers.parseUnits(estimatedUsdcAmount.toFixed(usdcDecimals), usdcDecimals).toString();
+      console.log(`💱 Estimated conversion: ${amountInFloat} ETH (~$${estimatedUsdValue}) -> ${estimatedUsdcAmount} USDC`);
+    }
+
+    const amountOutFloat = parseFloat(ethers.formatUnits(finalAmountOutRaw, finalTokenOutRecord.decimals));
     const amountInUsd = amountInFloat * priceInUsd;
     const amountOutUsd = amountOutFloat * priceOutUsd;
     const usdToIdr = 16000;
@@ -323,9 +390,9 @@ export async function POST(
         donorWallet: donorAddress,
         streamerId,
         tokenInId: tokenInRecord.id,
-        tokenOutId: tokenOutRecord.id,
+        tokenOutId: finalTokenOutId,
         amountInRaw: amountIn.toString(),
-        amountOutRaw: amountOutToStreamer.toString(),
+        amountOutRaw: finalAmountOutRaw,
         amountInUsd: new Prisma.Decimal(amountInUsd.toFixed(8)),
         amountOutUsd: new Prisma.Decimal(amountOutUsd.toFixed(8)),
         amountInIdr: new Prisma.Decimal(amountInIdr.toFixed(2)),
@@ -339,6 +406,8 @@ export async function POST(
         mediaType,
         mediaUrl,
         mediaDuration,
+        isBridged,
+        bridgeMessageId: messageId,
       },
     });
 
@@ -357,14 +426,14 @@ export async function POST(
       if (mediaType === "TEXT" && message) {
         const formattedAmount = parseFloat(ethers.formatUnits(amountIn, tokenInRecord.decimals)).toLocaleString('en-US', { maximumFractionDigits: 4 });
         const notificationMsg = generateDonationMessage(trimmedName || "Anonymous", formattedAmount, tokenInRecord.symbol);
-        
+
         try {
           console.log("[API] Generatin Notif TTS for:", notificationMsg);
           const notifAudio = await textToSpeechUrl(notificationMsg, "en");
           console.log(`[API] ✅ Notif TTS generated: ${notifAudio}`);
           sounds.push(notifAudio);
-        } catch (e: any) { 
-          console.log("❌ [API] TTS Notif failed:", e.message); 
+        } catch (e: any) {
+          console.log("❌ [API] TTS Notif failed:", e.message);
         }
 
         try {
@@ -372,8 +441,8 @@ export async function POST(
           const msgAudio = await textToSpeechUrl(message, "id");
           console.log(`[API] ✅ Message TTS generated: ${msgAudio}`);
           sounds.push(msgAudio);
-        } catch (e: any) { 
-          console.log("❌ [API] TTS Message failed:", e.message); 
+        } catch (e: any) {
+          console.log("❌ [API] TTS Message failed:", e.message);
         }
       }
     } catch (soundError: any) {

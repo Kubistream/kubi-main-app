@@ -14,13 +14,14 @@ export function getBrowserProvider(): BrowserProvider {
  * Get default RPC provider for the primary chain (client-side)
  * Uses fallback URL from rpc-config
  */
-export function getRpcProvider(): JsonRpcProvider {
+export function getRpcProvider(chainId: number = DEFAULT_CHAIN_ID): JsonRpcProvider {
+  // Use env override only if requesting the default chain
   const envUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL;
-  if (envUrl) {
+  if (envUrl && chainId === DEFAULT_CHAIN_ID) {
     return new JsonRpcProvider(envUrl);
   }
   // Fallback to first URL from config
-  const urls = getRpcUrls(DEFAULT_CHAIN_ID);
+  const urls = getRpcUrls(chainId);
   return new JsonRpcProvider(urls[0] || "https://sepolia.base.org");
 }
 

@@ -662,7 +662,7 @@ function PaymentSettingsForm({ disabled, loading, tokens, settings, onSave }: Pa
           if (!offers || offers.length === 0) continue; // Only check underlying with providers
           tasks.push(
             (async () => {
-              const res = await getStreamerYield(streamerAddress, t.address);
+              const res = await getStreamerYield(streamerAddress, t.address, t.chainId);
               next[String(t.id)] = res ?? null;
             })(),
           );

@@ -13,8 +13,8 @@ export async function getDonationContractWithSigner(): Promise<Contract> {
   return new Contract(getDonationContractAddress(chainId), DonationABI as any, signer);
 }
 
-export function getDonationContractReadOnly(): Contract {
-  const provider = getRpcProvider();
-  return new Contract(getDonationContractAddress(), DonationABI as any, provider);
+export function getDonationContractReadOnly(chainId?: number): Contract {
+  const provider = getRpcProvider(chainId);
+  return new Contract(getDonationContractAddress(chainId), DonationABI as any, provider);
 }
 

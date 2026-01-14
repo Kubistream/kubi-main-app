@@ -105,7 +105,7 @@ export function AutoYieldPositionsCard() {
           if (!offers || offers.length === 0) continue;
           tasks.push(
             (async () => {
-              const repAddr = await getStreamerYield(streamer, t.address);
+              const repAddr = await getStreamerYield(streamer, t.address, t.chainId);
               if (!repAddr) return;
               const match = offers.find((p) => p.representativeToken?.address?.toLowerCase() === repAddr.toLowerCase());
               if (match) {

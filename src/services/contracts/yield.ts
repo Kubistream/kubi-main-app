@@ -65,8 +65,8 @@ export async function setYieldConfig(params: {
 }
 
 // Read streamer subscription for a given underlying token
-export async function getStreamerYield(streamer: string, underlying: string): Promise<string | null> {
-  const contract = await getDonationContractReadOnly();
+export async function getStreamerYield(streamer: string, underlying: string, chainId: number = 5003): Promise<string | null> {
+  const contract = await getDonationContractReadOnly(chainId);
   try {
     const res: string = await contract.getStreamerYield(getAddress(streamer), getAddress(underlying));
     const addr = getAddress(res);
