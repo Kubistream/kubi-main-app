@@ -1,4 +1,5 @@
 export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
 import { LandingHero, LANDING_GUIDES_SECTION_ID } from "@/components/features/landing/landing-hero";
 import { LandingBenefits } from "@/components/features/landing/landing-benefits";
