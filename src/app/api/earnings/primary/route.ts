@@ -247,9 +247,9 @@ export async function GET(request: NextRequest) {
 
   const tokenRecords = tokenIds.size > 0
     ? await prisma.token.findMany({
-        where: { id: { in: Array.from(tokenIds) } },
-        select: { id: true, symbol: true, name: true, logoURI: true, decimals: true },
-      })
+      where: { id: { in: Array.from(tokenIds) } },
+      select: { id: true, symbol: true, name: true, logoURI: true, decimals: true },
+    })
     : [];
 
   const tokenMetaMap = new Map(
@@ -321,7 +321,6 @@ export async function GET(request: NextRequest) {
   }
 
   const tokenBreakdown: EarningsTokenSummary[] = sortedTokenAggregates
-    .filter((entry) => entry.tokenId !== primaryTokenId)
     .map((entry) => ({
       tokenId: entry.tokenId,
       symbol: entry.meta.symbol,
